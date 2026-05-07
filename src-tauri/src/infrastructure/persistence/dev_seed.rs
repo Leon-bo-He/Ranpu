@@ -10,7 +10,9 @@
 //! ```bash
 //! RANPU_DEV_SEED=1 cargo tauri dev --features dev-seed
 //! ```
-//! 二次启动幂等: 默认配方 upsert, 工作区按名跳过, 客户配方 upsert.
+//! 二次启动幂等: 默认配方 / 客户配方先按 internal_color_code 查存在,
+//! 已有就跳过 (repo.upsert 在 id=None 时走 INSERT, 直接 upsert 会撞
+//! UNIQUE 约束). 工作区按名跳过.
 //!
 //! 这些数据完全确定 (无随机种子), 同一次构建多次运行结果一致.
 //!
@@ -67,6 +69,14 @@ fn seed_defaults(
     let mut count = 0usize;
     for family in FAMILIES {
         for n in 1..=family.size {
+            let code = InternalColorCode::new(format!("{}-{:03}", family.prefix, n))
+                .expect("dev seed internal code valid");
+            // 二次启动: 已有同 internal_color_code 直接跳过, 别再 INSERT 撞
+            // UNIQUE. 不更新已存在条目 — 开发种子是固定测试数据, 没必要刷.
+            if repo.find_by_internal_code(&code)?.is_some() {
+                count += 1;
+                continue;
+            }
             let formula = build_default(family, n, now);
             repo.upsert(&formula)?;
             count += 1;
@@ -302,6 +312,15 @@ fn seed_customers(
         // 5..=20 条, 用客户序号确定具体数量.
         let count = 5 + (i * 7) % 16;
         for j in 1..=count {
+            let code = InternalColorCode::new(format!("WS{:02}-{:03}", i, j))
+                .expect("dev seed ws internal code valid");
+            // 二次启动: 已存在直接跳过 (同上, repo.upsert 不会找已有行).
+            if workspace_formula_repo
+                .find_by_internal_code(workspace_id, &code)?
+                .is_some()
+            {
+                continue;
+            }
             let formula = build_workspace_formula(i, j, workspace_id, now);
             workspace_formula_repo.upsert(&formula)?;
         }
