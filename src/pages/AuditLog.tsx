@@ -1,5 +1,5 @@
 import { save } from '@tauri-apps/plugin-dialog';
-import { Download } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { auditApi } from '@/api/audit';
@@ -69,7 +69,7 @@ export function AuditLogPage() {
       <div className="flex items-center justify-between">
         <h2 className="font-serif text-xl tracking-[2px]">审计日志</h2>
         <Button onClick={() => setExportOpen(true)}>
-          <Download className="mr-1 h-4 w-4" /> 导出
+          <Upload className="mr-1 h-4 w-4" /> 导出
         </Button>
       </div>
 
