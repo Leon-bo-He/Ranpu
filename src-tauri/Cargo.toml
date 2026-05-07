@@ -1,0 +1,35 @@
+[package]
+name = "ranpu"
+version = "0.1.0"
+description = "染谱 Ranpu — 离线染纱配色软件"
+authors = ["Bo He"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "ranpu_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri 运行时
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+
+# 序列化
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# 注：以下依赖按 PROMPT 的特性分支顺序在后续提交中引入：
+# - feat/domain-layer:        chrono、thiserror、uuid
+# - feat/infra-persistence:   rusqlite (features = ["bundled-sqlcipher-vendored-openssl", "chrono"])
+# - feat/infra-crypto:        argon2、aes-gcm、pbkdf2、rand、cfg(windows) windows crate
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

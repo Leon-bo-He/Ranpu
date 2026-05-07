@@ -6,6 +6,7 @@ dist/
 dist-ssr/
 target/
 src-tauri/target/
+src-tauri/gen/
 *.tsbuildinfo
 
 # 本地数据 / 密钥
