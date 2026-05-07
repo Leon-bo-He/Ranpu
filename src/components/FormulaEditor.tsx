@@ -139,6 +139,15 @@ export function FormulaEditor({
           <Field label="颜色俗称">
             <Input value={colorName} onChange={(e) => setColorName(e.target.value)} />
           </Field>
+          <Field label="浴比 1:N">
+            <Input
+              type="number"
+              min={0.1}
+              step={0.1}
+              value={ratio}
+              onChange={(e) => setRatio(e.target.value)}
+            />
+          </Field>
           <Field label="基础重量 (kg)" hint="首次调色时所用的重量，仅作记录参考">
             <Input
               type="number"
@@ -147,15 +156,6 @@ export function FormulaEditor({
               step={0.01}
               value={baseKg}
               onChange={(e) => setBaseKg(e.target.value)}
-            />
-          </Field>
-          <Field label="浴比 1:N">
-            <Input
-              type="number"
-              min={0.1}
-              step={0.1}
-              value={ratio}
-              onChange={(e) => setRatio(e.target.value)}
             />
           </Field>
         </div>
