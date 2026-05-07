@@ -56,7 +56,7 @@ export function CalculatorPage() {
   const [cartBusy, setCartBusy] = useState(false);
   const [cartMsg, setCartMsg] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<CustomerCodeMatchView[] | null>(null);
-  // 命中已存在条目时的确认对话框上下文：existingKg 是当前购物车里的 kg。
+  // 命中已存在条目时的确认对话框上下文：existingKg 是当前批次清单里的 kg。
   const [conflict, setConflict] = useState<{
     sourceKind: 'workspace' | 'default';
     formulaId: number;
@@ -131,7 +131,7 @@ export function CalculatorPage() {
     setCartBusy(true);
     setError(null);
     setCartMsg(null);
-    // 加车前先看购物车里有没有同 (source_kind, formula_id)
+    // 加进清单前先看批次清单里有没有同 (source_kind, formula_id)
     try {
       const cart = await cartApi.list();
       const existing = cart.find(
@@ -150,7 +150,7 @@ export function CalculatorPage() {
       }
       // 没冲突 → 直接加
       await cartApi.add(sourceKind, formulaId, addKg);
-      setCartMsg(`已加入购物车：${internalCode} · ${addKg.toFixed(2)} kg`);
+      setCartMsg(`已加入批次清单：${internalCode} · ${addKg.toFixed(2)} kg`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
     } finally {
@@ -169,7 +169,7 @@ export function CalculatorPage() {
         const sum = Math.min(existingKg + addKg, 99999.99);
         await cartApi.updateKg(sourceKind, formulaId, sum);
         setCartMsg(
-          `已累加到购物车：${internalCode} · ${existingKg.toFixed(2)} + ${addKg.toFixed(
+          `已累加到批次清单：${internalCode} · ${existingKg.toFixed(2)} + ${addKg.toFixed(
             2,
           )} = ${sum.toFixed(2)} kg`,
         );
@@ -177,7 +177,7 @@ export function CalculatorPage() {
         // 替换为新的 kg：直接复用 add（后端 add 即 add_or_update，命中 → 覆盖 kg）。
         await cartApi.add(sourceKind, formulaId, addKg);
         setCartMsg(
-          `已覆盖购物车 kg：${internalCode} · ${existingKg.toFixed(2)} → ${addKg.toFixed(
+          `已覆盖批次清单 kg：${internalCode} · ${existingKg.toFixed(2)} → ${addKg.toFixed(
             2,
           )} kg`,
         );
@@ -298,7 +298,7 @@ export function CalculatorPage() {
                 title={
                   result.formula_id === null
                     ? '当前结果没有关联配方 ID，无法加车'
-                    : '加入购物车'
+                    : '加入批次清单'
                 }
               >
                 {cartBusy ? (
@@ -306,7 +306,7 @@ export function CalculatorPage() {
                 ) : (
                   <ShoppingCart className="mr-1 h-4 w-4" />
                 )}
-                加入购物车
+                加入批次清单
               </Button>
             </div>
             {/* 永远占位 min-h-5, 防止消息出现/消失导致 CardHeader 高度跳动 */}
@@ -352,12 +352,12 @@ export function CalculatorPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>购物车里已有这条配方</DialogTitle>
+            <DialogTitle>批次清单里已有这条配方</DialogTitle>
             <DialogDescription>
               {conflict && (
                 <>
                   <span className="font-mono">{conflict.internalCode}</span>{' '}
-                  当前购物车记录{' '}
+                  当前批次清单记录{' '}
                   <span className="font-mono">{conflict.existingKg.toFixed(2)}</span>{' '}
                   kg，本次想加的是{' '}
                   <span className="font-mono">{conflict.addKg.toFixed(2)}</span> kg。
@@ -369,7 +369,7 @@ export function CalculatorPage() {
             选择处理方式：
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
               <li>
-                · 累加：把这次的 kg 加到购物车现有 kg 上（
+                · 累加：把这次的 kg 加到批次清单现有 kg 上（
                 {conflict
                   ? `${conflict.existingKg.toFixed(2)} + ${conflict.addKg.toFixed(2)} = ${Math.min(
                       conflict.existingKg + conflict.addKg,
@@ -379,7 +379,7 @@ export function CalculatorPage() {
                 ）
               </li>
               <li>
-                · 覆盖：用本次的 kg 直接替换掉购物车里的 kg（
+                · 覆盖：用本次的 kg 直接替换掉批次清单里的 kg（
                 {conflict ? `${conflict.addKg.toFixed(2)} kg` : ''}）
               </li>
             </ul>

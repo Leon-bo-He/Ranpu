@@ -41,7 +41,7 @@ export function CartPage() {
       .catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
   };
 
-  // 切换工作区时同步刷新购物车与名称缓存。
+  // 切换工作区时同步刷新批次清单与名称缓存。
   useEffect(() => {
     load();
     if (activeWorkspaceId !== null) {
@@ -61,7 +61,7 @@ export function CartPage() {
   if (!hasWs) {
     return (
       <p className="p-6 text-sm text-muted-foreground">
-        请先在顶栏选择一个工作区，购物车按工作区维护。
+        请先在顶栏选择一个工作区，批次清单按工作区维护。
       </p>
     );
   }
@@ -121,7 +121,7 @@ export function CartPage() {
   return (
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-serif text-xl tracking-[2px]">购物车</h2>
+        <h2 className="font-serif text-xl tracking-[2px]">批次清单</h2>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => onExport('csv')}>
             <Download className="mr-1 h-4 w-4" /> 导出 CSV
@@ -146,7 +146,7 @@ export function CartPage() {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {lines.length === 0 ? (
-        <p className="text-sm text-muted-foreground">购物车为空。</p>
+        <p className="text-sm text-muted-foreground">批次清单为空。</p>
       ) : (
         <Table>
           <TableHeader>
@@ -224,10 +224,10 @@ export function CartPage() {
       <ConfirmDialog
         open={askClear}
         onClose={() => setAskClear(false)}
-        title="清空购物车？"
+        title="清空批次清单？"
         description={
           <>
-            将移除当前工作区购物车里的全部 {lines.length} 条配方记录，
+            将移除当前工作区批次清单里的全部 {lines.length} 条配方记录，
             操作不可撤销。被引用的配方本身不会被删除。
           </>
         }

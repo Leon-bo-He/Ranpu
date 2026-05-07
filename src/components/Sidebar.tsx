@@ -42,7 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     to: '/cart',
-    label: '购物车',
+    label: '批次清单',
     icon: ShoppingCart,
     needsActiveWorkspace: true,
   },

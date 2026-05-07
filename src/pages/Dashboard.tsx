@@ -29,7 +29,7 @@ export function DashboardPage() {
       <h2 className="font-serif text-2xl tracking-[2px]">主面板</h2>
       {!hasWs && (
         <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          当前未选择工作区。配方编辑、染料计算与购物车都需要先在顶栏选一个工作区。
+          当前未选择工作区。配方编辑、染料计算与批次清单都需要先在顶栏选一个工作区。
         </p>
       )}
 
@@ -54,8 +54,8 @@ export function DashboardPage() {
         />
         <NavCard
           to="/cart"
-          title="购物车"
-          desc="批次的配方与计算结果汇总"
+          title="批次清单"
+          desc="本次染浴的配方与计算结果汇总"
           icon={<ShoppingCart className="h-5 w-5" />}
         />
         {admin && (

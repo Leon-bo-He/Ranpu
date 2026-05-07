@@ -121,7 +121,7 @@ export function WorkspaceManagementPage() {
             <>
               将永久删除工作区{' '}
               <span className="font-mono">{pendingDelete.name}</span>{' '}
-              及其下<strong>所有配方</strong>与<strong>购物车记录</strong>，
+              及其下<strong>所有配方</strong>与<strong>批次清单记录</strong>，
               操作不可撤销。审计日志会保留。
             </>
           )
