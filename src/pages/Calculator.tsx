@@ -200,9 +200,9 @@ export function CalculatorPage() {
           <CardTitle className="flex items-center gap-2 text-base">
             <CalcIcon className="h-5 w-5" /> 输入色号与目标重量
           </CardTitle>
-          <CardDescription>
-            内部色号：先在当前工作区查询，找不到再 fallback 到默认库。
-            客户色号：跨当前工作区与默认库找匹配，多条候选时让你挑。
+          <CardDescription className="space-y-1">
+            <div>内部色号：先在当前工作区查询，找不到再重定向到默认库。</div>
+            <div>客户色号：跨当前工作区与默认库找匹配，多条候选时让你挑。</div>
           </CardDescription>
         </CardHeader>
         <CardContent>
