@@ -82,6 +82,21 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
         &default_repo_dyn,
         chrono::Utc::now(),
     )?;
+
+    // 开发种子: 仅在编译期开启 dev-seed feature 且运行期 RANPU_DEV_SEED=1
+    // 时才跑. release / tauri build 默认不开 feature → 整段不会编进生产端.
+    #[cfg(feature = "dev-seed")]
+    {
+        if std::env::var("RANPU_DEV_SEED").as_deref() == Ok("1") {
+            crate::infrastructure::persistence::dev_seed::run(
+                &workspace_repo_dyn,
+                &default_repo_dyn,
+                &workspace_formula_repo_dyn,
+                chrono::Utc::now(),
+            )?;
+        }
+    }
+
     // 每次启动都跑一次系统镜像同步: 第一次创建 "通用" 工作区 + 后续自愈漂移.
     seed::ensure_system_mirror(
         &workspace_repo_dyn,

@@ -10,6 +10,13 @@ rust-version = "1.77"
 name = "ranpu_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# 开发种子 (255 默认配方 + 20 客户工作区 × 5-20 配方).
+# 默认关闭, tauri build / cargo build --release 不会带上 → 不会进生产端.
+# 用法: RANPU_DEV_SEED=1 cargo tauri dev --features dev-seed
+default = []
+dev-seed = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
