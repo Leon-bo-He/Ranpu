@@ -139,7 +139,7 @@ export function FormulaEditor({
           <Field label="颜色俗称">
             <Input value={colorName} onChange={(e) => setColorName(e.target.value)} />
           </Field>
-          <Field label="基础重量 (kg)">
+          <Field label="基础重量 (kg)" hint="首次调色时所用的重量，仅作记录参考">
             <Input
               type="number"
               min={0.01}
@@ -274,10 +274,12 @@ function blankItem(sort: number): FormulaItemDto {
 function Field({
   label,
   required,
+  hint,
   children,
 }: {
   label: string;
   required?: boolean;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -287,6 +289,7 @@ function Field({
         {required && <span className="ml-1 text-destructive">*</span>}
       </Label>
       {children}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
