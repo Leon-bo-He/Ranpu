@@ -1,0 +1,255 @@
+import { save } from '@tauri-apps/plugin-dialog';
+import { Download } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { auditApi } from '@/api/audit';
+import { ApiError } from '@/api/invoke';
+import type { AuditEventView } from '@/api/types';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { formatDateTime } from '@/lib/format';
+import { useSessionStore } from '@/store/session';
+
+export function AuditLogPage() {
+  const session = useSessionStore((s) => s.session);
+  const [events, setEvents] = useState<AuditEventView[]>([]);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [exportOpen, setExportOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => {
+    auditApi
+      .list({
+        from: from ? new Date(from).toISOString() : undefined,
+        to: to ? new Date(to).toISOString() : undefined,
+        limit: 500,
+      })
+      .then(setEvents)
+      .catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (session?.role !== 'admin') {
+    return (
+      <p className="p-6 text-sm text-muted-foreground">只有管理员能查看审计日志。</p>
+    );
+  }
+
+  return (
+    <div className="space-y-4 p-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-serif text-xl tracking-[2px]">审计日志</h2>
+        <Button onClick={() => setExportOpen(true)}>
+          <Download className="mr-1 h-4 w-4" /> 导出
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="grid gap-1">
+          <Label className="text-xs">起始日期</Label>
+          <Input
+            type="date"
+            className="w-40"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label className="text-xs">截止日期</Label>
+          <Input
+            type="date"
+            className="w-40"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </div>
+        <Button variant="outline" onClick={load}>
+          筛选
+        </Button>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>时间</TableHead>
+            <TableHead>用户</TableHead>
+            <TableHead>工作区</TableHead>
+            <TableHead>动作</TableHead>
+            <TableHead>对象</TableHead>
+            <TableHead>详情</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {events.map((e) => (
+            <TableRow key={e.id}>
+              <TableCell className="whitespace-nowrap">
+                {formatDateTime(e.occurred_at)}
+              </TableCell>
+              <TableCell>{e.user_id ?? '—'}</TableCell>
+              <TableCell>{e.workspace_context_id ?? '—'}</TableCell>
+              <TableCell className="font-mono text-xs">{e.action}</TableCell>
+              <TableCell className="max-w-[180px] truncate">
+                {e.target ?? '—'}
+              </TableCell>
+              <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">
+                {e.details ?? '—'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <ExportDialog
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        defaultFrom={from}
+        defaultTo={to}
+      />
+    </div>
+  );
+}
+
+function ExportDialog({
+  open,
+  onClose,
+  defaultFrom,
+  defaultTo,
+}: {
+  open: boolean;
+  onClose: () => void;
+  defaultFrom: string;
+  defaultTo: string;
+}) {
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
+  const [format, setFormat] = useState<'encrypted' | 'csv'>('encrypted');
+  const [passphrase, setPassphrase] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFrom(defaultFrom);
+    setTo(defaultTo);
+  }, [defaultFrom, defaultTo, open]);
+
+  const submit = async () => {
+    setError(null);
+    if (!from || !to) {
+      setError('起止日期都必填');
+      return;
+    }
+    if (format === 'encrypted' && passphrase.length < 8) {
+      setError('加密导出需要至少 8 位口令');
+      return;
+    }
+    if (format === 'csv') {
+      const ok = window.confirm('日志包含敏感操作记录，确定明文导出？');
+      if (!ok) return;
+    }
+    const ext = format === 'csv' ? 'csv' : 'ydaexp';
+    const out = await save({
+      defaultPath: `审计日志-${from}-${to}.${ext}`,
+      filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+    });
+    if (!out) return;
+    setBusy(true);
+    try {
+      await auditApi.export({
+        from: new Date(from).toISOString(),
+        to: new Date(to + 'T23:59:59').toISOString(),
+        format,
+        passphrase: format === 'encrypted' ? passphrase : undefined,
+        out_path: out,
+      });
+      onClose();
+      alert('已导出');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>导出审计日志</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-1">
+            <Label>起始日期</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div className="grid gap-1">
+            <Label>截止日期</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+        </div>
+        <div className="grid gap-1">
+          <Label>导出格式</Label>
+          <Select value={format} onValueChange={(v) => setFormat(v as 'encrypted' | 'csv')}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="encrypted">加密 .ydaexp（推荐）</SelectItem>
+              <SelectItem value="csv">明文 CSV</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {format === 'encrypted' && (
+          <div className="grid gap-1">
+            <Label>导出口令（≥ 8 位，与登录密码独立）</Label>
+            <Input
+              type="password"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+            />
+          </div>
+        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            取消
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy ? '导出中…' : '导出'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default AuditLogPage;

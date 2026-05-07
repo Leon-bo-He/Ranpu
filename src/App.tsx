@@ -7,6 +7,8 @@ import { ApiError } from '@/api/invoke';
 import { IdleDetector } from '@/components/IdleDetector';
 import { LockOverlay } from '@/components/LockOverlay';
 import { TopBar } from '@/components/TopBar';
+import { AboutPage } from '@/pages/About';
+import { AuditLogPage } from '@/pages/AuditLog';
 import { BootScreen } from '@/pages/BootScreen';
 import { CalculatorPage } from '@/pages/Calculator';
 import { CartPage } from '@/pages/Cart';
@@ -17,6 +19,7 @@ import { LoginPage } from '@/pages/Login';
 import { SettingsPage } from '@/pages/Settings';
 import { UserManagementPage } from '@/pages/UserManagement';
 import { WorkspaceFormulasPage } from '@/pages/WorkspaceFormulas';
+import { WorkspaceManagementPage } from '@/pages/WorkspaceManagement';
 import { useSessionStore } from '@/store/session';
 
 type GateState =
@@ -106,7 +109,10 @@ function App() {
           <Route path="/workspace-formulas" element={<WorkspaceFormulasPage />} />
           <Route path="/calculator" element={<CalculatorPage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/workspaces" element={<WorkspaceManagementPage />} />
           <Route path="/users" element={<UserManagementPage />} />
+          <Route path="/audit" element={<AuditLogPage />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
