@@ -1,6 +1,35 @@
+# 依赖
 node_modules/
-target/
+
+# 构建产物
 dist/
+dist-ssr/
+target/
+src-tauri/target/
+*.tsbuildinfo
+
+# 本地数据 / 密钥
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 keystore.bin
+
+# 加密备份导出件（默认不入库；如有示例需要单独 git add -f）
+*.ydaexp
+
+# 系统/编辑器
 .DS_Store
+Thumbs.db
+*.log
+*.local
+
+# 编辑器/IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# Claude Code 本地状态
+.claude/
