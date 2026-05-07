@@ -1,4 +1,4 @@
-import { CheckSquare, Loader2, Lock, Plus, Search, Square } from 'lucide-react';
+import { Loader2, Lock, Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { formulaApi } from '@/api/formula';
@@ -8,7 +8,6 @@ import { workspaceApi } from '@/api/workspace';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FormulaCard } from '@/components/FormulaCard';
 import { FormulaEditor } from '@/components/FormulaEditor';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { hasActiveWorkspace, isAdmin, useSessionStore } from '@/store/session';
@@ -29,8 +28,6 @@ export function WorkspaceFormulasPage() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView | null>(null);
   const isSystemMirror = activeWorkspace?.kind === 'system_mirror';
   const canEdit = admin && !isSystemMirror;
-  const selectionEnabled = canEdit;
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const load = () => {
     if (!hasWs) {
@@ -41,13 +38,7 @@ export function WorkspaceFormulasPage() {
     setLoading(true);
     return formulaApi
       .listWorkspace({ keyword })
-      .then((data) => {
-        setList(data);
-        setSelectedIds((prev) => {
-          const allIds = new Set(data.map((f) => f.id));
-          return new Set([...prev].filter((id) => allIds.has(id)));
-        });
-      })
+      .then(setList)
       .catch((e) => setError(e instanceof ApiError ? e.message : String(e)))
       .finally(() => setLoading(false));
   };
@@ -66,10 +57,6 @@ export function WorkspaceFormulasPage() {
       .list()
       .then((all) => setActiveWorkspace(all.find((w) => w.id === activeWorkspaceId) ?? null))
       .catch(() => setActiveWorkspace(null));
-  }, [activeWorkspaceId]);
-
-  useEffect(() => {
-    setSelectedIds(new Set());
   }, [activeWorkspaceId]);
 
   if (!hasWs) {
@@ -100,21 +87,6 @@ export function WorkspaceFormulasPage() {
     load();
   };
 
-  const onToggleSelected = (formula: FormulaView, next: boolean) => {
-    setSelectedIds((prev) => {
-      const out = new Set(prev);
-      if (next) out.add(formula.id);
-      else out.delete(formula.id);
-      return out;
-    });
-  };
-
-  const allSelected = list.length > 0 && list.every((f) => selectedIds.has(f.id));
-  const onToggleSelectAll = () => {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(list.map((f) => f.id)));
-  };
-
   return (
     <div className="space-y-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -127,21 +99,6 @@ export function WorkspaceFormulasPage() {
           )}
         </h2>
         <div className="flex flex-wrap items-center gap-2">
-          {selectionEnabled && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onToggleSelectAll}
-              disabled={list.length === 0}
-            >
-              {allSelected ? (
-                <CheckSquare className="mr-1 h-4 w-4" />
-              ) : (
-                <Square className="mr-1 h-4 w-4" />
-              )}
-              {allSelected ? '取消全选' : '全选当前页'}
-            </Button>
-          )}
           {canEdit && (
             <Button
               onClick={() => {
@@ -182,12 +139,6 @@ export function WorkspaceFormulasPage() {
         </Button>
       </div>
 
-      {selectionEnabled && selectedIds.size > 0 && (
-        <p className="text-xs text-muted-foreground">
-          已选 <Badge variant="default">{selectedIds.size}</Badge> 条配方
-        </p>
-      )}
-
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {loading && list.length === 0 ? (
@@ -215,8 +166,6 @@ export function WorkspaceFormulasPage() {
                   : undefined
               }
               onDelete={canEdit ? askDelete : undefined}
-              selected={selectionEnabled ? selectedIds.has(f.id) : undefined}
-              onToggleSelected={selectionEnabled ? onToggleSelected : undefined}
             />
           ))}
         </div>
