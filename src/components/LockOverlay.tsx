@@ -36,6 +36,19 @@ export function LockOverlay() {
     }
   };
 
+  const onSwitchUser = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await identityApi.logout();
+    } catch {
+      // 即使后端 logout 出错, 前端也强制清 session 让用户能回登录页.
+    } finally {
+      clearSession();
+      setBusy(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-[1000] flex flex-col items-center justify-center backdrop-blur-md"
@@ -68,6 +81,14 @@ export function LockOverlay() {
             {busy ? '正在解锁…' : '解锁'}
           </Button>
         </form>
+        <button
+          type="button"
+          onClick={onSwitchUser}
+          disabled={busy}
+          className="mt-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-50"
+        >
+          不是这个账号？切换用户
+        </button>
       </div>
     </div>
   );
