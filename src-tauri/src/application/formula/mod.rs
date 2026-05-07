@@ -9,6 +9,7 @@ mod list_workspace_formulas;
 pub mod parse;
 mod preview_archive;
 pub mod service;
+mod system_mirror;
 mod upsert_default_formula;
 mod upsert_workspace_formula;
 mod wire;

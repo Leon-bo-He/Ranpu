@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS workspaces (
     name                TEXT NOT NULL UNIQUE,
     description         TEXT,
     created_by_user_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at          TEXT NOT NULL
+    created_at          TEXT NOT NULL,
+    kind                TEXT NOT NULL DEFAULT 'normal' CHECK(kind IN ('normal','system_mirror'))
 );
 
 -- ---------- 默认配方库 ----------

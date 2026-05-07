@@ -1,9 +1,10 @@
-import { CheckSquare, Loader2, Plus, Search, Square } from 'lucide-react';
+import { CheckSquare, Loader2, Lock, Plus, Search, Square } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
-import type { FormulaView } from '@/api/types';
+import type { FormulaView, WorkspaceView } from '@/api/types';
+import { workspaceApi } from '@/api/workspace';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FormulaCard } from '@/components/FormulaCard';
 import { FormulaEditor } from '@/components/FormulaEditor';
@@ -25,8 +26,10 @@ export function WorkspaceFormulasPage() {
   const [editing, setEditing] = useState<FormulaView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<FormulaView | null>(null);
-
-  const selectionEnabled = admin;
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView | null>(null);
+  const isSystemMirror = activeWorkspace?.kind === 'system_mirror';
+  const canEdit = admin && !isSystemMirror;
+  const selectionEnabled = canEdit;
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const load = () => {
@@ -52,6 +55,17 @@ export function WorkspaceFormulasPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      setActiveWorkspace(null);
+      return;
+    }
+    workspaceApi
+      .list()
+      .then((all) => setActiveWorkspace(all.find((w) => w.id === activeWorkspaceId) ?? null))
+      .catch(() => setActiveWorkspace(null));
   }, [activeWorkspaceId]);
 
   useEffect(() => {
@@ -104,7 +118,14 @@ export function WorkspaceFormulasPage() {
   return (
     <div className="space-y-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-serif text-xl tracking-[2px]">工作区配方</h2>
+        <h2 className="font-serif text-xl tracking-[2px]">
+          工作区配方
+          {activeWorkspace && (
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              · {activeWorkspace.name}
+            </span>
+          )}
+        </h2>
         <div className="flex flex-wrap items-center gap-2">
           {selectionEnabled && (
             <Button
@@ -121,7 +142,7 @@ export function WorkspaceFormulasPage() {
               {allSelected ? '取消全选' : '全选当前页'}
             </Button>
           )}
-          {admin && (
+          {canEdit && (
             <Button
               onClick={() => {
                 setEditing(null);
@@ -133,6 +154,17 @@ export function WorkspaceFormulasPage() {
           )}
         </div>
       </div>
+
+      {isSystemMirror && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <Lock className="mt-0.5 h-4 w-4" />
+          <p>
+            「{activeWorkspace?.name}」 是系统内置工作区, 配方与
+            <strong className="mx-1">默认配方库</strong>
+            自动同步, 无法在此处直接新建 / 编辑 / 删除。如需修改, 请到默认配方库页面操作。
+          </p>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 max-w-md">
         <div className="relative flex-1">
@@ -172,17 +204,17 @@ export function WorkspaceFormulasPage() {
               key={f.id}
               formula={f}
               source="workspace"
-              canManage={admin}
+              canManage={canEdit}
               hasActiveWorkspace={hasWs}
               onEdit={
-                admin
+                canEdit
                   ? (f) => {
                       setEditing(f);
                       setEditorOpen(true);
                     }
                   : undefined
               }
-              onDelete={admin ? askDelete : undefined}
+              onDelete={canEdit ? askDelete : undefined}
               selected={selectionEnabled ? selectedIds.has(f.id) : undefined}
               onToggleSelected={selectionEnabled ? onToggleSelected : undefined}
             />

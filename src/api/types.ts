@@ -23,11 +23,14 @@ export interface UserView {
   last_login: string | null;
 }
 
+export type WorkspaceKind = 'normal' | 'system_mirror';
+
 export interface WorkspaceView {
   id: number;
   name: string;
   description: string | null;
   created_at: string;
+  kind: WorkspaceKind;
 }
 
 export interface FormulaItemView {

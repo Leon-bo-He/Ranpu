@@ -1,9 +1,41 @@
 use std::fmt;
+use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 
 use crate::domain::shared::errors::{DomainError, DomainResult};
 use crate::domain::shared::id::{UserId, WorkspaceId};
+
+/// 工作区类型。
+///
+/// - `Normal`: 用户/admin 创建的常规工作区, 配方可自由增删改.
+/// - `SystemMirror`: 系统内置 "通用" 工作区, 配方与默认配方库一一同步,
+///   不可在此工作区内直接增删改, 工作区本身也不能改名 / 删除.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WorkspaceKind {
+    Normal,
+    SystemMirror,
+}
+
+impl WorkspaceKind {
+    pub const fn as_db_str(self) -> &'static str {
+        match self {
+            WorkspaceKind::Normal => "normal",
+            WorkspaceKind::SystemMirror => "system_mirror",
+        }
+    }
+}
+
+impl FromStr for WorkspaceKind {
+    type Err = DomainError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "normal" => Ok(WorkspaceKind::Normal),
+            "system_mirror" => Ok(WorkspaceKind::SystemMirror),
+            other => Err(DomainError::UnknownUnit(other.to_owned())),
+        }
+    }
+}
 
 /// 工作区名称值对象：1-64 字符。
 ///
@@ -47,16 +79,33 @@ pub struct Workspace {
     description: Option<String>,
     created_by_user_id: Option<UserId>,
     created_at: DateTime<Utc>,
+    kind: WorkspaceKind,
 }
 
 impl Workspace {
-    /// 构造一个尚未持久化的 Workspace。
+    /// 构造一个尚未持久化的 Workspace（默认 `Normal` 类型）。
     /// `created_by_user_id` 允许 None：seed/系统初始化时没有用户。
     pub fn new(
         name: WorkspaceName,
         description: Option<String>,
         created_by_user_id: Option<UserId>,
         created_at: DateTime<Utc>,
+    ) -> DomainResult<Self> {
+        Self::new_with_kind(
+            name,
+            description,
+            created_by_user_id,
+            created_at,
+            WorkspaceKind::Normal,
+        )
+    }
+
+    pub fn new_with_kind(
+        name: WorkspaceName,
+        description: Option<String>,
+        created_by_user_id: Option<UserId>,
+        created_at: DateTime<Utc>,
+        kind: WorkspaceKind,
     ) -> DomainResult<Self> {
         let description = normalize_description(description)?;
         Ok(Self {
@@ -65,6 +114,7 @@ impl Workspace {
             description,
             created_by_user_id,
             created_at,
+            kind,
         })
     }
 
@@ -75,12 +125,31 @@ impl Workspace {
         created_by_user_id: Option<UserId>,
         created_at: DateTime<Utc>,
     ) -> Self {
+        Self::rehydrate_with_kind(
+            id,
+            name,
+            description,
+            created_by_user_id,
+            created_at,
+            WorkspaceKind::Normal,
+        )
+    }
+
+    pub fn rehydrate_with_kind(
+        id: WorkspaceId,
+        name: WorkspaceName,
+        description: Option<String>,
+        created_by_user_id: Option<UserId>,
+        created_at: DateTime<Utc>,
+        kind: WorkspaceKind,
+    ) -> Self {
         Self {
             id: Some(id),
             name,
             description,
             created_by_user_id,
             created_at,
+            kind,
         }
     }
 
@@ -102,6 +171,14 @@ impl Workspace {
 
     pub fn created_at(&self) -> DateTime<Utc> {
         self.created_at
+    }
+
+    pub fn kind(&self) -> WorkspaceKind {
+        self.kind
+    }
+
+    pub fn is_system_mirror(&self) -> bool {
+        self.kind == WorkspaceKind::SystemMirror
     }
 
     pub fn assign_id(&mut self, id: WorkspaceId) {

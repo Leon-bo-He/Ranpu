@@ -33,6 +33,7 @@ impl SqliteConnection {
         conn.pragma_update(None, "journal_mode", "WAL")
             .map_err(map_err)?;
         conn.execute_batch(SCHEMA_SQL).map_err(map_err)?;
+        run_migrations(&conn).map_err(map_err)?;
 
         Ok(Self {
             inner: Arc::new(Mutex::new(conn)),
@@ -46,6 +47,7 @@ impl SqliteConnection {
         conn.pragma_update(None, "foreign_keys", "ON")
             .map_err(map_err)?;
         conn.execute_batch(SCHEMA_SQL).map_err(map_err)?;
+        run_migrations(&conn).map_err(map_err)?;
         Ok(Self {
             inner: Arc::new(Mutex::new(conn)),
         })
@@ -73,6 +75,31 @@ impl SqliteConnection {
     pub fn arc(&self) -> Arc<Mutex<Connection>> {
         self.inner.clone()
     }
+}
+
+/// 增量迁移: 升级老版本 DB 的 schema (CREATE TABLE IF NOT EXISTS 不会动已存在的表).
+///
+/// 全部用 PRAGMA table_info 探测列是否存在; 不存在就 ALTER TABLE ADD COLUMN.
+/// 必须幂等, 启动每次都跑.
+fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
+    if !column_exists(conn, "workspaces", "kind")? {
+        conn.execute_batch(
+            "ALTER TABLE workspaces ADD COLUMN kind TEXT NOT NULL DEFAULT 'normal'",
+        )?;
+    }
+    Ok(())
+}
+
+fn column_exists(conn: &Connection, table: &str, column: &str) -> rusqlite::Result<bool> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(1)?;
+        if name == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub(crate) fn map_err(e: rusqlite::Error) -> RepositoryError {

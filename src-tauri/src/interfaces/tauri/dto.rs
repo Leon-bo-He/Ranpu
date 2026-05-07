@@ -137,6 +137,8 @@ pub struct WorkspaceView {
     pub name: String,
     pub description: Option<String>,
     pub created_at: DateTime<Utc>,
+    /// "normal" | "system_mirror"
+    pub kind: String,
 }
 
 impl From<&Workspace> for WorkspaceView {
@@ -146,6 +148,7 @@ impl From<&Workspace> for WorkspaceView {
             name: w.name().as_str().to_owned(),
             description: w.description().map(str::to_owned),
             created_at: w.created_at(),
+            kind: w.kind().as_db_str().to_owned(),
         }
     }
 }

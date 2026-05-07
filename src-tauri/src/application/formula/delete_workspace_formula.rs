@@ -8,6 +8,7 @@ impl FormulaService {
     pub fn delete_workspace_formula(&self, id: FormulaId) -> AppResult<()> {
         let snap = ensure_admin(&*self.session_store)?;
         let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        self.reject_if_system_mirror(workspace_id)?;
         self.workspace_repo.delete(workspace_id, id)?;
         let event = AuditEvent::new(
             Some(snap.user_id()),
