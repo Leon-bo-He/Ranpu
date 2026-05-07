@@ -60,10 +60,15 @@ function App() {
   }, []);
 
   // 当 session 变化时同步 gate
+  // 拿到 session（登录 / FirstRunSetup 完成）→ 进 app；
+  // session 被清空（logout / 强制登出）→ 回 login；
+  // 'checking' / 'error' 是初始 / 出错状态，不被 session 变化影响。
   useEffect(() => {
     setGate((g) => {
-      if (g.kind === 'checking' || g.kind === 'first-run' || g.kind === 'error') return g;
+      if (g.kind === 'checking' || g.kind === 'error') return g;
       if (session) return { kind: 'app' };
+      // session 没拿到但还在 first-run / boot 等启动阶段：保持原样
+      if (g.kind === 'first-run' || g.kind === 'boot') return g;
       return { kind: 'login' };
     });
   }, [session]);
