@@ -62,7 +62,7 @@ export function Sidebar() {
   const visible = NAV_ITEMS.filter((item) => !item.adminOnly || admin);
 
   return (
-    <aside className="flex w-[200px] shrink-0 flex-col border-r bg-card/30">
+    <aside className="flex w-[200px] shrink-0 select-none flex-col border-r bg-card/30">
       <nav className="flex flex-1 flex-col gap-0.5 p-3">
         {visible.map((item) => {
           const disabled = item.needsActiveWorkspace === true && !hasWs;
