@@ -56,6 +56,14 @@ export function CalculatorPage() {
   const [cartBusy, setCartBusy] = useState(false);
   const [cartMsg, setCartMsg] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<CustomerCodeMatchView[] | null>(null);
+  // 命中已存在条目时的确认对话框上下文：existingKg 是当前购物车里的 kg。
+  const [conflict, setConflict] = useState<{
+    sourceKind: 'workspace' | 'default';
+    formulaId: number;
+    internalCode: string;
+    addKg: number;
+    existingKg: number;
+  } | null>(null);
 
   if (!hasWs) {
     return (
@@ -116,20 +124,72 @@ export function CalculatorPage() {
     if (!result || result.formula_id === null) return;
     const sourceKind: 'workspace' | 'default' =
       result.source === 'current_workspace' ? 'workspace' : 'default';
+    const formulaId = result.formula_id;
+    const addKg = result.target_kg;
+    const internalCode = result.internal_color_code;
+
     setCartBusy(true);
     setError(null);
     setCartMsg(null);
+    // 加车前先看购物车里有没有同 (source_kind, formula_id)
     try {
-      await cartApi.add(sourceKind, result.formula_id, result.target_kg);
-      setCartMsg(
-        `已加入购物车：${result.internal_color_code} · ${result.target_kg.toFixed(2)} kg`,
+      const cart = await cartApi.list();
+      const existing = cart.find(
+        (l) => l.source_kind === sourceKind && l.source_formula_id === formulaId,
       );
+      if (existing) {
+        setConflict({
+          sourceKind,
+          formulaId,
+          internalCode,
+          addKg,
+          existingKg: existing.target_kg,
+        });
+        setCartBusy(false);
+        return;
+      }
+      // 没冲突 → 直接加
+      await cartApi.add(sourceKind, formulaId, addKg);
+      setCartMsg(`已加入购物车：${internalCode} · ${addKg.toFixed(2)} kg`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
     } finally {
       setCartBusy(false);
     }
   };
+
+  const resolveConflict = async (action: 'accumulate' | 'replace') => {
+    if (!conflict) return;
+    const { sourceKind, formulaId, internalCode, addKg, existingKg } = conflict;
+    setCartBusy(true);
+    setError(null);
+    setCartMsg(null);
+    try {
+      if (action === 'accumulate') {
+        const sum = Math.min(existingKg + addKg, 99999.99);
+        await cartApi.updateKg(sourceKind, formulaId, sum);
+        setCartMsg(
+          `已累加到购物车：${internalCode} · ${existingKg.toFixed(2)} + ${addKg.toFixed(
+            2,
+          )} = ${sum.toFixed(2)} kg`,
+        );
+      } else {
+        // 替换为新的 kg：直接复用 add（后端 add 即 add_or_update，命中 → 覆盖 kg）。
+        await cartApi.add(sourceKind, formulaId, addKg);
+        setCartMsg(
+          `已覆盖购物车 kg：${internalCode} · ${existingKg.toFixed(2)} → ${addKg.toFixed(
+            2,
+          )} kg`,
+        );
+      }
+      setConflict(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setCartBusy(false);
+    }
+  };
+
 
   return (
     <div className="space-y-4 p-6">
@@ -277,6 +337,65 @@ export function CalculatorPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog
+        open={conflict !== null}
+        onOpenChange={(o) => !o && setConflict(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>购物车里已有这条配方</DialogTitle>
+            <DialogDescription>
+              {conflict && (
+                <>
+                  <span className="font-mono">{conflict.internalCode}</span>{' '}
+                  当前购物车记录{' '}
+                  <span className="font-mono">{conflict.existingKg.toFixed(2)}</span>{' '}
+                  kg，本次想加的是{' '}
+                  <span className="font-mono">{conflict.addKg.toFixed(2)}</span> kg。
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border bg-muted/30 p-3 text-sm">
+            选择处理方式：
+            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+              <li>
+                · 累加：把这次的 kg 加到购物车现有 kg 上（
+                {conflict
+                  ? `${conflict.existingKg.toFixed(2)} + ${conflict.addKg.toFixed(2)} = ${Math.min(
+                      conflict.existingKg + conflict.addKg,
+                      99999.99,
+                    ).toFixed(2)} kg`
+                  : ''}
+                ）
+              </li>
+              <li>
+                · 覆盖：用本次的 kg 直接替换掉购物车里的 kg（
+                {conflict ? `${conflict.addKg.toFixed(2)} kg` : ''}）
+              </li>
+            </ul>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setConflict(null)}>
+              取消
+            </Button>
+            <Button
+              variant="outline"
+              disabled={cartBusy}
+              onClick={() => resolveConflict('replace')}
+            >
+              {cartBusy ? '处理中…' : '覆盖'}
+            </Button>
+            <Button
+              disabled={cartBusy}
+              onClick={() => resolveConflict('accumulate')}
+            >
+              {cartBusy ? '处理中…' : '累加'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={candidates !== null}
