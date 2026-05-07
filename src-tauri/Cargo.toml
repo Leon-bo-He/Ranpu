@@ -31,8 +31,17 @@ uuid = { version = "1", features = ["v4", "serde"] }
 rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl", "chrono"] }
 parking_lot = "0.12"
 
-# 注：以下依赖按 PROMPT 的特性分支顺序在后续提交中引入：
-# - feat/infra-crypto:        argon2、aes-gcm、pbkdf2、rand、cfg(windows) windows crate
+# 加密（feat/infra-crypto）
+argon2 = "0.5"
+aes-gcm = "0.10"
+pbkdf2 = "0.12"
+hmac = "0.12"
+sha2 = "0.10"
+rand = "0.8"
+zeroize = { version = "1", features = ["derive"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = ["Win32_Security_Cryptography", "Win32_Foundation"] }
 
 [profile.release]
 panic = "abort"
