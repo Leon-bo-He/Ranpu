@@ -208,12 +208,12 @@ export function DefaultLibraryPage() {
           )}
           {admin && (
             <Button variant="outline" onClick={() => setExportOpen(true)}>
-              <Download className="mr-1 h-4 w-4" /> 加密导出
+              <Upload className="mr-1 h-4 w-4" /> 加密导出
             </Button>
           )}
           {admin && (
             <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <Upload className="mr-1 h-4 w-4" /> 加密导入
+              <Download className="mr-1 h-4 w-4" /> 加密导入
             </Button>
           )}
           {admin && (
