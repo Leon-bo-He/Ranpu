@@ -27,23 +27,19 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/lib/format';
 import { useSessionStore } from '@/store/session';
+import { useWorkspacesStore } from '@/store/workspaces';
 
 export function WorkspaceManagementPage() {
   const session = useSessionStore((s) => s.session);
-  const [list, setList] = useState<WorkspaceView[]>([]);
+  const list = useWorkspacesStore((s) => s.list);
+  const refresh = useWorkspacesStore((s) => s.refresh);
   const [editing, setEditing] = useState<WorkspaceView | 'new' | null>(null);
   const [pendingDelete, setPendingDelete] = useState<WorkspaceView | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () =>
-    workspaceApi
-      .list()
-      .then(setList)
-      .catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
-
   useEffect(() => {
-    load();
-  }, []);
+    refresh().catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
+  }, [refresh]);
 
   if (session?.role !== 'admin') {
     return (
@@ -58,7 +54,7 @@ export function WorkspaceManagementPage() {
     try {
       await workspaceApi.remove(pendingDelete.id);
       setPendingDelete(null);
-      load();
+      await refresh();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
       setPendingDelete(null);
@@ -125,7 +121,7 @@ export function WorkspaceManagementPage() {
         onClose={() => setEditing(null)}
         onSaved={() => {
           setEditing(null);
-          load();
+          refresh();
         }}
       />
 
