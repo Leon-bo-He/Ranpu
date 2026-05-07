@@ -72,6 +72,8 @@ pub enum DomainError {
     // ---- cart ----
     #[error("购物车 kg 数必须大于 0")]
     CartTargetKgMustBePositive,
+    #[error("未知的购物车配方来源类型：{0}")]
+    UnknownSourceKind(String),
 
     // ---- audit ----
     #[error("审计日志的开始时间不能晚于结束时间")]

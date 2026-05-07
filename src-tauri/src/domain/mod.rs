@@ -5,6 +5,7 @@
 //! 加上 shared/ 存放跨上下文的强类型 ID 与基础错误。
 
 pub mod calculation;
+pub mod cart;
 pub mod formula;
 pub mod identity;
 pub mod shared;
