@@ -8,6 +8,7 @@ import { RanpuLogo } from '@/components/RanpuLogo';
 import { useSessionStore } from '@/store/session';
 
 export function LockOverlay() {
+  const session = useSessionStore((s) => s.session);
   const setLocked = useSessionStore((s) => s.setLocked);
   const clearSession = useSessionStore((s) => s.clear);
   const [password, setPassword] = useState('');
@@ -47,6 +48,12 @@ export function LockOverlay() {
           DYE FORMULA
         </p>
         <p className="mt-4 text-sm text-muted-foreground">会话已锁定，请输入用户密码继续</p>
+        {session && (
+          <p className="text-sm">
+            当前用户:{' '}
+            <span className="font-mono font-medium">{session.username}</span>
+          </p>
+        )}
         <form onSubmit={onSubmit} className="mt-2 flex w-72 flex-col gap-2">
           <Input
             type="password"
