@@ -1,4 +1,4 @@
-import { Copy, Pencil, Trash2 } from 'lucide-react';
+import { Copy, Pencil, ShoppingCart, Trash2 } from 'lucide-react';
 
 import type { FormulaView } from '@/api/types';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ export interface FormulaCardActions {
   onCopyToWorkspace?: (formula: FormulaView) => void;
   onEdit?: (formula: FormulaView) => void;
   onDelete?: (formula: FormulaView) => void;
+  onAddToCart?: (formula: FormulaView) => void;
 }
 
 interface FormulaCardProps extends FormulaCardActions {
@@ -40,6 +41,7 @@ export function FormulaCard({
   onCopyToWorkspace,
   onEdit,
   onDelete,
+  onAddToCart,
   selected,
   onToggleSelected,
 }: FormulaCardProps) {
@@ -135,6 +137,16 @@ export function FormulaCard({
             onClick={() => onCopyToWorkspace?.(formula)}
           >
             <Copy className="mr-1 h-4 w-4" /> 复制到当前工作区
+          </Button>
+        )}
+        {/* 加入批次清单 (调用方决定是否传 onAddToCart) */}
+        {onAddToCart && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onAddToCart(formula)}
+          >
+            <ShoppingCart className="mr-1 h-4 w-4" /> 加入批次清单
           </Button>
         )}
       </CardFooter>
