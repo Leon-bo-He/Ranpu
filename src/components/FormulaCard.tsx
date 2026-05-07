@@ -1,5 +1,4 @@
-import { Pencil, ShoppingCart, Trash2, Copy } from 'lucide-react';
-import { useState } from 'react';
+import { Copy, Pencil, Trash2 } from 'lucide-react';
 
 import type { FormulaView } from '@/api/types';
 import { Badge } from '@/components/ui/badge';
@@ -12,20 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { liquorRatioLabel, unitLabel } from '@/lib/format';
 
 export interface FormulaCardActions {
-  onAddToCart?: (formula: FormulaView, targetKg: number) => void;
   onCopyToWorkspace?: (formula: FormulaView) => void;
   onEdit?: (formula: FormulaView) => void;
   onDelete?: (formula: FormulaView) => void;
@@ -45,21 +33,10 @@ export function FormulaCard({
   source,
   canManage,
   hasActiveWorkspace,
-  onAddToCart,
   onCopyToWorkspace,
   onEdit,
   onDelete,
 }: FormulaCardProps) {
-  const [cartOpen, setCartOpen] = useState(false);
-  const [targetKg, setTargetKg] = useState('10.00');
-
-  const submitToCart = () => {
-    const kg = Number(targetKg);
-    if (!Number.isFinite(kg) || kg <= 0) return;
-    onAddToCart?.(formula, kg);
-    setCartOpen(false);
-  };
-
   return (
     <Card className="flex flex-col">
       <CardHeader className="space-y-1">
@@ -102,9 +79,6 @@ export function FormulaCard({
         )}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => setCartOpen(true)}>
-          <ShoppingCart className="mr-1 h-4 w-4" /> 加入购物车
-        </Button>
         {source === 'default' && canManage && (
           <Button
             size="sm"
@@ -127,36 +101,6 @@ export function FormulaCard({
           </Button>
         )}
       </CardFooter>
-
-      <Dialog open={cartOpen} onOpenChange={setCartOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>加入购物车</DialogTitle>
-            <DialogDescription>
-              {formula.internal_color_code}
-              {formula.color_name ? ` · ${formula.color_name}` : ''}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2">
-            <Label htmlFor="targetKg">目标 kg</Label>
-            <Input
-              id="targetKg"
-              type="number"
-              min={0.01}
-              max={99999.99}
-              step={0.01}
-              value={targetKg}
-              onChange={(e) => setTargetKg(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCartOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={submitToCart}>加入</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }

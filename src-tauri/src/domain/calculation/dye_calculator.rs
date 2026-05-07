@@ -9,6 +9,7 @@ use crate::domain::formula::internal_color_code::InternalColorCode;
 use crate::domain::formula::liquor_ratio::LiquorRatio;
 use crate::domain::formula::unit::Unit;
 use crate::domain::shared::errors::{DomainError, DomainResult};
+use crate::domain::shared::id::FormulaId;
 
 /// 让 `DefaultFormula` / `WorkspaceFormula` 都能喂进 `DyeCalculator`。
 pub trait CalculableFormula {
@@ -46,6 +47,9 @@ pub struct CalculationLine {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CalculationResult {
     pub source: FormulaSource,
+    /// 解析到的具体配方 ID。计算器本身不知道（trait 没暴露），由
+    /// application 层在 calculate 后回填，便于 UI 拿来「加入购物车」。
+    pub formula_id: Option<FormulaId>,
     pub internal_color_code: InternalColorCode,
     pub target_kg: Kilograms,
     pub lines: Vec<CalculationLine>,
@@ -114,6 +118,7 @@ impl DyeCalculator for StandardDyeCalculator {
 
         Ok(CalculationResult {
             source,
+            formula_id: None,
             internal_color_code: formula.internal_color_code().clone(),
             target_kg,
             lines,

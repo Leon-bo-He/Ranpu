@@ -1,7 +1,6 @@
 import { Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { cartApi } from '@/api/cart';
 import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import type { FormulaView } from '@/api/types';
@@ -45,14 +44,6 @@ export function WorkspaceFormulasPage() {
       </p>
     );
   }
-
-  const onAddToCart = async (formula: FormulaView, kg: number) => {
-    try {
-      await cartApi.add('workspace', formula.id, kg);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
-    }
-  };
 
   const onDelete = async (formula: FormulaView) => {
     if (!confirm(`确认删除「${formula.internal_color_code}」？`)) return;
@@ -112,7 +103,6 @@ export function WorkspaceFormulasPage() {
             source="workspace"
             canManage={admin}
             hasActiveWorkspace={hasWs}
-            onAddToCart={onAddToCart}
             onEdit={admin ? (f) => { setEditing(f); setEditorOpen(true); } : undefined}
             onDelete={admin ? onDelete : undefined}
           />

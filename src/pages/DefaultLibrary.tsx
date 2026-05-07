@@ -1,7 +1,6 @@
 import { Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { cartApi } from '@/api/cart';
 import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import type { FormulaView } from '@/api/types';
@@ -32,14 +31,6 @@ export function DefaultLibraryPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const onAddToCart = async (formula: FormulaView, kg: number) => {
-    try {
-      await cartApi.add('default', formula.id, kg);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
-    }
-  };
 
   const onCopyToWorkspace = async (formula: FormulaView) => {
     try {
@@ -108,7 +99,6 @@ export function DefaultLibraryPage() {
             source="default"
             canManage={admin}
             hasActiveWorkspace={hasWs}
-            onAddToCart={(formula, kg) => onAddToCart(formula, kg)}
             onCopyToWorkspace={onCopyToWorkspace}
             onEdit={admin ? (f) => { setEditing(f); setEditorOpen(true); } : undefined}
             onDelete={admin ? onDelete : undefined}

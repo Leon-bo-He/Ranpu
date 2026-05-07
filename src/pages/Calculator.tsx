@@ -1,7 +1,8 @@
-import { Calculator as CalcIcon } from 'lucide-react';
+import { Calculator as CalcIcon, ShoppingCart } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 
 import { calculationApi } from '@/api/calculation';
+import { cartApi } from '@/api/cart';
 import { ApiError } from '@/api/invoke';
 import type { CalculationResultView } from '@/api/types';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,8 @@ export function CalculatorPage() {
   const [result, setResult] = useState<CalculationResultView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cartBusy, setCartBusy] = useState(false);
+  const [cartMsg, setCartMsg] = useState<string | null>(null);
 
   if (!hasWs) {
     return (
@@ -48,6 +51,7 @@ export function CalculatorPage() {
     setBusy(true);
     setError(null);
     setResult(null);
+    setCartMsg(null);
     try {
       const r = await calculationApi.calculate(code.trim(), Number(kg));
       setResult(r);
@@ -55,6 +59,25 @@ export function CalculatorPage() {
       setError(e instanceof ApiError ? e.message : String(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const onAddToCart = async () => {
+    if (!result || result.formula_id === null) return;
+    const sourceKind: 'workspace' | 'default' =
+      result.source === 'current_workspace' ? 'workspace' : 'default';
+    setCartBusy(true);
+    setError(null);
+    setCartMsg(null);
+    try {
+      await cartApi.add(sourceKind, result.formula_id, result.target_kg);
+      setCartMsg(
+        `已加入购物车：${result.internal_color_code} · ${result.target_kg.toFixed(2)} kg`,
+      );
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setCartBusy(false);
     }
   };
 
@@ -110,17 +133,41 @@ export function CalculatorPage() {
       {result && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-3 text-base">
-              <span>{result.internal_color_code}</span>
-              <Badge
-                variant={
-                  result.source === 'current_workspace' ? 'default' : 'secondary'
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-3 text-base">
+                  <span>{result.internal_color_code}</span>
+                  <Badge
+                    variant={
+                      result.source === 'current_workspace'
+                        ? 'default'
+                        : 'secondary'
+                    }
+                  >
+                    {result.source_label}
+                  </Badge>
+                </CardTitle>
+                <CardDescription>
+                  目标 {result.target_kg.toFixed(2)} kg
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                onClick={onAddToCart}
+                disabled={cartBusy || result.formula_id === null}
+                title={
+                  result.formula_id === null
+                    ? '当前结果没有关联配方 ID，无法加车'
+                    : '加入购物车'
                 }
               >
-                {result.source_label}
-              </Badge>
-            </CardTitle>
-            <CardDescription>目标 {result.target_kg.toFixed(2)} kg</CardDescription>
+                <ShoppingCart className="mr-1 h-4 w-4" />
+                {cartBusy ? '加入中…' : '加入购物车'}
+              </Button>
+            </div>
+            {cartMsg && (
+              <p className="mt-2 text-sm text-emerald-600">{cartMsg}</p>
+            )}
           </CardHeader>
           <CardContent>
             <Table>

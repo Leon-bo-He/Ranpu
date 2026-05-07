@@ -1,3 +1,4 @@
+use crate::application::calculation::formula_resolver::ResolvedFormula;
 use crate::application::calculation::service::CalculationService;
 use crate::application::errors::AppResult;
 use crate::application::session_guard::ensure_active_workspace;
@@ -21,11 +22,16 @@ impl CalculationService {
         let code = InternalColorCode::new(input.internal_color_code)?;
         let target = Kilograms::new(input.target_kg)?;
         let resolved = self.resolve_by_internal_code(workspace_id, &code)?;
-        let result = self.calculator.calculate(
+        let formula_id = match &resolved {
+            ResolvedFormula::Workspace(f) => f.id(),
+            ResolvedFormula::Default(f) => f.id(),
+        };
+        let mut result = self.calculator.calculate(
             resolved.as_calculable(),
             target,
             resolved.source(),
         )?;
+        result.formula_id = formula_id;
         let event = AuditEvent::new(
             Some(snap.user_id()),
             Some(workspace_id),

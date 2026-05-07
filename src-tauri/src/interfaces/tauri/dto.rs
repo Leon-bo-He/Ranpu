@@ -298,6 +298,7 @@ impl From<&CalculationLine> for CalculationLineView {
 pub struct CalculationResultView {
     pub source: String,
     pub source_label: String,
+    pub formula_id: Option<i64>,
     pub internal_color_code: String,
     pub target_kg: f64,
     pub lines: Vec<CalculationLineView>,
@@ -311,6 +312,7 @@ impl From<&CalculationResult> for CalculationResultView {
                 FormulaSource::DefaultFallback => "default_fallback".into(),
             },
             source_label: r.source.display_label().to_owned(),
+            formula_id: r.formula_id.map(|i| i.value()),
             internal_color_code: r.internal_color_code.as_str().to_owned(),
             target_kg: r.target_kg.value(),
             lines: r.lines.iter().map(CalculationLineView::from).collect(),

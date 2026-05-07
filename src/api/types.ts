@@ -64,6 +64,7 @@ export interface CalculationLineView {
 export interface CalculationResultView {
   source: 'current_workspace' | 'default_fallback';
   source_label: string;
+  formula_id: number | null;
   internal_color_code: string;
   target_kg: number;
   lines: CalculationLineView[];
