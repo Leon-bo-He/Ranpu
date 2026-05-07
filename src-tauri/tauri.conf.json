@@ -36,6 +36,20 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico"
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": ["ranpu"],
+        "name": "RanpuEncryptedExport",
+        "description": "染谱加密导出包",
+        "role": "Editor",
+        "mimeType": "application/x-ranpu"
+      }
+    ],
     "category": "Productivity",
     "shortDescription": "染谱 — 离线染纱配色",
     "longDescription": "DDD + Hexagonal architecture 的离线染纱配方与计算软件",
