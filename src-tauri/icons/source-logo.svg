@@ -1,0 +1,23 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="染谱">
+  <defs>
+    <linearGradient id="spectrumGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF4B2B"/>
+      <stop offset="50%" stop-color="#6A11CB"/>
+      <stop offset="100%" stop-color="#2575FC"/>
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="95" fill="none" stroke="#f0f0f0" stroke-width="2"/>
+  <g transform="translate(40, 45)">
+    <path d="M10,110 C10,10 110,110 110,10"
+          stroke="#eee" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <path d="M10,110 C10,10 110,110 110,10"
+          stroke="url(#spectrumGradient)" stroke-width="10" fill="none"
+          stroke-linecap="round"
+          stroke-dasharray="200" stroke-dashoffset="0">
+      <animate attributeName="stroke-dashoffset" from="200" to="0" dur="2s" fill="freeze"/>
+    </path>
+    <path d="M10,10 C10,110 110,10 110,110"
+          stroke="url(#spectrumGradient)" stroke-width="10" fill="none"
+          stroke-linecap="round" opacity="0.6"/>
+  </g>
+</svg>
