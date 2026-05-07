@@ -102,7 +102,7 @@ export function WorkspaceManagementPage() {
                   {!isSystem && (
                     <>
                       <Button size="sm" variant="ghost" onClick={() => setEditing(w)}>
-                        <Pencil className="mr-1 h-4 w-4" /> 重命名
+                        <Pencil className="mr-1 h-4 w-4" /> 编辑
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => askDelete(w)}>
                         <Trash2 className="mr-1 h-4 w-4" /> 删除
@@ -181,7 +181,19 @@ function WorkspaceEditor({
       if (target === 'new') {
         await workspaceApi.create(name, description);
       } else {
-        await workspaceApi.rename(target.id, name);
+        // 编辑: 名字 / 说明 各只在变化时调一次, 避免无意义的审计 + 写库.
+        const trimmedName = name.trim();
+        const trimmedDesc = description.trim();
+        const prevDesc = target.description ?? '';
+        if (trimmedName.length > 0 && trimmedName !== target.name) {
+          await workspaceApi.rename(target.id, trimmedName);
+        }
+        if (trimmedDesc !== prevDesc) {
+          await workspaceApi.updateDescription(
+            target.id,
+            trimmedDesc.length === 0 ? null : trimmedDesc,
+          );
+        }
       }
       onSaved();
     } catch (e) {
@@ -195,22 +207,20 @@ function WorkspaceEditor({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{target === 'new' ? '新建工作区' : '重命名工作区'}</DialogTitle>
+          <DialogTitle>{target === 'new' ? '新建工作区' : '编辑工作区'}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-2">
           <Label>名称</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
-        {target === 'new' && (
-          <div className="grid gap-2">
-            <Label>说明（选填）</Label>
-            <Textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-        )}
+        <div className="grid gap-2">
+          <Label>说明（选填）</Label>
+          <Textarea
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>

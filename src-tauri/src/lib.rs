@@ -49,6 +49,7 @@ pub fn run() {
             cmd_list_users,
             cmd_create_workspace,
             cmd_rename_workspace,
+            cmd_update_workspace_description,
             cmd_list_workspaces,
             cmd_switch_workspace,
             cmd_delete_workspace,

@@ -127,6 +127,12 @@ pub struct RenameWorkspaceCmd {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct UpdateWorkspaceDescriptionCmd {
+    pub workspace_id: i64,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct SwitchWorkspaceCmd {
     pub workspace_id: Option<i64>,
 }

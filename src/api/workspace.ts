@@ -14,6 +14,11 @@ export const workspaceApi = {
       cmd: { workspace_id: workspaceId, new_name: newName },
     }),
 
+  updateDescription: (workspaceId: number, description: string | null) =>
+    invoke<void>('cmd_update_workspace_description', {
+      cmd: { workspace_id: workspaceId, description },
+    }),
+
   switch: (workspaceId: number | null) =>
     invoke<void>('cmd_switch_workspace', {
       cmd: { workspace_id: workspaceId },

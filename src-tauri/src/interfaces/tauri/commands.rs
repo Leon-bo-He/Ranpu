@@ -20,7 +20,9 @@ use crate::application::identity::{
     UnlockSessionInput,
 };
 use crate::application::ports::batch_sheet_exporter::BatchSheetFormat;
-use crate::application::workspace::{CreateWorkspaceInput, RenameWorkspaceInput};
+use crate::application::workspace::{
+    CreateWorkspaceInput, RenameWorkspaceInput, UpdateWorkspaceDescriptionInput,
+};
 use crate::domain::audit::audit_event::Action;
 use crate::domain::shared::id::{FormulaId, UserId, WorkspaceId};
 use crate::interfaces::tauri::boot::{boot, keystore_exists};
@@ -204,6 +206,20 @@ pub fn cmd_rename_workspace(state: State<AppState>, cmd: RenameWorkspaceCmd) -> 
         .rename_workspace(RenameWorkspaceInput {
             workspace_id: WorkspaceId::new(cmd.workspace_id),
             new_name: cmd.new_name,
+        })
+        .map_err(UiError::from)
+}
+
+#[tauri::command]
+pub fn cmd_update_workspace_description(
+    state: State<AppState>,
+    cmd: UpdateWorkspaceDescriptionCmd,
+) -> CmdResult<()> {
+    services_or_err(&state)?
+        .workspace
+        .update_workspace_description(UpdateWorkspaceDescriptionInput {
+            workspace_id: WorkspaceId::new(cmd.workspace_id),
+            description: cmd.description,
         })
         .map_err(UiError::from)
 }
