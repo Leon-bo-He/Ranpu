@@ -23,9 +23,11 @@ impl WorkspaceService {
             }
         });
 
+        // workspace_context_id 在这里必须留空: 工作区已经删了, 而 audit_log
+        // 的该列指向 workspaces(id), 写入会触发 FK 约束失败. 工作区 id 留在 target 字段里.
         let event = AuditEvent::new(
             Some(snap.user_id()),
-            Some(workspace_id),
+            None,
             Action::WorkspaceDeleted,
             Some(workspace_id.to_string()),
             None,
