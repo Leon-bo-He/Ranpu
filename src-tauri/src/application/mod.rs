@@ -2,7 +2,22 @@
 //!
 //! 严禁 import infrastructure；只能依赖 domain 与 std/chrono/thiserror/uuid。
 
+pub mod audit;
+pub mod backup;
+pub mod calculation;
+pub mod cart;
 pub mod errors;
+pub mod formula;
+pub mod identity;
 pub mod ports;
+pub mod session_guard;
+pub mod workspace;
 
+pub use audit::AuditService;
+pub use backup::BackupService;
+pub use calculation::CalculationService;
+pub use cart::CartService;
 pub use errors::{AppError, AppResult};
+pub use formula::FormulaService;
+pub use identity::IdentityService;
+pub use workspace::WorkspaceService;
