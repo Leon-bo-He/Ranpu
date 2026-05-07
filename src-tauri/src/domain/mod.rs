@@ -4,4 +4,5 @@
 //! identity / workspace / formula / calculation / cart / audit。
 //! 加上 shared/ 存放跨上下文的强类型 ID 与基础错误。
 
+pub mod identity;
 pub mod shared;
