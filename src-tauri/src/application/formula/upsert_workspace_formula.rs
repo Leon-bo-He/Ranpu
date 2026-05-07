@@ -13,6 +13,7 @@ impl FormulaService {
     ) -> AppResult<FormulaId> {
         let snap = ensure_admin(&*self.session_store)?;
         let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        self.reject_if_system_mirror(workspace_id)?;
         let now = self.clock.now();
         let parsed = parse_upsert(input)?;
         let internal_code_str = parsed.internal.as_str().to_owned();

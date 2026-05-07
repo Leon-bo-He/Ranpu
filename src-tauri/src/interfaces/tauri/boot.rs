@@ -75,9 +75,18 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
         workspace_repo.clone();
     let default_repo_dyn: Arc<dyn crate::application::ports::default_formula_repository::DefaultFormulaRepository> =
         default_repo.clone();
+    let workspace_formula_repo_dyn: Arc<dyn crate::application::ports::workspace_formula_repository::WorkspaceFormulaRepository> =
+        workspace_formula_repo.clone();
     let _ = seed::run_if_empty(
         &workspace_repo_dyn,
         &default_repo_dyn,
+        chrono::Utc::now(),
+    )?;
+    // 每次启动都跑一次系统镜像同步: 第一次创建 "通用" 工作区 + 后续自愈漂移.
+    seed::ensure_system_mirror(
+        &workspace_repo_dyn,
+        &default_repo_dyn,
+        &workspace_formula_repo_dyn,
         chrono::Utc::now(),
     )?;
 

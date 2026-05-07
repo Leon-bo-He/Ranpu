@@ -41,6 +41,10 @@ impl FormulaService {
             )?,
         };
         let id = self.default_repo.upsert(&formula)?;
+        // 同步到系统内置 "通用" 镜像工作区.
+        if let Some(persisted) = self.default_repo.find_by_id(id)? {
+            self.mirror_default_upsert(&persisted, now)?;
+        }
         let event = AuditEvent::new(
             Some(snap.user_id()),
             None,

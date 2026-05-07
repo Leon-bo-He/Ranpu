@@ -85,7 +85,7 @@ function ExportSection() {
   useEffect(() => {
     workspaceApi
       .list()
-      .then(setWorkspaces)
+      .then((all) => setWorkspaces(all.filter((w) => w.kind !== 'system_mirror')))
       .catch((e) => setErr(e instanceof ApiError ? e.message : String(e)));
   }, []);
 

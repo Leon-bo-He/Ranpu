@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
+use crate::application::errors::{AppError, AppResult};
 use crate::application::ports::{
     AuditWriter, Clock, DefaultFormulaRepository, EncryptedExporter, EncryptedImporter,
     SessionStore, WorkspaceFormulaRepository, WorkspaceRepository,
 };
+use crate::domain::shared::id::WorkspaceId;
 
 #[derive(Clone)]
 pub struct FormulaService {
@@ -18,6 +20,19 @@ pub struct FormulaService {
 }
 
 impl FormulaService {
+    /// 拒绝 system_mirror 工作区上的写操作 (新建 / 修改 / 删除 / 批量复制 / 导入).
+    pub(super) fn reject_if_system_mirror(&self, workspace_id: WorkspaceId) -> AppResult<()> {
+        if let Some(ws) = self.workspaces_repo.find_by_id(workspace_id)? {
+            if ws.is_system_mirror() {
+                return Err(AppError::Internal(
+                    "通用工作区为系统内置, 配方与默认配方库自动同步, 不能在此工作区直接增删改"
+                        .into(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         default_repo: Arc<dyn DefaultFormulaRepository>,

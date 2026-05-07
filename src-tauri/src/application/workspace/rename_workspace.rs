@@ -1,4 +1,4 @@
-use crate::application::errors::AppResult;
+use crate::application::errors::{AppError, AppResult};
 use crate::application::session_guard::ensure_admin;
 use crate::application::workspace::service::WorkspaceService;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
@@ -15,6 +15,13 @@ impl WorkspaceService {
     pub fn rename_workspace(&self, input: RenameWorkspaceInput) -> AppResult<()> {
         let snap = ensure_admin(&*self.session_store)?;
         let name = WorkspaceName::new(input.new_name.clone())?;
+        if let Some(target) = self.workspace_repo.find_by_id(input.workspace_id)? {
+            if target.is_system_mirror() {
+                return Err(AppError::Internal(
+                    "系统内置工作区不可重命名".into(),
+                ));
+            }
+        }
         self.workspace_repo
             .rename(input.workspace_id, name.as_str())?;
         let event = AuditEvent::new(

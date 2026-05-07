@@ -157,6 +157,15 @@ impl FormulaService {
                 WorkspaceImportAction::Merge => {
                     let existing = self.workspaces_repo.find_by_name(&ws.name)?;
                     match existing {
+                        Some(w) if w.is_system_mirror() => (
+                            "skipped",
+                            ImportSectionSummary {
+                                items: Vec::new(),
+                                imported: 0,
+                                skipped: 0,
+                                failed: 0,
+                            },
+                        ),
                         Some(w) => {
                             let id = w.id().ok_or_else(|| {
                                 AppError::Internal(

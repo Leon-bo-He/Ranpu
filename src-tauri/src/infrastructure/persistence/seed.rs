@@ -1,14 +1,23 @@
-//! 首次启动种子数据（PROMPT 第 304-308 行）。
+//! 首次启动种子数据（PROMPT 第 304-308 行）+ 系统内置 "通用" 工作区初始化。
 //!
 //! 不创建 user — FirstRunSetup 让用户自己设置第一个 admin 账号。
-//! 创建：3 个 workspace + 5 条 default 配方（带真实风格染料组合）。
+//!
+//! - run_if_empty: 老的首次启动种子, 写 3 个示范工作区 + 5 条默认配方.
+//! - ensure_system_mirror: 确保数据库里存在唯一的 SystemMirror 工作区
+//!   ("通用"), 并把所有默认配方镜像到该工作区. 每次启动都跑, 用于
+//!   1) 第一次创建该工作区, 2) 老 DB 迁移, 3) 自愈漂移.
 
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 
-use crate::application::ports::default_formula_repository::DefaultFormulaRepository;
+use crate::application::ports::default_formula_repository::{
+    DefaultFormulaQuery, DefaultFormulaRepository,
+};
 use crate::application::ports::errors::RepositoryError;
+use crate::application::ports::workspace_formula_repository::{
+    WorkspaceFormulaQuery, WorkspaceFormulaRepository,
+};
 use crate::application::ports::workspace_repository::WorkspaceRepository;
 use crate::domain::formula::amounts::Kilograms;
 use crate::domain::formula::default_formula::DefaultFormula;
@@ -16,7 +25,9 @@ use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
 use crate::domain::formula::liquor_ratio::LiquorRatio;
 use crate::domain::formula::unit::Unit;
-use crate::domain::workspace::workspace::{Workspace, WorkspaceName};
+use crate::domain::workspace::workspace::{Workspace, WorkspaceKind, WorkspaceName};
+
+pub const SYSTEM_MIRROR_WORKSPACE_NAME: &str = "通用";
 
 pub fn run_if_empty(
     workspace_repo: &Arc<dyn WorkspaceRepository>,
@@ -30,6 +41,141 @@ pub fn run_if_empty(
     seed_workspaces(workspace_repo.as_ref(), now)?;
     seed_default_formulas(default_repo.as_ref(), now)?;
     Ok(true)
+}
+
+/// 确保系统内置 "通用" 工作区存在并镜像默认配方库.
+///
+/// - 没有该工作区 → 创建.
+/// - 该工作区里有但默认库已删除的 → 删除.
+/// - 默认库新增 / 修改的 → upsert 进该工作区.
+pub fn ensure_system_mirror(
+    workspace_repo: &Arc<dyn WorkspaceRepository>,
+    default_repo: &Arc<dyn DefaultFormulaRepository>,
+    workspace_formula_repo: &Arc<dyn WorkspaceFormulaRepository>,
+    now: DateTime<Utc>,
+) -> Result<(), RepositoryError> {
+    let mirror = match workspace_repo.find_system_mirror()? {
+        Some(w) => w,
+        None => {
+            // 名字冲突: 如果用户曾经手动创建过同名 normal 工作区, 改名让位.
+            if let Some(conflicting) = workspace_repo.find_by_name(SYSTEM_MIRROR_WORKSPACE_NAME)? {
+                if let Some(id) = conflicting.id() {
+                    let renamed = format!("{SYSTEM_MIRROR_WORKSPACE_NAME}-用户");
+                    workspace_repo.rename(id, &renamed)?;
+                }
+            }
+            let ws = Workspace::new_with_kind(
+                WorkspaceName::new(SYSTEM_MIRROR_WORKSPACE_NAME)
+                    .map_err(|e| RepositoryError::Backend(e.to_string()))?,
+                Some("系统内置工作区, 配方与默认配方库自动同步, 无法直接编辑.".into()),
+                None,
+                now,
+                WorkspaceKind::SystemMirror,
+            )
+            .map_err(|e| RepositoryError::Backend(e.to_string()))?;
+            let id = workspace_repo.insert(&ws)?;
+            workspace_repo
+                .find_by_id(id)?
+                .ok_or_else(|| RepositoryError::Backend("system mirror 插入后查不到".into()))?
+        }
+    };
+    let mirror_id = mirror
+        .id()
+        .ok_or_else(|| RepositoryError::Backend("system mirror 缺少 id".into()))?;
+
+    // 全量同步: 默认库 → 镜像工作区.
+    let defaults = default_repo.list(DefaultFormulaQuery {
+        keyword: None,
+        limit: None,
+        offset: None,
+    })?;
+    let mirror_existing = workspace_formula_repo.list(WorkspaceFormulaQuery {
+        workspace_id: mirror_id,
+        keyword: None,
+        limit: None,
+        offset: None,
+    })?;
+
+    use std::collections::HashSet;
+    let default_codes: HashSet<String> = defaults
+        .iter()
+        .map(|d| {
+            <DefaultFormula as crate::domain::calculation::dye_calculator::CalculableFormula>::internal_color_code(d)
+                .as_str()
+                .to_owned()
+        })
+        .collect();
+
+    // 1) 删除镜像里多出来的 (默认库已不存在的)
+    for wf in &mirror_existing {
+        let code = <crate::domain::formula::workspace_formula::WorkspaceFormula as crate::domain::calculation::dye_calculator::CalculableFormula>::internal_color_code(wf)
+            .as_str()
+            .to_owned();
+        if !default_codes.contains(&code) {
+            if let Some(wf_id) = wf.id() {
+                workspace_formula_repo.delete(mirror_id, wf_id)?;
+            }
+        }
+    }
+
+    // 2) upsert 默认库每条到镜像
+    for d in &defaults {
+        upsert_default_into_mirror(workspace_formula_repo.as_ref(), d, mirror_id, now)?;
+    }
+
+    Ok(())
+}
+
+/// 把一条默认配方刷到镜像工作区: 已存在 → 用其 id 整体覆盖, 否则新插入.
+pub fn upsert_default_into_mirror(
+    repo: &dyn WorkspaceFormulaRepository,
+    default: &DefaultFormula,
+    mirror_id: crate::domain::shared::id::WorkspaceId,
+    now: DateTime<Utc>,
+) -> Result<(), RepositoryError> {
+    use crate::domain::calculation::dye_calculator::CalculableFormula;
+    use crate::domain::formula::workspace_formula::WorkspaceFormula;
+
+    let internal =
+        <DefaultFormula as CalculableFormula>::internal_color_code(default).clone();
+    let existing = repo.find_by_internal_code(mirror_id, &internal)?;
+
+    let formula = match existing {
+        Some(prev) => WorkspaceFormula::rehydrate(
+            prev.id().ok_or_else(|| {
+                RepositoryError::Backend("workspace_formula 缺少 id".into())
+            })?,
+            mirror_id,
+            internal,
+            default.customer_color_code().cloned(),
+            default.color_name().map(str::to_owned),
+            default.description().map(str::to_owned),
+            default.base_weight_kg(),
+            <DefaultFormula as CalculableFormula>::liquor_ratio(default),
+            default.notes().map(str::to_owned),
+            <DefaultFormula as CalculableFormula>::items(default).to_vec(),
+            default.id(),
+            prev.created_at(),
+            now,
+        )
+        .map_err(|e| RepositoryError::Backend(e.to_string()))?,
+        None => WorkspaceFormula::new(
+            mirror_id,
+            internal,
+            default.customer_color_code().cloned(),
+            default.color_name().map(str::to_owned),
+            default.description().map(str::to_owned),
+            default.base_weight_kg(),
+            <DefaultFormula as CalculableFormula>::liquor_ratio(default),
+            default.notes().map(str::to_owned),
+            <DefaultFormula as CalculableFormula>::items(default).to_vec(),
+            default.id(),
+            now,
+        )
+        .map_err(|e| RepositoryError::Backend(e.to_string()))?,
+    };
+    repo.upsert(&formula)?;
+    Ok(())
 }
 
 fn seed_workspaces(

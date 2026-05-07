@@ -1,10 +1,11 @@
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Lock, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { ApiError } from '@/api/invoke';
 import type { WorkspaceView } from '@/api/types';
 import { workspaceApi } from '@/api/workspace';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -85,21 +86,37 @@ export function WorkspaceManagementPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {list.map((w) => (
-            <TableRow key={w.id}>
-              <TableCell className="font-medium">{w.name}</TableCell>
-              <TableCell>{w.description ?? '—'}</TableCell>
-              <TableCell>{formatDateTime(w.created_at)}</TableCell>
-              <TableCell className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => setEditing(w)}>
-                  <Pencil className="mr-1 h-4 w-4" /> 重命名
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => askDelete(w)}>
-                  <Trash2 className="mr-1 h-4 w-4" /> 删除
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+          {list.map((w) => {
+            const isSystem = w.kind === 'system_mirror';
+            return (
+              <TableRow key={w.id}>
+                <TableCell className="font-medium">
+                  <span className="inline-flex items-center gap-2">
+                    {w.name}
+                    {isSystem && (
+                      <Badge variant="secondary" className="gap-1">
+                        <Lock className="h-3 w-3" /> 系统内置
+                      </Badge>
+                    )}
+                  </span>
+                </TableCell>
+                <TableCell>{w.description ?? '—'}</TableCell>
+                <TableCell>{formatDateTime(w.created_at)}</TableCell>
+                <TableCell className="flex gap-1">
+                  {!isSystem && (
+                    <>
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(w)}>
+                        <Pencil className="mr-1 h-4 w-4" /> 重命名
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => askDelete(w)}>
+                        <Trash2 className="mr-1 h-4 w-4" /> 删除
+                      </Button>
+                    </>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
 

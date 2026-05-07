@@ -32,9 +32,10 @@ impl FormulaService {
         &self,
         input: BatchCopyDefaultInput,
     ) -> AppResult<BatchCopySummary> {
-        // 上来快速失败：没登录 / 不是 admin / 没激活 workspace 都不需要进循环。
+        // 上来快速失败：没登录 / 不是 admin / 没激活 workspace / 系统镜像 都不需要进循环。
         let _ = ensure_admin(&*self.session_store)?;
-        let _ = ensure_active_workspace(&*self.session_store)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        self.reject_if_system_mirror(workspace_id)?;
 
         let mut items = Vec::with_capacity(input.default_formula_ids.len());
         let mut succeeded = 0_u32;
