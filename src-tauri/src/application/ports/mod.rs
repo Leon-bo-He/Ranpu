@@ -18,7 +18,9 @@ pub mod workspace_repository;
 pub use audit_csv_exporter::AuditCsvExporter;
 pub use audit_repository::{AuditQuery, AuditRepository};
 pub use audit_writer::AuditWriter;
-pub use batch_sheet_exporter::{BatchSheetError, BatchSheetExporter, BatchSheetFormat};
+pub use batch_sheet_exporter::{
+    BatchSheetContext, BatchSheetError, BatchSheetExporter, BatchSheetFormat,
+};
 pub use cart_repository::CartRepository;
 pub use clock::Clock;
 pub use db_backup::{DbBackupError, DbSnapshot};

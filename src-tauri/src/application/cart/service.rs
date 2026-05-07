@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::application::ports::{
     AuditWriter, BatchSheetExporter, CartRepository, Clock, DefaultFormulaRepository,
-    SessionStore, WorkspaceFormulaRepository,
+    SessionStore, WorkspaceFormulaRepository, WorkspaceRepository,
 };
 use crate::domain::calculation::dye_calculator::DyeCalculator;
 
@@ -11,6 +11,7 @@ pub struct CartService {
     pub(super) cart_repo: Arc<dyn CartRepository>,
     pub(super) default_repo: Arc<dyn DefaultFormulaRepository>,
     pub(super) workspace_repo: Arc<dyn WorkspaceFormulaRepository>,
+    pub(super) workspaces_repo: Arc<dyn WorkspaceRepository>,
     pub(super) calculator: Arc<dyn DyeCalculator>,
     pub(super) batch_sheet_exporter: Arc<dyn BatchSheetExporter>,
     pub(super) audit_writer: Arc<dyn AuditWriter>,
@@ -24,6 +25,7 @@ impl CartService {
         cart_repo: Arc<dyn CartRepository>,
         default_repo: Arc<dyn DefaultFormulaRepository>,
         workspace_repo: Arc<dyn WorkspaceFormulaRepository>,
+        workspaces_repo: Arc<dyn WorkspaceRepository>,
         calculator: Arc<dyn DyeCalculator>,
         batch_sheet_exporter: Arc<dyn BatchSheetExporter>,
         audit_writer: Arc<dyn AuditWriter>,
@@ -34,6 +36,7 @@ impl CartService {
             cart_repo,
             default_repo,
             workspace_repo,
+            workspaces_repo,
             calculator,
             batch_sheet_exporter,
             audit_writer,

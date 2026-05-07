@@ -127,6 +127,7 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
         cart_repo,
         default_repo,
         workspace_formula_repo,
+        workspace_repo.clone(),
         calculator,
         batch_sheet_exporter,
         audit_writer.clone(),
