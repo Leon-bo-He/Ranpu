@@ -21,11 +21,19 @@ pub enum BatchSheetFormat {
     Html,
 }
 
+/// 批次单上下文 (顶部标题区域引用).
+#[derive(Debug, Clone)]
+pub struct BatchSheetContext<'a> {
+    /// 当前工作区名称, 业务上等同于客户名 (HTML 头部「当前客户」字段).
+    pub workspace_name: Option<&'a str>,
+}
+
 /// 把购物车的多条计算结果导出为「批次单」文件（PROMPT 第 297 行）。
 pub trait BatchSheetExporter: Send + Sync {
     fn export(
         &self,
         results: &[CalculationResult],
+        context: BatchSheetContext<'_>,
         format: BatchSheetFormat,
         out_path: &Path,
     ) -> Result<(), BatchSheetError>;

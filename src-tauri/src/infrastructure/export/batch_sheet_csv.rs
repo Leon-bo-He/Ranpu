@@ -3,7 +3,7 @@ use std::path::Path;
 use chrono::Utc;
 
 use crate::application::ports::batch_sheet_exporter::{
-    BatchSheetError, BatchSheetExporter, BatchSheetFormat,
+    BatchSheetContext, BatchSheetError, BatchSheetExporter, BatchSheetFormat,
 };
 use crate::domain::calculation::dye_calculator::CalculationResult;
 
@@ -30,12 +30,13 @@ impl BatchSheetExporter for BatchSheetCsvExporter {
     fn export(
         &self,
         results: &[CalculationResult],
+        context: BatchSheetContext<'_>,
         format: BatchSheetFormat,
         out_path: &Path,
     ) -> Result<(), BatchSheetError> {
         let buf = match format {
             BatchSheetFormat::Csv => render_csv(results),
-            BatchSheetFormat::Html => render_html(results),
+            BatchSheetFormat::Html => render_html(results, context),
         };
         std::fs::write(out_path, buf).map_err(|e| BatchSheetError::Io(e.to_string()))?;
         Ok(())
@@ -62,7 +63,7 @@ fn render_csv(results: &[CalculationResult]) -> String {
     buf
 }
 
-fn render_html(results: &[CalculationResult]) -> String {
+fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
     let mut html = String::new();
     html.push_str(
         r#"<!DOCTYPE html>
@@ -82,6 +83,9 @@ fn render_html(results: &[CalculationResult]) -> String {
   h1 { font-size: 20px; letter-spacing: 4px; margin: 0 0 4px; }
   .sub { color: #888; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
   .meta { color: #666; font-size: 12px; margin: 12px 0 24px; }
+  .meta .label { color: #888; margin-right: 4px; }
+  .meta .value { color: #1f1f1f; font-weight: 500; }
+  .meta .row { margin-bottom: 2px; }
   .formula { page-break-inside: avoid; margin-bottom: 28px; }
   .formula h2 {
     font-size: 15px;
@@ -96,9 +100,23 @@ fn render_html(results: &[CalculationResult]) -> String {
     color: #888;
     font-weight: normal;
   }
-  table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  /* 所有批次表统一列宽; table-layout:fixed 让 col 宽度严格生效, 否则
+     不同表的列宽会被各自内容撑出差异. */
+  table { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: fixed; }
+  col.col-dye    { width: 50%; }
+  col.col-code   { width: 18%; }
+  col.col-grams  { width: 18%; }
+  col.col-unit   { width: 14%; }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 6px 10px;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-wrap: break-word;
+  }
   th { background: #f3f3f3; }
+  th.num { text-align: right; }
   td.num { text-align: right; font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
   td.unit { color: #888; font-size: 12px; }
   @media print {
@@ -110,11 +128,20 @@ fn render_html(results: &[CalculationResult]) -> String {
 <body>
   <h1>染谱批次单</h1>
   <div class="sub">DYE FORMULA · BATCH SHEET</div>
-  <div class="meta">导出时间: "#,
+  <div class="meta">
+"#,
     );
+    if let Some(name) = context.workspace_name {
+        html.push_str(&format!(
+            "    <div class=\"row\"><span class=\"label\">当前客户:</span><span class=\"value\">{}</span></div>\n",
+            html_escape(name),
+        ));
+    }
+    html.push_str("    <div class=\"row\"><span class=\"label\">导出时间:</span><span class=\"value\">");
     html.push_str(&Utc::now().format("%Y-%m-%d %H:%M UTC").to_string());
+    html.push_str("</span></div>\n");
     html.push_str(
-        r#"</div>
+        r#"  </div>
   <div class="no-print" style="margin-bottom:16px;color:#888;font-size:12px;">
     提示：在浏览器中按 Ctrl+P 可另存为 PDF 或直接打印。
   </div>
@@ -132,7 +159,13 @@ fn render_html(results: &[CalculationResult]) -> String {
         ));
         html.push('\n');
         html.push_str("    <table>\n");
-        html.push_str("      <thead><tr><th>染料</th><th>编号</th><th style=\"text-align:right;\">克数</th><th>原始单位</th></tr></thead>\n");
+        html.push_str("      <colgroup>\n");
+        html.push_str("        <col class=\"col-dye\" />\n");
+        html.push_str("        <col class=\"col-code\" />\n");
+        html.push_str("        <col class=\"col-grams\" />\n");
+        html.push_str("        <col class=\"col-unit\" />\n");
+        html.push_str("      </colgroup>\n");
+        html.push_str("      <thead><tr><th>染料</th><th>编号</th><th class=\"num\">克数</th><th>原始单位</th></tr></thead>\n");
         html.push_str("      <tbody>\n");
         for l in &r.lines {
             html.push_str(&format!(

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::application::cart::service::CartService;
 use crate::application::errors::{AppError, AppResult};
-use crate::application::ports::batch_sheet_exporter::BatchSheetFormat;
+use crate::application::ports::batch_sheet_exporter::{BatchSheetContext, BatchSheetFormat};
 use crate::application::session_guard::ensure_active_workspace;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 
@@ -23,8 +23,16 @@ impl CartService {
             .filter_map(|l| l.calculation.ok())
             .collect();
 
+        let workspace_name = self
+            .workspaces_repo
+            .find_by_id(workspace_id)?
+            .map(|w| w.name().as_str().to_owned());
+        let context = BatchSheetContext {
+            workspace_name: workspace_name.as_deref(),
+        };
+
         self.batch_sheet_exporter
-            .export(&results, input.format, &input.out_path)
+            .export(&results, context, input.format, &input.out_path)
             .map_err(|e| AppError::Io(e.to_string()))?;
 
         let format_str = match input.format {
