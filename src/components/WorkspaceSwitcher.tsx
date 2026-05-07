@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import { workspaceApi } from '@/api/workspace';
-import type { WorkspaceView } from '@/api/types';
 import {
   Select,
   SelectContent,
@@ -10,18 +9,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useSessionStore } from '@/store/session';
+import { useWorkspacesStore } from '@/store/workspaces';
 
 const NONE_VALUE = '__none__';
 
 export function WorkspaceSwitcher() {
   const session = useSessionStore((s) => s.session);
   const setActiveWorkspace = useSessionStore((s) => s.setActiveWorkspace);
-  const [workspaces, setWorkspaces] = useState<WorkspaceView[]>([]);
+  const workspaces = useWorkspacesStore((s) => s.list);
+  const refreshWorkspaces = useWorkspacesStore((s) => s.refresh);
 
   useEffect(() => {
     if (!session) return;
-    workspaceApi.list().then(setWorkspaces).catch(() => setWorkspaces([]));
-  }, [session]);
+    refreshWorkspaces();
+  }, [session, refreshWorkspaces]);
 
   const onChange = async (value: string) => {
     const workspaceId = value === NONE_VALUE ? null : Number(value);
