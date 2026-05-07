@@ -55,7 +55,9 @@ export function FormulaCard({
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="flex flex-1 items-center gap-2">
             <span className="text-base font-bold">{formula.internal_color_code}</span>
-            {formula.customer_color_code && (
+            {/* 默认库的「客户色号」只是预设占位, 实际客户报色在工作区配方
+                复制后才有意义, 所以仅在 workspace 卡片上展示这个 badge. */}
+            {source === 'workspace' && formula.customer_color_code && (
               <Badge variant="secondary">
                 客户色号：{formula.customer_color_code}
               </Badge>
