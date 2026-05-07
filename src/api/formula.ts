@@ -1,5 +1,10 @@
 import { invoke } from './invoke';
-import type { BatchCopySummaryView, FormulaView, Unit } from './types';
+import type {
+  BatchCopySummaryView,
+  FormulaView,
+  ImportFormulasSummaryView,
+  Unit,
+} from './types';
 
 export interface FormulaItemDto {
   dye_name: string;
@@ -62,5 +67,23 @@ export const formulaApi = {
   batchCopyDefaultToWorkspace: (ids: number[]) =>
     invoke<BatchCopySummaryView>('cmd_batch_copy_default_to_active_workspace', {
       cmd: { default_formula_ids: ids },
+    }),
+
+  exportDefaultFormulas: (
+    defaultFormulaIds: number[],
+    passphrase: string,
+    outPath: string,
+  ) =>
+    invoke<number>('cmd_export_default_formulas', {
+      cmd: {
+        default_formula_ids: defaultFormulaIds,
+        passphrase,
+        out_path: outPath,
+      },
+    }),
+
+  importDefaultFormulas: (passphrase: string, inPath: string) =>
+    invoke<ImportFormulasSummaryView>('cmd_import_default_formulas', {
+      cmd: { passphrase, in_path: inPath },
     }),
 };

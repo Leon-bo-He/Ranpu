@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::application::ports::{
-    AuditWriter, Clock, DefaultFormulaRepository, SessionStore, WorkspaceFormulaRepository,
+    AuditWriter, Clock, DefaultFormulaRepository, EncryptedExporter, EncryptedImporter,
+    SessionStore, WorkspaceFormulaRepository,
 };
 
 #[derive(Clone)]
@@ -11,15 +12,20 @@ pub struct FormulaService {
     pub(super) audit_writer: Arc<dyn AuditWriter>,
     pub(super) clock: Arc<dyn Clock>,
     pub(super) session_store: Arc<dyn SessionStore>,
+    pub(super) encrypted_exporter: Arc<dyn EncryptedExporter>,
+    pub(super) encrypted_importer: Arc<dyn EncryptedImporter>,
 }
 
 impl FormulaService {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         default_repo: Arc<dyn DefaultFormulaRepository>,
         workspace_repo: Arc<dyn WorkspaceFormulaRepository>,
         audit_writer: Arc<dyn AuditWriter>,
         clock: Arc<dyn Clock>,
         session_store: Arc<dyn SessionStore>,
+        encrypted_exporter: Arc<dyn EncryptedExporter>,
+        encrypted_importer: Arc<dyn EncryptedImporter>,
     ) -> Self {
         Self {
             default_repo,
@@ -27,6 +33,8 @@ impl FormulaService {
             audit_writer,
             clock,
             session_store,
+            encrypted_exporter,
+            encrypted_importer,
         }
     }
 }

@@ -267,11 +267,58 @@ fn item_to_view(item: &crate::domain::formula::formula_item::FormulaItem) -> For
     }
 }
 
-// ---------- Formula 批量复制 ----------
+// ---------- Formula 批量复制 / 加密导入导出 ----------
 
 #[derive(Debug, Deserialize)]
 pub struct BatchCopyDefaultCmd {
     pub default_formula_ids: Vec<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ExportDefaultFormulasCmd {
+    pub default_formula_ids: Vec<i64>,
+    pub passphrase: String,
+    pub out_path: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ImportDefaultFormulasCmd {
+    pub passphrase: String,
+    pub in_path: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ImportItemOutcomeView {
+    pub internal_color_code: String,
+    pub status: String,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ImportFormulasSummaryView {
+    pub items: Vec<ImportItemOutcomeView>,
+    pub imported: u32,
+    pub skipped: u32,
+    pub failed: u32,
+}
+
+impl From<&crate::application::formula::ImportFormulasSummary> for ImportFormulasSummaryView {
+    fn from(s: &crate::application::formula::ImportFormulasSummary) -> Self {
+        Self {
+            items: s
+                .items
+                .iter()
+                .map(|i| ImportItemOutcomeView {
+                    internal_color_code: i.internal_color_code.clone(),
+                    status: i.status.as_str().to_owned(),
+                    error: i.error.clone(),
+                })
+                .collect(),
+            imported: s.imported,
+            skipped: s.skipped,
+            failed: s.failed,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]

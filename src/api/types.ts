@@ -91,6 +91,19 @@ export interface BatchCopySummaryView {
   failed: number;
 }
 
+export interface ImportItemOutcomeView {
+  internal_color_code: string;
+  status: 'imported' | 'skipped_duplicate' | 'failed';
+  error: string | null;
+}
+
+export interface ImportFormulasSummaryView {
+  items: ImportItemOutcomeView[];
+  imported: number;
+  skipped: number;
+  failed: number;
+}
+
 export interface CartLineView {
   source_kind: 'default' | 'workspace';
   source_formula_id: number;

@@ -102,6 +102,8 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
         audit_writer.clone(),
         clock.clone(),
         session_store.clone(),
+        yda.clone(),
+        yda.clone(),
     );
     let calculation = CalculationService::new(
         default_repo.clone(),

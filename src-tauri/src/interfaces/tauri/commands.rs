@@ -11,8 +11,8 @@ use crate::application::cart::{
     AddToCartInput, ExportCartInput, RemoveFromCartInput, UpdateCartItemKgInput,
 };
 use crate::application::formula::{
-    BatchCopyDefaultInput, FormulaItemInput, FormulaUpsertInput, ListDefaultFormulasInput,
-    ListWorkspaceFormulasInput,
+    BatchCopyDefaultInput, ExportDefaultFormulasInput, FormulaItemInput, FormulaUpsertInput,
+    ImportDefaultFormulasInput, ListDefaultFormulasInput, ListWorkspaceFormulasInput,
 };
 use crate::application::identity::{
     AuthenticateUserInput, ChangeUserPasswordInput, CreateUserInput, UnlockOutcome,
@@ -346,6 +346,36 @@ pub fn cmd_batch_copy_default_to_active_workspace(
         })
         .map_err(UiError::from)?;
     Ok(BatchCopySummaryView::from(&summary))
+}
+
+#[tauri::command]
+pub fn cmd_export_default_formulas(
+    state: State<AppState>,
+    cmd: ExportDefaultFormulasCmd,
+) -> CmdResult<u32> {
+    services_or_err(&state)?
+        .formula
+        .export_default_formulas(ExportDefaultFormulasInput {
+            default_formula_ids: cmd.default_formula_ids.into_iter().map(FormulaId::new).collect(),
+            passphrase: cmd.passphrase,
+            out_path: cmd.out_path.into(),
+        })
+        .map_err(UiError::from)
+}
+
+#[tauri::command]
+pub fn cmd_import_default_formulas(
+    state: State<AppState>,
+    cmd: ImportDefaultFormulasCmd,
+) -> CmdResult<ImportFormulasSummaryView> {
+    let summary = services_or_err(&state)?
+        .formula
+        .import_default_formulas(ImportDefaultFormulasInput {
+            passphrase: cmd.passphrase,
+            in_path: cmd.in_path.into(),
+        })
+        .map_err(UiError::from)?;
+    Ok(ImportFormulasSummaryView::from(&summary))
 }
 
 // ---------- Calculation ----------
