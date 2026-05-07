@@ -1,0 +1,6 @@
+node_modules/
+target/
+dist/
+*.db
+keystore.bin
+.DS_Store
