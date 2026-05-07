@@ -86,4 +86,22 @@ export const formulaApi = {
     invoke<ImportFormulasSummaryView>('cmd_import_default_formulas', {
       cmd: { passphrase, in_path: inPath },
     }),
+
+  exportWorkspaceFormulas: (
+    workspaceFormulaIds: number[],
+    passphrase: string,
+    outPath: string,
+  ) =>
+    invoke<number>('cmd_export_workspace_formulas', {
+      cmd: {
+        workspace_formula_ids: workspaceFormulaIds,
+        passphrase,
+        out_path: outPath,
+      },
+    }),
+
+  importWorkspaceFormulas: (passphrase: string, inPath: string) =>
+    invoke<ImportFormulasSummaryView>('cmd_import_workspace_formulas', {
+      cmd: { passphrase, in_path: inPath },
+    }),
 };

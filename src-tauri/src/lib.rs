@@ -61,6 +61,8 @@ pub fn run() {
             cmd_batch_copy_default_to_active_workspace,
             cmd_export_default_formulas,
             cmd_import_default_formulas,
+            cmd_export_workspace_formulas,
+            cmd_import_workspace_formulas,
             cmd_calculate,
             cmd_search_by_customer_code,
             cmd_add_to_cart,

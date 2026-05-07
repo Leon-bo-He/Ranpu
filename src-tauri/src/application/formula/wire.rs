@@ -1,0 +1,89 @@
+//! 加密 .ranpu 配方导出文件的 wire 格式 (default 与 workspace 共用).
+//!
+//! 文件 = AES-256-GCM 加密的 JSON, 内层就是这里定义的 FormulaExportFile.
+
+use serde::{Deserialize, Serialize};
+
+use crate::domain::calculation::dye_calculator::CalculableFormula;
+use crate::domain::formula::default_formula::DefaultFormula;
+use crate::domain::formula::workspace_formula::WorkspaceFormula;
+
+pub const FORMULA_EXPORT_MAGIC: &str = "ranpu-formula-export";
+pub const FORMULA_EXPORT_VERSION: u32 = 1;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FormulaExportFile {
+    pub magic: String,
+    pub version: u32,
+    pub exported_at: String,
+    /// 原始来源 ("default" / "workspace"); 只是元数据, 导入路径决定真正落到哪张表.
+    pub scope: String,
+    pub formulas: Vec<FormulaExportItem>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FormulaExportItem {
+    pub internal_color_code: String,
+    pub customer_color_code: Option<String>,
+    pub color_name: Option<String>,
+    pub description: Option<String>,
+    pub base_weight_kg: Option<f64>,
+    pub liquor_ratio: Option<f64>,
+    pub notes: Option<String>,
+    pub items: Vec<FormulaExportItemDye>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FormulaExportItemDye {
+    pub dye_name: String,
+    pub dye_code: Option<String>,
+    pub amount: f64,
+    pub unit: String,
+    pub sort_order: u16,
+}
+
+pub fn default_to_wire(f: &DefaultFormula) -> FormulaExportItem {
+    FormulaExportItem {
+        internal_color_code: <DefaultFormula as CalculableFormula>::internal_color_code(f)
+            .as_str()
+            .to_owned(),
+        customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
+        color_name: f.color_name().map(str::to_owned),
+        description: f.description().map(str::to_owned),
+        base_weight_kg: f.base_weight_kg().map(|k| k.value()),
+        liquor_ratio: <DefaultFormula as CalculableFormula>::liquor_ratio(f).map(|r| r.value()),
+        notes: f.notes().map(str::to_owned),
+        items: <DefaultFormula as CalculableFormula>::items(f)
+            .iter()
+            .map(item_to_wire)
+            .collect(),
+    }
+}
+
+pub fn workspace_to_wire(f: &WorkspaceFormula) -> FormulaExportItem {
+    FormulaExportItem {
+        internal_color_code: <WorkspaceFormula as CalculableFormula>::internal_color_code(f)
+            .as_str()
+            .to_owned(),
+        customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
+        color_name: f.color_name().map(str::to_owned),
+        description: f.description().map(str::to_owned),
+        base_weight_kg: f.base_weight_kg().map(|k| k.value()),
+        liquor_ratio: <WorkspaceFormula as CalculableFormula>::liquor_ratio(f).map(|r| r.value()),
+        notes: f.notes().map(str::to_owned),
+        items: <WorkspaceFormula as CalculableFormula>::items(f)
+            .iter()
+            .map(item_to_wire)
+            .collect(),
+    }
+}
+
+fn item_to_wire(it: &crate::domain::formula::formula_item::FormulaItem) -> FormulaExportItemDye {
+    FormulaExportItemDye {
+        dye_name: it.dye_name().to_owned(),
+        dye_code: it.dye_code().map(str::to_owned),
+        amount: it.amount_value(),
+        unit: it.unit().as_db_str().to_owned(),
+        sort_order: it.sort_order(),
+    }
+}

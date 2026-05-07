@@ -1,46 +1,48 @@
-//! 把默认配方库的若干条配方加密导出为 .ranpu 文件，便于跨机分发。
+//! 把当前工作区的若干条配方加密导出为 .ranpu 文件。
 
 use std::path::PathBuf;
 
 use crate::application::errors::{AppError, AppResult};
 use crate::application::formula::service::FormulaService;
 use crate::application::formula::wire::{
-    default_to_wire, FormulaExportFile, FORMULA_EXPORT_MAGIC, FORMULA_EXPORT_VERSION,
+    workspace_to_wire, FormulaExportFile, FORMULA_EXPORT_MAGIC, FORMULA_EXPORT_VERSION,
 };
-use crate::application::ports::default_formula_repository::DefaultFormulaQuery;
-use crate::application::session_guard::ensure_admin;
+use crate::application::ports::workspace_formula_repository::WorkspaceFormulaQuery;
+use crate::application::session_guard::{ensure_active_workspace, ensure_admin};
 use crate::domain::audit::audit_event::{Action, AuditEvent};
-use crate::domain::formula::default_formula::DefaultFormula;
+use crate::domain::formula::workspace_formula::WorkspaceFormula;
 use crate::domain::shared::id::FormulaId;
 
 #[derive(Debug, Clone)]
-pub struct ExportDefaultFormulasInput {
-    /// 空 → 导出当前默认库的全部配方; 非空 → 只导出指定 id.
-    pub default_formula_ids: Vec<FormulaId>,
+pub struct ExportWorkspaceFormulasInput {
+    /// 空 → 导出当前工作区的全部配方; 非空 → 只导出指定 id (限当前工作区).
+    pub workspace_formula_ids: Vec<FormulaId>,
     pub passphrase: String,
     pub out_path: PathBuf,
 }
 
 impl FormulaService {
-    pub fn export_default_formulas(
+    pub fn export_workspace_formulas(
         &self,
-        input: ExportDefaultFormulasInput,
+        input: ExportWorkspaceFormulasInput,
     ) -> AppResult<u32> {
         let snap = ensure_admin(&*self.session_store)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         if input.passphrase.chars().count() < 8 {
             return Err(AppError::Internal("加密导出口令至少 8 位".into()));
         }
 
-        let formulas: Vec<DefaultFormula> = if input.default_formula_ids.is_empty() {
-            self.default_repo.list(DefaultFormulaQuery {
+        let formulas: Vec<WorkspaceFormula> = if input.workspace_formula_ids.is_empty() {
+            self.workspace_repo.list(WorkspaceFormulaQuery {
+                workspace_id,
                 keyword: None,
                 limit: None,
                 offset: None,
             })?
         } else {
-            let mut out = Vec::with_capacity(input.default_formula_ids.len());
-            for id in &input.default_formula_ids {
-                if let Some(f) = self.default_repo.find_by_id(*id)? {
+            let mut out = Vec::with_capacity(input.workspace_formula_ids.len());
+            for id in &input.workspace_formula_ids {
+                if let Some(f) = self.workspace_repo.find_by_id(workspace_id, *id)? {
                     out.push(f);
                 }
             }
@@ -55,8 +57,8 @@ impl FormulaService {
             magic: FORMULA_EXPORT_MAGIC.into(),
             version: FORMULA_EXPORT_VERSION,
             exported_at: self.clock.now().to_rfc3339(),
-            scope: "default".into(),
-            formulas: formulas.iter().map(default_to_wire).collect(),
+            scope: "workspace".into(),
+            formulas: formulas.iter().map(workspace_to_wire).collect(),
         };
 
         let bytes = serde_json::to_vec(&payload)
@@ -68,8 +70,8 @@ impl FormulaService {
         let count = formulas.len() as u32;
         let event = AuditEvent::new(
             Some(snap.user_id()),
-            None,
-            Action::DefaultFormulasExported,
+            Some(workspace_id),
+            Action::WorkspaceFormulasExported,
             Some(input.out_path.to_string_lossy().into_owned()),
             Some(format!("count={count}")),
             self.clock.now(),

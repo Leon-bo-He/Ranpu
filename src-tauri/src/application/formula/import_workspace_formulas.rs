@@ -1,70 +1,43 @@
-//! 从 .ranpu 文件解密 + 反序列化 + 写回默认配方库。
+//! 从 .ranpu 文件解密 + 反序列化 + 写入当前工作区配方.
 //!
-//! 同内部色号已存在 → 跳过 (status="skipped_duplicate"); 解析/校验失败 →
-//! 记错继续 (status="failed"); 否则插入新条目 (status="imported").
+//! 同 (workspace_id, internal_color_code) 已存在 → 跳过 (status="skipped_duplicate");
+//! 解析/校验失败 → 记错继续 (status="failed"); 否则插入 (status="imported").
 
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::application::errors::{AppError, AppResult};
+use crate::application::formula::import_default_formulas::{
+    ImportFormulasSummary, ImportItemOutcome, ImportItemStatus,
+};
 use crate::application::formula::service::FormulaService;
 use crate::application::formula::wire::{
     FormulaExportFile, FormulaExportItem, FORMULA_EXPORT_MAGIC, FORMULA_EXPORT_VERSION,
 };
-use crate::application::session_guard::ensure_admin;
+use crate::application::session_guard::{ensure_active_workspace, ensure_admin};
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::formula::amounts::Kilograms;
 use crate::domain::formula::customer_color_code::CustomerColorCode;
-use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
 use crate::domain::formula::liquor_ratio::LiquorRatio;
 use crate::domain::formula::unit::Unit;
+use crate::domain::formula::workspace_formula::WorkspaceFormula;
+use crate::domain::shared::id::WorkspaceId;
 
 #[derive(Debug, Clone)]
-pub struct ImportDefaultFormulasInput {
+pub struct ImportWorkspaceFormulasInput {
     pub passphrase: String,
     pub in_path: PathBuf,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ImportItemStatus {
-    Imported,
-    SkippedDuplicate,
-    Failed,
-}
-
-impl ImportItemStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ImportItemStatus::Imported => "imported",
-            ImportItemStatus::SkippedDuplicate => "skipped_duplicate",
-            ImportItemStatus::Failed => "failed",
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ImportItemOutcome {
-    pub internal_color_code: String,
-    pub status: ImportItemStatus,
-    pub error: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ImportFormulasSummary {
-    pub items: Vec<ImportItemOutcome>,
-    pub imported: u32,
-    pub skipped: u32,
-    pub failed: u32,
-}
-
 impl FormulaService {
-    pub fn import_default_formulas(
+    pub fn import_workspace_formulas(
         &self,
-        input: ImportDefaultFormulasInput,
+        input: ImportWorkspaceFormulasInput,
     ) -> AppResult<ImportFormulasSummary> {
         let snap = ensure_admin(&*self.session_store)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         let now = self.clock.now();
 
         let bytes = self
@@ -85,8 +58,8 @@ impl FormulaService {
                 payload.version
             )));
         }
-        // payload.scope 仅作为元数据展示, 不做强校验:
-        // workspace 导出的 .ranpu 也允许导入到默认库 (反之亦然), 由调用入口决定落表.
+        // payload.scope 仅作为元数据展示, 不强制 workspace 来源:
+        // 默认库导出的 .ranpu 也允许导入到工作区.
 
         let mut items = Vec::with_capacity(payload.formulas.len());
         let mut imported = 0_u32;
@@ -94,7 +67,7 @@ impl FormulaService {
         let mut failed = 0_u32;
         for wire in payload.formulas {
             let internal_str = wire.internal_color_code.clone();
-            let outcome = match self.import_one(&wire, now) {
+            let outcome = match self.import_one_workspace(&wire, workspace_id, now) {
                 Ok(true) => {
                     imported += 1;
                     ImportItemOutcome {
@@ -125,8 +98,8 @@ impl FormulaService {
 
         let event = AuditEvent::new(
             Some(snap.user_id()),
-            None,
-            Action::DefaultFormulasImported,
+            Some(workspace_id),
+            Action::WorkspaceFormulasImported,
             Some(input.in_path.to_string_lossy().into_owned()),
             Some(format!(
                 "imported={imported};skipped={skipped};failed={failed}"
@@ -143,15 +116,18 @@ impl FormulaService {
         })
     }
 
-    /// 返回 Ok(true) 表示新插入, Ok(false) 表示因同内部色号存在跳过.
-    fn import_one(
+    fn import_one_workspace(
         &self,
         wire: &FormulaExportItem,
+        workspace_id: WorkspaceId,
         now: chrono::DateTime<chrono::Utc>,
     ) -> AppResult<bool> {
         let internal = InternalColorCode::new(wire.internal_color_code.clone())?;
-        // 跳过重复
-        if self.default_repo.find_by_internal_code(&internal)?.is_some() {
+        if self
+            .workspace_repo
+            .find_by_internal_code(workspace_id, &internal)?
+            .is_some()
+        {
             return Ok(false);
         }
         let customer = CustomerColorCode::maybe(wire.customer_color_code.clone())?;
@@ -174,7 +150,8 @@ impl FormulaService {
                 it.sort_order,
             )?);
         }
-        let formula = DefaultFormula::new(
+        let formula = WorkspaceFormula::new(
+            workspace_id,
             internal,
             customer,
             wire.color_name.clone(),
@@ -186,7 +163,7 @@ impl FormulaService {
             None,
             now,
         )?;
-        self.default_repo.upsert(&formula)?;
+        self.workspace_repo.upsert(&formula)?;
         Ok(true)
     }
 }

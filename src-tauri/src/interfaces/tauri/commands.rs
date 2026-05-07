@@ -11,8 +11,9 @@ use crate::application::cart::{
     AddToCartInput, ExportCartInput, RemoveFromCartInput, UpdateCartItemKgInput,
 };
 use crate::application::formula::{
-    BatchCopyDefaultInput, ExportDefaultFormulasInput, FormulaItemInput, FormulaUpsertInput,
-    ImportDefaultFormulasInput, ListDefaultFormulasInput, ListWorkspaceFormulasInput,
+    BatchCopyDefaultInput, ExportDefaultFormulasInput, ExportWorkspaceFormulasInput,
+    FormulaItemInput, FormulaUpsertInput, ImportDefaultFormulasInput,
+    ImportWorkspaceFormulasInput, ListDefaultFormulasInput, ListWorkspaceFormulasInput,
 };
 use crate::application::identity::{
     AuthenticateUserInput, ChangeUserPasswordInput, CreateUserInput, UnlockOutcome,
@@ -371,6 +372,40 @@ pub fn cmd_import_default_formulas(
     let summary = services_or_err(&state)?
         .formula
         .import_default_formulas(ImportDefaultFormulasInput {
+            passphrase: cmd.passphrase,
+            in_path: cmd.in_path.into(),
+        })
+        .map_err(UiError::from)?;
+    Ok(ImportFormulasSummaryView::from(&summary))
+}
+
+#[tauri::command]
+pub fn cmd_export_workspace_formulas(
+    state: State<AppState>,
+    cmd: ExportWorkspaceFormulasCmd,
+) -> CmdResult<u32> {
+    services_or_err(&state)?
+        .formula
+        .export_workspace_formulas(ExportWorkspaceFormulasInput {
+            workspace_formula_ids: cmd
+                .workspace_formula_ids
+                .into_iter()
+                .map(FormulaId::new)
+                .collect(),
+            passphrase: cmd.passphrase,
+            out_path: cmd.out_path.into(),
+        })
+        .map_err(UiError::from)
+}
+
+#[tauri::command]
+pub fn cmd_import_workspace_formulas(
+    state: State<AppState>,
+    cmd: ImportWorkspaceFormulasCmd,
+) -> CmdResult<ImportFormulasSummaryView> {
+    let summary = services_or_err(&state)?
+        .formula
+        .import_workspace_formulas(ImportWorkspaceFormulasInput {
             passphrase: cmd.passphrase,
             in_path: cmd.in_path.into(),
         })

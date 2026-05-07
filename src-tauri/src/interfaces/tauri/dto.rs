@@ -287,6 +287,19 @@ pub struct ImportDefaultFormulasCmd {
     pub in_path: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ExportWorkspaceFormulasCmd {
+    pub workspace_formula_ids: Vec<i64>,
+    pub passphrase: String,
+    pub out_path: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ImportWorkspaceFormulasCmd {
+    pub passphrase: String,
+    pub in_path: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct ImportItemOutcomeView {
     pub internal_color_code: String,
