@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "染谱 Ranpu",
+  "productName": "Ranpu",
   "version": "1.0.0",
   "identifier": "com.ranpu.app",
   "build": {
