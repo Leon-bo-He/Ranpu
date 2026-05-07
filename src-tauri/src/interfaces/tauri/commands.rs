@@ -6,7 +6,7 @@ use tauri::State;
 
 use crate::application::audit::{AuditExportFormat, ExportAuditLogInput, ListAuditEventsInput};
 use crate::application::backup::{ExportBackupInput, ImportBackupInput};
-use crate::application::calculation::CalculateDyeAmountsInput;
+use crate::application::calculation::{CalculateDyeAmountsInput, SearchByCustomerCodeInput};
 use crate::application::cart::{
     AddToCartInput, ExportCartInput, RemoveFromCartInput, UpdateCartItemKgInput,
 };
@@ -348,6 +348,20 @@ pub fn cmd_calculate(
         })
         .map_err(UiError::from)?;
     Ok(CalculationResultView::from(&result))
+}
+
+#[tauri::command]
+pub fn cmd_search_by_customer_code(
+    state: State<AppState>,
+    cmd: SearchByCustomerCodeCmd,
+) -> CmdResult<Vec<CustomerCodeMatchView>> {
+    let matches = services_or_err(&state)?
+        .calculation
+        .search_candidates_by_customer_code(SearchByCustomerCodeInput {
+            customer_color_code: cmd.customer_color_code,
+        })
+        .map_err(UiError::from)?;
+    Ok(matches.iter().map(CustomerCodeMatchView::from).collect())
 }
 
 // ---------- Cart ----------

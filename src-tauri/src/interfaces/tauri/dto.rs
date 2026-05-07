@@ -275,6 +275,37 @@ pub struct CalculateCmd {
     pub target_kg: f64,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SearchByCustomerCodeCmd {
+    pub customer_color_code: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CustomerCodeMatchView {
+    pub source: String,
+    pub source_label: String,
+    pub formula_id: Option<i64>,
+    pub internal_color_code: String,
+    pub color_name: Option<String>,
+    pub customer_color_code: Option<String>,
+}
+
+impl From<&crate::application::calculation::CustomerCodeMatch> for CustomerCodeMatchView {
+    fn from(m: &crate::application::calculation::CustomerCodeMatch) -> Self {
+        Self {
+            source: match m.source {
+                FormulaSource::CurrentWorkspace => "current_workspace".into(),
+                FormulaSource::DefaultFallback => "default_fallback".into(),
+            },
+            source_label: m.source.display_label().to_owned(),
+            formula_id: m.formula_id.map(|i| i.value()),
+            internal_color_code: m.internal_color_code.as_str().to_owned(),
+            color_name: m.color_name.clone(),
+            customer_color_code: m.customer_color_code.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct CalculationLineView {
     pub dye_name: String,

@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { calculationApi } from '@/api/calculation';
 import { cartApi } from '@/api/cart';
 import { ApiError } from '@/api/invoke';
-import type { CalculationResultView } from '@/api/types';
+import type { CalculationResultView, CustomerCodeMatchView } from '@/api/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,8 +14,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -27,9 +42,12 @@ import {
 import { formatGrams, unitLabel } from '@/lib/format';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
+type SearchMode = 'internal' | 'customer';
+
 export function CalculatorPage() {
   const session = useSessionStore((s) => s.session);
   const hasWs = hasActiveWorkspace(session);
+  const [mode, setMode] = useState<SearchMode>('internal');
   const [code, setCode] = useState('');
   const [kg, setKg] = useState('10');
   const [result, setResult] = useState<CalculationResultView | null>(null);
@@ -37,6 +55,7 @@ export function CalculatorPage() {
   const [busy, setBusy] = useState(false);
   const [cartBusy, setCartBusy] = useState(false);
   const [cartMsg, setCartMsg] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<CustomerCodeMatchView[] | null>(null);
 
   if (!hasWs) {
     return (
@@ -46,17 +65,48 @@ export function CalculatorPage() {
     );
   }
 
+  const calcWithInternalCode = async (internalCode: string) => {
+    const r = await calculationApi.calculate(internalCode, Number(kg));
+    setResult(r);
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     setResult(null);
     setCartMsg(null);
+    setCandidates(null);
     try {
-      const r = await calculationApi.calculate(code.trim(), Number(kg));
-      setResult(r);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
+      if (mode === 'internal') {
+        await calcWithInternalCode(code.trim());
+      } else {
+        const list = await calculationApi.searchByCustomerCode(code.trim());
+        if (list.length === 0) {
+          setError('没找到客户色号匹配的配方');
+        } else if (list.length === 1) {
+          // 只有一条直接计算，省一次点击
+          await calcWithInternalCode(list[0].internal_color_code);
+        } else {
+          // 多条让用户挑
+          setCandidates(list);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onPickCandidate = async (m: CustomerCodeMatchView) => {
+    setCandidates(null);
+    setBusy(true);
+    setError(null);
+    try {
+      await calcWithInternalCode(m.internal_color_code);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -91,20 +141,44 @@ export function CalculatorPage() {
             <CalcIcon className="h-5 w-5" /> 输入色号与目标重量
           </CardTitle>
           <CardDescription>
-            会先在当前工作区查询，找不到再 fallback 到默认库。
+            内部色号：先在当前工作区查询，找不到再 fallback 到默认库。
+            客户色号：跨当前工作区与默认库找匹配，多条候选时让你挑。
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={submit} className="grid gap-3 md:grid-cols-3">
-            <div className="grid gap-1 md:col-span-2">
-              <Label>内部色号</Label>
+          <form onSubmit={submit} className="grid gap-3 md:grid-cols-12">
+            <div className="grid gap-1 md:col-span-3">
+              <Label>查询模式</Label>
+              <Select
+                value={mode}
+                onValueChange={(v) => {
+                  setMode(v as SearchMode);
+                  setResult(null);
+                  setCandidates(null);
+                  setError(null);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">内部色号</SelectItem>
+                  <SelectItem value="customer">客户色号</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1 md:col-span-6">
+              <Label>{mode === 'internal' ? '内部色号' : '客户色号'}</Label>
               <Input
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 disabled={busy}
+                placeholder={
+                  mode === 'internal' ? '例如 N-2024' : '例如 CUST-NAVY-01'
+                }
               />
             </div>
-            <div className="grid gap-1">
+            <div className="grid gap-1 md:col-span-3">
               <Label>目标 kg</Label>
               <Input
                 type="number"
@@ -116,12 +190,18 @@ export function CalculatorPage() {
                 disabled={busy}
               />
             </div>
-            <div className="md:col-span-3">
+            <div className="md:col-span-12">
               <Button
                 type="submit"
                 disabled={busy || code.trim().length === 0 || !kg}
               >
-                {busy ? '计算中…' : '计算'}
+                {busy
+                  ? mode === 'internal'
+                    ? '计算中…'
+                    : '搜索中…'
+                  : mode === 'internal'
+                    ? '计算'
+                    : '搜索并计算'}
               </Button>
             </div>
           </form>
@@ -197,6 +277,61 @@ export function CalculatorPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog
+        open={candidates !== null}
+        onOpenChange={(o) => !o && setCandidates(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>选择一条配方</DialogTitle>
+            <DialogDescription>
+              「{code}」匹配到 {candidates?.length ?? 0} 条配方，请挑一条进行计算。
+            </DialogDescription>
+          </DialogHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>内部色号</TableHead>
+                <TableHead>颜色俗称</TableHead>
+                <TableHead>客户色号</TableHead>
+                <TableHead>来源</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {candidates?.map((m) => (
+                <TableRow key={`${m.source}-${m.formula_id}`}>
+                  <TableCell className="font-medium">
+                    {m.internal_color_code}
+                  </TableCell>
+                  <TableCell>{m.color_name ?? '—'}</TableCell>
+                  <TableCell>{m.customer_color_code ?? '—'}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        m.source === 'current_workspace' ? 'default' : 'secondary'
+                      }
+                    >
+                      {m.source_label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button size="sm" onClick={() => onPickCandidate(m)}>
+                      选这条
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCandidates(null)}>
+              取消
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -70,6 +70,15 @@ export interface CalculationResultView {
   lines: CalculationLineView[];
 }
 
+export interface CustomerCodeMatchView {
+  source: 'current_workspace' | 'default_fallback';
+  source_label: string;
+  formula_id: number | null;
+  internal_color_code: string;
+  color_name: string | null;
+  customer_color_code: string | null;
+}
+
 export interface CartLineView {
   source_kind: 'default' | 'workspace';
   source_formula_id: number;

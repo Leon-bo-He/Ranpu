@@ -59,6 +59,7 @@ pub fn run() {
             cmd_delete_workspace_formula,
             cmd_copy_default_to_active_workspace,
             cmd_calculate,
+            cmd_search_by_customer_code,
             cmd_add_to_cart,
             cmd_update_cart_kg,
             cmd_remove_from_cart,

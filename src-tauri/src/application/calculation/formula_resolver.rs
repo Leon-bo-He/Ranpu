@@ -8,7 +8,7 @@ use crate::domain::calculation::dye_calculator::{CalculableFormula, FormulaSourc
 use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::formula::internal_color_code::InternalColorCode;
 use crate::domain::formula::workspace_formula::WorkspaceFormula;
-use crate::domain::shared::id::WorkspaceId;
+use crate::domain::shared::id::{FormulaId, WorkspaceId};
 
 /// 解析后的配方包装。两种聚合都要能喂进 DyeCalculator。
 #[derive(Debug, Clone)]
@@ -37,8 +37,10 @@ impl ResolvedFormula {
 #[derive(Debug, Clone)]
 pub struct CustomerCodeMatch {
     pub source: FormulaSource,
+    pub formula_id: Option<FormulaId>,
     pub internal_color_code: InternalColorCode,
     pub color_name: Option<String>,
+    pub customer_color_code: Option<String>,
 }
 
 impl CalculationService {
@@ -74,15 +76,19 @@ impl CalculationService {
         {
             out.push(CustomerCodeMatch {
                 source: FormulaSource::CurrentWorkspace,
+                formula_id: f.id(),
                 internal_color_code: <WorkspaceFormula as CalculableFormula>::internal_color_code(&f).clone(),
                 color_name: f.color_name().map(str::to_owned),
+                customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
             });
         }
         for f in self.default_repo.find_by_customer_code(customer_code)? {
             out.push(CustomerCodeMatch {
                 source: FormulaSource::DefaultFallback,
+                formula_id: f.id(),
                 internal_color_code: <DefaultFormula as CalculableFormula>::internal_color_code(&f).clone(),
                 color_name: f.color_name().map(str::to_owned),
+                customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
             });
         }
         Ok(out)
