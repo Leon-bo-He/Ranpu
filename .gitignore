@@ -16,8 +16,8 @@ src-tauri/gen/
 *.db-shm
 keystore.bin
 
-# 加密备份导出件（默认不入库；如有示例需要单独 git add -f）
-*.ydaexp
+# 加密备份/导出件（默认不入库；如有示例需要单独 git add -f）
+*.ranpu
 
 # 系统/编辑器
 .DS_Store

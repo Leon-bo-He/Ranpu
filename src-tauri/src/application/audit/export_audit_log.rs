@@ -12,7 +12,7 @@ use crate::domain::shared::id::UserId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditExportFormat {
-    /// 加密 .ydaexp（默认）。
+    /// 加密 .ranpu（默认）。
     Encrypted,
     /// 明文 CSV。仅在 UI 二次确认后允许。
     PlainCsv,

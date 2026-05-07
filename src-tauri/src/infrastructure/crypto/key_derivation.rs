@@ -2,7 +2,7 @@
 //!
 //! 用于：
 //! 1) 把「主密钥(32B) + 启动口令」派生 SQLCipher 用的 32 字节 key（输出 64 hex）
-//! 2) 把「.ydaexp 导出口令 + salt(16B)」派生 32B AES 密钥
+//! 2) 把「.ranpu 导出口令 + salt(16B)」派生 32B AES 密钥
 
 use hmac::Hmac;
 use pbkdf2::pbkdf2;

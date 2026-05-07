@@ -176,10 +176,11 @@ function ExportDialog({
       const ok = window.confirm('日志包含敏感操作记录，确定明文导出？');
       if (!ok) return;
     }
-    const ext = format === 'csv' ? 'csv' : 'ydaexp';
+    const ext = format === 'csv' ? 'csv' : 'ranpu';
+    const filterName = format === 'csv' ? 'CSV' : 'Ranpu 加密包';
     const out = await save({
       defaultPath: `审计日志-${from}-${to}.${ext}`,
-      filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+      filters: [{ name: filterName, extensions: [ext] }],
     });
     if (!out) return;
     setBusy(true);
@@ -223,7 +224,7 @@ function ExportDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="encrypted">加密 .ydaexp（推荐）</SelectItem>
+              <SelectItem value="encrypted">加密 .ranpu（推荐）</SelectItem>
               <SelectItem value="csv">明文 CSV</SelectItem>
             </SelectContent>
           </Select>

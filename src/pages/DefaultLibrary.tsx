@@ -167,8 +167,8 @@ export function DefaultLibraryPage() {
 
   const onPickExportPath = async (): Promise<string | null> => {
     const out = await saveDialog({
-      defaultPath: `默认配方-${new Date().toISOString().slice(0, 10)}.ydaexp`,
-      filters: [{ name: 'YDAEXP', extensions: ['ydaexp'] }],
+      defaultPath: `默认配方-${new Date().toISOString().slice(0, 10)}.ranpu`,
+      filters: [{ name: 'Ranpu 加密包', extensions: ['ranpu'] }],
     });
     return typeof out === 'string' ? out : null;
   };
@@ -177,7 +177,7 @@ export function DefaultLibraryPage() {
     const path = await openDialog({
       multiple: false,
       directory: false,
-      filters: [{ name: 'YDAEXP', extensions: ['ydaexp'] }],
+      filters: [{ name: 'Ranpu 加密包', extensions: ['ranpu'] }],
     });
     return typeof path === 'string' ? path : null;
   };
@@ -512,7 +512,7 @@ function ExportFormulasDialog({
         <DialogHeader>
           <DialogTitle>加密导出默认配方</DialogTitle>
           <DialogDescription>
-            导出文件 (.ydaexp) 用 AES-256-GCM 加密，需要导出口令才能在另一台机器导入。
+            导出文件 (.ranpu) 用 AES-256-GCM 加密，需要导出口令才能在另一台机器导入。
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
@@ -624,7 +624,7 @@ function ImportFormulasDialog({
         <DialogHeader>
           <DialogTitle>加密导入默认配方</DialogTitle>
           <DialogDescription>
-            选择 .ydaexp 文件 + 导出时设置的口令；同内部色号的配方将被自动跳过。
+            选择 .ranpu 文件 + 导出时设置的口令；同内部色号的配方将被自动跳过。
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">

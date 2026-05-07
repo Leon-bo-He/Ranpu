@@ -6,6 +6,6 @@
 *.gif binary
 *.ico binary
 *.icns binary
-*.ydaexp binary
+*.ranpu binary
 *.db binary
 keystore.bin binary

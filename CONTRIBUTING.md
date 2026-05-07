@@ -107,7 +107,7 @@ npm run lint
 
 修改 `infrastructure/crypto/` 任何文件，PR 描述必须包含：
 
-1. 是否影响磁盘格式（`.ydaexp` / `keystore.bin`）。如果影响，需要给出迁移方案。
+1. 是否影响磁盘格式（`.ranpu` / `keystore.bin`）。如果影响，需要给出迁移方案。
 2. 是否改变了 KDF 参数 / 算法。如果是，必须 bump `VERSION` 字段。
 3. 是否新增了对外可见的明文存储路径（默认拒绝）。
 

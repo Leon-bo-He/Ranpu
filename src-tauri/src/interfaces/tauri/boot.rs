@@ -19,7 +19,7 @@ use crate::application::workspace::WorkspaceService;
 use crate::domain::calculation::dye_calculator::{DyeCalculator, StandardDyeCalculator};
 use crate::infrastructure::clock_system::SystemClock;
 use crate::infrastructure::crypto::{
-    derive_db_key_hex, ensure_master_key, Argon2PasswordHasher, OsKeyStore, YdaExporter,
+    derive_db_key_hex, ensure_master_key, Argon2PasswordHasher, OsKeyStore, RanpuExporter,
 };
 use crate::infrastructure::export::{BatchSheetCsvExporter, PlainAuditCsvExporter};
 use crate::infrastructure::persistence::seed;
@@ -68,7 +68,7 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
     let calculator: Arc<dyn DyeCalculator> = Arc::new(StandardDyeCalculator::new());
     let csv_audit = Arc::new(PlainAuditCsvExporter::new());
     let batch_sheet_exporter = Arc::new(BatchSheetCsvExporter::new());
-    let yda = Arc::new(YdaExporter::new());
+    let yda = Arc::new(RanpuExporter::new());
 
     // 首次启动种子（仅当 workspace 空时插入）：
     let workspace_repo_dyn: Arc<dyn crate::application::ports::workspace_repository::WorkspaceRepository> =
@@ -135,7 +135,7 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
         audit_repo_arc,
         audit_writer,
         csv_audit,
-        Arc::new(YdaExporter::new()),
+        Arc::new(RanpuExporter::new()),
         clock,
         session_store,
     );

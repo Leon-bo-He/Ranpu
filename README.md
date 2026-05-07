@@ -185,11 +185,12 @@ npm run tauri -- icon src-tauri/icons/source-logo.svg
 - **主密钥**：32 字节随机，仅在内存与 DPAPI 保护的 `keystore.bin` 之间流转；从不写明文磁盘，从不写日志。
 - **数据库密钥**：`PBKDF2-SHA256(主密钥 ‖ 启动口令, salt="ranpu-db-key", 600 000 轮)` → 32 字节 → 64 hex → `PRAGMA key`。每次启动重新派生，不缓存。
 - **密码哈希**：argon2id，`Argon2::default()` 参数（m=19MiB, t=2, p=1）+ `OsRng` salt。`PasswordHash::Display` 故意输出 `<password-hash:redacted>` 防误打印。
-- **`.ydaexp` 备份/审计导出**：
-  - 文件头：`MAGIC(4)='YDA1' | VERSION(1) | SALT(16) | NONCE(12) | 密文+TAG`
+- **`.ranpu` 备份/导出**（PROMPT 第 141 行的旧规约 `YDA1` / `.ydaexp` 已统一改为 `RNP1` / `.ranpu`，与品牌对齐）：
+  - 文件头：`MAGIC(4)='RNP1' | VERSION(1) | SALT(16) | NONCE(12) | 密文+TAG`
   - PBKDF2-SHA256(导出口令, salt, 600 000 轮) → 32 字节 AES key
   - AES-256-GCM，AAD = MAGIC
   - 错口令 → `decrypt` 返回 `WrongPassphrase`（区别于 `Format` 文件损坏）。
+  - 共三个用户场景共用本格式：完整 DB 备份、配方加密分发、审计日志加密导出。
 - **会话**：仅内存。锁屏不写磁盘；连续 5 次解锁失败强制登出。
 - **审计**：每个 use case 写一笔，包含 user_id / workspace_id / action / target / details / RFC3339 时间戳。审计导出有「明文 CSV 二次确认」弹窗。
 
@@ -197,7 +198,7 @@ npm run tauri -- icon src-tauri/icons/source-logo.svg
 
 1. 比对 `infrastructure/crypto/` 与 `application/ports/` 中的 trait/impl 配对。
 2. `grep` 检查 `password` 字符串不被序列化或直接 println。
-3. 在 fuzz 测试中检验 `.ydaexp` 文件头解析的健壮性。
+3. 在 fuzz 测试中检验 `.ranpu` 文件头解析的健壮性。
 4. 用 `cargo audit` 跟踪 RustSec 公告。
 
 ---

@@ -4,7 +4,7 @@ pub mod dpapi_keystore;
 pub mod key_derivation;
 pub mod master_key;
 
-pub use aes_gcm_exporter::YdaExporter;
+pub use aes_gcm_exporter::RanpuExporter;
 pub use argon2_hasher::Argon2PasswordHasher;
 pub use dpapi_keystore::OsKeyStore;
 pub use key_derivation::{derive_db_key_hex, derive_export_key, PBKDF2_ROUNDS};

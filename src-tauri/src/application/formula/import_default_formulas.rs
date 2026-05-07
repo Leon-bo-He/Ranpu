@@ -1,4 +1,4 @@
-//! 从 .ydaexp 文件解密 + 反序列化 + 写回默认配方库。
+//! 从 .ranpu 文件解密 + 反序列化 + 写回默认配方库。
 //!
 //! 同内部色号已存在 → 跳过 (status="skipped_duplicate"); 解析/校验失败 →
 //! 记错继续 (status="failed"); 否则插入新条目 (status="imported").
