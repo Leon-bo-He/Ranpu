@@ -56,7 +56,9 @@ export function FormulaCard({
           <CardTitle className="flex flex-1 items-center gap-2">
             <span className="text-base font-bold">{formula.internal_color_code}</span>
             {formula.customer_color_code && (
-              <Badge variant="secondary">客户：{formula.customer_color_code}</Badge>
+              <Badge variant="secondary">
+                客户色号：{formula.customer_color_code}
+              </Badge>
             )}
           </CardTitle>
           {selectable && (
