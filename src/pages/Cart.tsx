@@ -22,6 +22,7 @@ import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 export function CartPage() {
   const session = useSessionStore((s) => s.session);
   const hasWs = hasActiveWorkspace(session);
+  const activeWorkspaceId = session?.active_workspace_id ?? null;
   const [lines, setLines] = useState<CartLineView[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,10 +37,11 @@ export function CartPage() {
       .catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
   };
 
+  // 依赖 active_workspace_id 而非 hasWs, 切换工作区也能刷新.
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasWs]);
+  }, [activeWorkspaceId]);
 
   if (!hasWs) {
     return (

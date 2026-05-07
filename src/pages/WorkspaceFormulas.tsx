@@ -14,6 +14,7 @@ export function WorkspaceFormulasPage() {
   const session = useSessionStore((s) => s.session);
   const admin = isAdmin(session);
   const hasWs = hasActiveWorkspace(session);
+  const activeWorkspaceId = session?.active_workspace_id ?? null;
 
   const [keyword, setKeyword] = useState('');
   const [list, setList] = useState<FormulaView[]>([]);
@@ -36,10 +37,11 @@ export function WorkspaceFormulasPage() {
       .finally(() => setLoading(false));
   };
 
+  // 依赖 active_workspace_id 而非 hasWs (boolean), 不然 A→B 切换不会触发刷新.
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasWs]);
+  }, [activeWorkspaceId]);
 
   if (!hasWs) {
     return (
