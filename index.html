@@ -5,9 +5,80 @@
     <link rel="icon" type="image/svg+xml" href="/src/assets/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>染谱 Ranpu</title>
+    <style>
+      /* 应用启动 splash —— React 挂载前显示，挂载后自动被 #root 内容覆盖 */
+      html, body { margin: 0; padding: 0; background: #ffffff; }
+      @media (prefers-color-scheme: dark) {
+        html, body { background: #0a0a0a; }
+      }
+      .ranpu-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        font-family: 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', serif;
+      }
+      .ranpu-splash__title {
+        font-size: 28px;
+        letter-spacing: 6px;
+        color: #1f1f1f;
+      }
+      .ranpu-splash__sub {
+        font-size: 11px;
+        letter-spacing: 3px;
+        color: #999;
+        text-transform: uppercase;
+        font-family: system-ui, sans-serif;
+      }
+      .ranpu-splash__spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid rgba(120, 120, 120, 0.25);
+        border-top-color: #6A11CB;
+        border-radius: 50%;
+        animation: ranpu-splash-spin 0.9s linear infinite;
+        margin-top: 8px;
+      }
+      @media (prefers-color-scheme: dark) {
+        .ranpu-splash__title { color: #f0f0f0; }
+        .ranpu-splash__sub { color: #777; }
+      }
+      @keyframes ranpu-splash-spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="ranpu-splash" aria-label="正在启动染谱">
+        <svg width="96" height="96" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="ranpu-splash-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FF4B2B" />
+              <stop offset="50%" stop-color="#6A11CB" />
+              <stop offset="100%" stop-color="#2575FC" />
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r="95" fill="none" stroke="#f0f0f0" stroke-width="2" />
+          <g transform="translate(40, 45)">
+            <path d="M10,110 C10,10 110,110 110,10"
+                  stroke="#eee" stroke-width="12" fill="none" stroke-linecap="round" />
+            <path d="M10,110 C10,10 110,110 110,10"
+                  stroke="url(#ranpu-splash-grad)" stroke-width="10" fill="none"
+                  stroke-linecap="round" stroke-dasharray="200" stroke-dashoffset="0" />
+            <path d="M10,10 C10,110 110,10 110,110"
+                  stroke="url(#ranpu-splash-grad)" stroke-width="10" fill="none"
+                  stroke-linecap="round" opacity="0.6" />
+          </g>
+        </svg>
+        <div class="ranpu-splash__title">染谱</div>
+        <div class="ranpu-splash__sub">DYE FORMULA</div>
+        <div class="ranpu-splash__spinner"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
