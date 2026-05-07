@@ -64,7 +64,7 @@
       "endpoints": [
         "https://github.com/Leon-bo-He/Ranpu/releases/latest/download/latest.json"
       ],
-      "pubkey": "REPLACE_WITH_TAURI_SIGNER_GENERATE_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENBMDgxQzZDNDE5OUJERgpSV1RmbXhuRXhvR2dEQ2dCQ3dWZzFNd1prMXhKT3psU1NKQnZwRVRqczdyKytUZEVDR3Nob2hDdwo=",
       "windows": {
         "installMode": "passive"
       }
