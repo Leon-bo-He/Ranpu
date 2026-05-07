@@ -51,10 +51,11 @@ pub struct Workspace {
 
 impl Workspace {
     /// 构造一个尚未持久化的 Workspace。
+    /// `created_by_user_id` 允许 None：seed/系统初始化时没有用户。
     pub fn new(
         name: WorkspaceName,
         description: Option<String>,
-        created_by_user_id: UserId,
+        created_by_user_id: Option<UserId>,
         created_at: DateTime<Utc>,
     ) -> DomainResult<Self> {
         let description = normalize_description(description)?;
@@ -62,7 +63,7 @@ impl Workspace {
             id: None,
             name,
             description,
-            created_by_user_id: Some(created_by_user_id),
+            created_by_user_id,
             created_at,
         })
     }
@@ -171,7 +172,7 @@ mod tests {
         let w = Workspace::new(
             WorkspaceName::new("X").unwrap(),
             None,
-            UserId::new(1),
+            Some(UserId::new(1)),
             now(),
         )
         .unwrap();
@@ -184,7 +185,7 @@ mod tests {
         let w = Workspace::new(
             WorkspaceName::new("X").unwrap(),
             Some("   ".into()),
-            UserId::new(1),
+            Some(UserId::new(1)),
             now(),
         )
         .unwrap();
@@ -197,7 +198,7 @@ mod tests {
         let err = Workspace::new(
             WorkspaceName::new("X").unwrap(),
             Some(too_long),
-            UserId::new(1),
+            Some(UserId::new(1)),
             now(),
         )
         .unwrap_err();
@@ -209,7 +210,7 @@ mod tests {
         let mut w = Workspace::new(
             WorkspaceName::new("旧名").unwrap(),
             None,
-            UserId::new(1),
+            Some(UserId::new(1)),
             now(),
         )
         .unwrap();

@@ -17,7 +17,8 @@ impl WorkspaceService {
         let snap = ensure_admin(&*self.session_store)?;
         let now = self.clock.now();
         let name = WorkspaceName::new(input.name.clone())?;
-        let workspace = Workspace::new(name, input.description.clone(), snap.user_id(), now)?;
+        let workspace =
+            Workspace::new(name, input.description.clone(), Some(snap.user_id()), now)?;
         let id = match self.workspace_repo.insert(&workspace) {
             Ok(id) => id,
             Err(RepositoryError::Conflict(_)) => {

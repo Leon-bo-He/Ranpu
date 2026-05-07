@@ -27,8 +27,11 @@ chrono = { version = "0.4", default-features = false, features = ["std", "clock"
 thiserror = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 
+# 持久化（SQLCipher + 静态 OpenSSL）
+rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl", "chrono"] }
+parking_lot = "0.12"
+
 # 注：以下依赖按 PROMPT 的特性分支顺序在后续提交中引入：
-# - feat/infra-persistence:   rusqlite (features = ["bundled-sqlcipher-vendored-openssl", "chrono"])
 # - feat/infra-crypto:        argon2、aes-gcm、pbkdf2、rand、cfg(windows) windows crate
 
 [profile.release]
