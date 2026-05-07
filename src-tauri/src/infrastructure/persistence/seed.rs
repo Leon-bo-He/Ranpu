@@ -11,7 +11,6 @@ use crate::application::ports::default_formula_repository::DefaultFormulaReposit
 use crate::application::ports::errors::RepositoryError;
 use crate::application::ports::workspace_repository::WorkspaceRepository;
 use crate::domain::formula::amounts::Kilograms;
-use crate::domain::formula::customer_color_code::CustomerColorCode;
 use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
@@ -70,7 +69,7 @@ fn seed_default_formulas(
 fn navy_n_2024(now: DateTime<Utc>) -> DefaultFormula {
     DefaultFormula::new(
         InternalColorCode::new("N-2024").unwrap(),
-        Some(CustomerColorCode::new("CUST-NAVY-01").unwrap()),
+        None,
         Some("藏青".into()),
         Some("偏冷调藏青，适合棉与混纺。".into()),
         Some(Kilograms::new(50.0).unwrap()),
@@ -93,7 +92,7 @@ fn navy_n_2024(now: DateTime<Utc>) -> DefaultFormula {
 fn rose_r_105(now: DateTime<Utc>) -> DefaultFormula {
     DefaultFormula::new(
         InternalColorCode::new("R-105").unwrap(),
-        Some(CustomerColorCode::new("CUST-ROSE-12").unwrap()),
+        None,
         Some("玫红".into()),
         Some("中等饱和度玫红。".into()),
         Some(Kilograms::new(30.0).unwrap()),
@@ -163,7 +162,7 @@ fn forest_g_330(now: DateTime<Utc>) -> DefaultFormula {
 fn sunset_o_710(now: DateTime<Utc>) -> DefaultFormula {
     DefaultFormula::new(
         InternalColorCode::new("O-710").unwrap(),
-        Some(CustomerColorCode::new("CUST-ORANGE-7").unwrap()),
+        None,
         Some("落日橙".into()),
         Some("偏红的鲜橙色，量多需注意 pH。".into()),
         None,
