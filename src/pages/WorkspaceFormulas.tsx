@@ -1,4 +1,4 @@
-import { Plus, Search } from 'lucide-react';
+import { Loader2, Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { formulaApi } from '@/api/formula';
@@ -17,6 +17,7 @@ export function WorkspaceFormulasPage() {
 
   const [keyword, setKeyword] = useState('');
   const [list, setList] = useState<FormulaView[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<FormulaView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,12 +25,15 @@ export function WorkspaceFormulasPage() {
   const load = () => {
     if (!hasWs) {
       setList([]);
+      setLoading(false);
       return;
     }
+    setLoading(true);
     return formulaApi
       .listWorkspace({ keyword })
       .then(setList)
-      .catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
+      .catch((e) => setError(e instanceof ApiError ? e.message : String(e)))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -95,19 +99,35 @@ export function WorkspaceFormulasPage() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {list.map((f) => (
-          <FormulaCard
-            key={f.id}
-            formula={f}
-            source="workspace"
-            canManage={admin}
-            hasActiveWorkspace={hasWs}
-            onEdit={admin ? (f) => { setEditing(f); setEditorOpen(true); } : undefined}
-            onDelete={admin ? onDelete : undefined}
-          />
-        ))}
-      </div>
+      {loading && list.length === 0 ? (
+        <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          正在加载…
+        </div>
+      ) : list.length === 0 ? (
+        <p className="text-sm text-muted-foreground">没有匹配的配方。</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {list.map((f) => (
+            <FormulaCard
+              key={f.id}
+              formula={f}
+              source="workspace"
+              canManage={admin}
+              hasActiveWorkspace={hasWs}
+              onEdit={
+                admin
+                  ? (f) => {
+                      setEditing(f);
+                      setEditorOpen(true);
+                    }
+                  : undefined
+              }
+              onDelete={admin ? onDelete : undefined}
+            />
+          ))}
+        </div>
+      )}
 
       <FormulaEditor
         open={editorOpen}

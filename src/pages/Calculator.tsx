@@ -1,4 +1,4 @@
-import { Calculator as CalcIcon, ShoppingCart } from 'lucide-react';
+import { Calculator as CalcIcon, Loader2, ShoppingCart } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 
 import { calculationApi } from '@/api/calculation';
@@ -301,13 +301,21 @@ export function CalculatorPage() {
                     : '加入购物车'
                 }
               >
-                <ShoppingCart className="mr-1 h-4 w-4" />
-                {cartBusy ? '加入中…' : '加入购物车'}
+                {cartBusy ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <ShoppingCart className="mr-1 h-4 w-4" />
+                )}
+                加入购物车
               </Button>
             </div>
-            {cartMsg && (
-              <p className="mt-2 text-sm text-emerald-600">{cartMsg}</p>
-            )}
+            {/* 永远占位 min-h-5, 防止消息出现/消失导致 CardHeader 高度跳动 */}
+            <p
+              aria-live="polite"
+              className="mt-2 min-h-5 text-sm text-emerald-600"
+            >
+              {cartMsg ?? ' '}
+            </p>
           </CardHeader>
           <CardContent>
             <Table>

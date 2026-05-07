@@ -1,4 +1,4 @@
-import { CheckSquare, Copy, Plus, Search, Square } from 'lucide-react';
+import { CheckSquare, Copy, Loader2, Plus, Search, Square } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { formulaApi } from '@/api/formula';
@@ -33,6 +33,8 @@ export function DefaultLibraryPage() {
 
   const [keyword, setKeyword] = useState('');
   const [list, setList] = useState<FormulaView[]>([]);
+  /** 第一次拉数据完成前为 true; 之后只在显式刷新时短暂为 true。 */
+  const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<FormulaView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +45,9 @@ export function DefaultLibraryPage() {
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchSummary, setBatchSummary] = useState<BatchCopySummaryView | null>(null);
 
-  const load = (kw?: string) =>
-    formulaApi
+  const load = (kw?: string) => {
+    setLoading(true);
+    return formulaApi
       .listDefault({ keyword: kw ?? keyword })
       .then((data) => {
         setList(data);
@@ -54,7 +57,9 @@ export function DefaultLibraryPage() {
           return new Set([...prev].filter((id) => allIds.has(id)));
         });
       })
-      .catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
+      .catch((e) => setError(e instanceof ApiError ? e.message : String(e)))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     load();
@@ -203,22 +208,38 @@ export function DefaultLibraryPage() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {list.map((f) => (
-          <FormulaCard
-            key={f.id}
-            formula={f}
-            source="default"
-            canManage={admin}
-            hasActiveWorkspace={hasWs}
-            onCopyToWorkspace={onCopyToWorkspace}
-            onEdit={admin ? (f) => { setEditing(f); setEditorOpen(true); } : undefined}
-            onDelete={admin ? onDelete : undefined}
-            selected={selectionEnabled ? selectedIds.has(f.id) : undefined}
-            onToggleSelected={selectionEnabled ? onToggleSelected : undefined}
-          />
-        ))}
-      </div>
+      {loading && list.length === 0 ? (
+        <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          正在加载…
+        </div>
+      ) : list.length === 0 ? (
+        <p className="text-sm text-muted-foreground">没有匹配的配方。</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {list.map((f) => (
+            <FormulaCard
+              key={f.id}
+              formula={f}
+              source="default"
+              canManage={admin}
+              hasActiveWorkspace={hasWs}
+              onCopyToWorkspace={onCopyToWorkspace}
+              onEdit={
+                admin
+                  ? (f) => {
+                      setEditing(f);
+                      setEditorOpen(true);
+                    }
+                  : undefined
+              }
+              onDelete={admin ? onDelete : undefined}
+              selected={selectionEnabled ? selectedIds.has(f.id) : undefined}
+              onToggleSelected={selectionEnabled ? onToggleSelected : undefined}
+            />
+          ))}
+        </div>
+      )}
 
       <FormulaEditor
         open={editorOpen}
