@@ -1,0 +1,55 @@
+name: Release
+
+# 推 v* tag (例: v1.0.0) 触发 Windows x64 打包并发布到 GitHub Releases.
+# 也可以在 Actions 页面手动触发 (workflow_dispatch).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Build + bundle + publish to Releases
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: '染谱 Ranpu ${{ github.ref_name }}'
+          releaseBody: |
+            Windows x64 安装包 (NSIS, 简体中文 / 英文).
+
+            首次安装提示:
+            1. SmartScreen 警告 → 「更多信息 → 仍要运行」 (未代码签名)
+            2. 启动后设启动口令 (用于本机数据加密, 请记录)
+            3. 创建第一个 admin 账号
+          releaseDraft: false
+          prerelease: false
+          args: --target x86_64-pc-windows-msvc
