@@ -2,8 +2,5 @@
 //!
 //! 只做 DTO 转换 + 调用 application + 权限/锁屏检查。
 //! 每个 #[tauri::command] ≤ 30 行。
-//! 子模块在后续 feat/interfaces-tauri 分支填充。
 
-pub mod tauri {
-    // 占位：commands、dto、error_mapping、state、lock_guard 在后续分支补齐
-}
+pub mod tauri;
