@@ -109,7 +109,23 @@ export function FormulaCard({
           <p className="text-xs text-muted-foreground">{formula.notes}</p>
         )}
       </CardContent>
-      <CardFooter className="flex flex-wrap gap-2">
+      <CardFooter className="flex flex-col items-stretch gap-2">
+        {/* 第一排: 编辑 / 删除 (default 与 workspace 一致) */}
+        {canManage && (onEdit || onDelete) && (
+          <div className="flex flex-wrap gap-2">
+            {onEdit && (
+              <Button size="sm" variant="ghost" onClick={() => onEdit(formula)}>
+                <Pencil className="mr-1 h-4 w-4" /> 编辑
+              </Button>
+            )}
+            {onDelete && (
+              <Button size="sm" variant="ghost" onClick={() => onDelete(formula)}>
+                <Trash2 className="mr-1 h-4 w-4" /> 删除
+              </Button>
+            )}
+          </div>
+        )}
+        {/* 第二排: 复制到当前工作区 (仅 default + admin) */}
         {source === 'default' && canManage && (
           <Button
             size="sm"
@@ -119,16 +135,6 @@ export function FormulaCard({
             onClick={() => onCopyToWorkspace?.(formula)}
           >
             <Copy className="mr-1 h-4 w-4" /> 复制到当前工作区
-          </Button>
-        )}
-        {canManage && onEdit && (
-          <Button size="sm" variant="ghost" onClick={() => onEdit(formula)}>
-            <Pencil className="mr-1 h-4 w-4" /> 编辑
-          </Button>
-        )}
-        {canManage && onDelete && (
-          <Button size="sm" variant="ghost" onClick={() => onDelete(formula)}>
-            <Trash2 className="mr-1 h-4 w-4" /> 删除
           </Button>
         )}
       </CardFooter>
