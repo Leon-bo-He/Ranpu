@@ -40,6 +40,13 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # tauri-plugin-updater 签名: tauri signer generate 出 .key + .pub,
+          # private key 内容贴进 GitHub repo secret TAURI_SIGNING_PRIVATE_KEY,
+          # 生成时设的密码贴进 TAURI_SIGNING_PRIVATE_KEY_PASSWORD,
+          # public key 写到 src-tauri/tauri.conf.json plugins.updater.pubkey.
+          # tauri-action 会自动产 latest.json + .sig 并上传到 Release.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: '染谱 Ranpu ${{ github.ref_name }}'

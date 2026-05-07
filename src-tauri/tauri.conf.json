@@ -56,6 +56,18 @@
     "category": "Productivity",
     "shortDescription": "染谱 — 离线染纱配色",
     "longDescription": "DDD + Hexagonal architecture 的离线染纱配方与计算软件",
-    "copyright": "© 2026 染谱 Ranpu"
+    "copyright": "© 2026 染谱 Ranpu",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Leon-bo-He/Ranpu/releases/latest/download/latest.json"
+      ],
+      "pubkey": "REPLACE_WITH_TAURI_SIGNER_GENERATE_PUBLIC_KEY",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
