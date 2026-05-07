@@ -46,7 +46,7 @@ export function LockOverlay() {
         <p className="text-xs uppercase tracking-[2px] text-muted-foreground">
           DYE FORMULA
         </p>
-        <p className="mt-4 text-sm text-muted-foreground">会话已锁定，请输入密码继续</p>
+        <p className="mt-4 text-sm text-muted-foreground">会话已锁定，请输入用户密码继续</p>
         <form onSubmit={onSubmit} className="mt-2 flex w-72 flex-col gap-2">
           <Input
             type="password"
