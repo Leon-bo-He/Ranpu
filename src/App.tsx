@@ -6,6 +6,7 @@ import { bootApi } from '@/api/boot';
 import { ApiError } from '@/api/invoke';
 import { IdleDetector } from '@/components/IdleDetector';
 import { LockOverlay } from '@/components/LockOverlay';
+import { Sidebar } from '@/components/Sidebar';
 import { TopBar } from '@/components/TopBar';
 import { AboutPage } from '@/pages/About';
 import { AuditLogPage } from '@/pages/AuditLog';
@@ -102,25 +103,30 @@ function App() {
     return <LoginPage />;
   }
 
-  // App 主体
+  // App 主体: TopBar 横通栏 + 下方左 Sidebar 200px + 右侧路由内容
   return (
     <BrowserRouter>
       <IdleDetector />
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="flex h-screen flex-col bg-background text-foreground">
         <TopBar />
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/default-library" element={<DefaultLibraryPage />} />
-          <Route path="/workspace-formulas" element={<WorkspaceFormulasPage />} />
-          <Route path="/calculator" element={<CalculatorPage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/workspaces" element={<WorkspaceManagementPage />} />
-          <Route path="/users" element={<UserManagementPage />} />
-          <Route path="/audit" element={<AuditLogPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/default-library" element={<DefaultLibraryPage />} />
+              <Route path="/workspace-formulas" element={<WorkspaceFormulasPage />} />
+              <Route path="/calculator" element={<CalculatorPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/workspaces" element={<WorkspaceManagementPage />} />
+              <Route path="/users" element={<UserManagementPage />} />
+              <Route path="/audit" element={<AuditLogPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+        </div>
       </div>
       {session.locked && <LockOverlay />}
     </BrowserRouter>

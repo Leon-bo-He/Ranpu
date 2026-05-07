@@ -1,5 +1,5 @@
-import { Home, Lock, LogOut } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Lock, LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { identityApi } from '@/api/identity';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,6 @@ export function TopBar() {
   const session = useSessionStore((s) => s.session);
   const clearSession = useSessionStore((s) => s.clear);
   const setLocked = useSessionStore((s) => s.setLocked);
-  const location = useLocation();
-  const atHome = location.pathname === '/';
 
   if (!session) return null;
 
@@ -27,8 +25,8 @@ export function TopBar() {
   };
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background px-6">
-      <div className="flex items-center gap-3">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b bg-background px-6">
+      <div className="flex items-center">
         <Link
           to="/"
           className="flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-accent/50"
@@ -37,14 +35,6 @@ export function TopBar() {
         >
           <RanpuLogo size={28} withText />
         </Link>
-        {!atHome && (
-          <Button asChild variant="ghost" size="sm" title="返回主面板">
-            <Link to="/">
-              <Home className="mr-1 h-4 w-4" />
-              主面板
-            </Link>
-          </Button>
-        )}
       </div>
       <div className="flex items-center gap-4">
         <WorkspaceSwitcher />
