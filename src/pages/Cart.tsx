@@ -1,5 +1,5 @@
 import { save } from '@tauri-apps/plugin-dialog';
-import { Download, Trash, Trash2 } from 'lucide-react';
+import { Trash, Trash2, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { cartApi } from '@/api/cart';
@@ -124,14 +124,14 @@ export function CartPage() {
         <h2 className="font-serif text-xl tracking-[2px]">批次清单</h2>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => onExport('csv')}>
-            <Download className="mr-1 h-4 w-4" /> 导出 CSV
+            <Upload className="mr-1 h-4 w-4" /> 导出 CSV
           </Button>
           <Button
             variant="outline"
             onClick={() => onExport('html')}
             title="导出网页版批次单 (浏览器打开后 Ctrl+P 可另存为 PDF)"
           >
-            <Download className="mr-1 h-4 w-4" /> 导出 HTML
+            <Upload className="mr-1 h-4 w-4" /> 导出 HTML
           </Button>
           <Button
             variant="ghost"
