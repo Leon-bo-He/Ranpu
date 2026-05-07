@@ -33,6 +33,6 @@ export const cartApi = {
 
   clear: () => invoke<void>('cmd_clear_cart'),
 
-  export: (format: 'csv' | 'pdf', outPath: string) =>
+  export: (format: 'csv' | 'html', outPath: string) =>
     invoke<void>('cmd_export_cart', { cmd: { format, out_path: outPath } }),
 };

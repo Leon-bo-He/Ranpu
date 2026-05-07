@@ -29,7 +29,7 @@ impl CartService {
 
         let format_str = match input.format {
             BatchSheetFormat::Csv => "csv",
-            BatchSheetFormat::Pdf => "pdf",
+            BatchSheetFormat::Html => "html",
         };
         let event = AuditEvent::new(
             Some(snap.user_id()),

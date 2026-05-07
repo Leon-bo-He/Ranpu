@@ -464,7 +464,7 @@ pub fn cmd_list_cart(state: State<AppState>) -> CmdResult<Vec<CartLineView>> {
 pub fn cmd_export_cart(state: State<AppState>, cmd: ExportCartCmd) -> CmdResult<()> {
     let format = match cmd.format.as_str() {
         "csv" => BatchSheetFormat::Csv,
-        "pdf" => BatchSheetFormat::Pdf,
+        "html" => BatchSheetFormat::Html,
         other => {
             return Err(UiError {
                 code: "domain",
