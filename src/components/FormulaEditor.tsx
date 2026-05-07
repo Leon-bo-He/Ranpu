@@ -117,8 +117,8 @@ export function FormulaEditor({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 p-0">
+        <DialogHeader className="shrink-0 border-b px-6 py-4">
           <DialogTitle>
             {initial ? '编辑' : '新建'}
             {scope}配方
@@ -128,6 +128,7 @@ export function FormulaEditor({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
         <div className="grid grid-cols-2 gap-3">
           <Field label="内部色号" required>
             <Input value={internal} onChange={(e) => setInternal(e.target.value)} />
@@ -245,8 +246,9 @@ export function FormulaEditor({
         </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 gap-2 border-t bg-background px-6 py-3">
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             取消
           </Button>
