@@ -144,6 +144,27 @@ cargo test  --manifest-path src-tauri/Cargo.toml
 cargo clippy --all-targets --manifest-path src-tauri/Cargo.toml -- -D warnings
 ```
 
+### 大体量开发种子（仅 dev，不进生产端）
+
+需要 UI 翻页 / 搜索压测时，可一键灌入 **255 条默认配方 + 20 个 Dev客户工作区（每客户 5–20 条带客户色号配方）**。
+
+由 `dev-seed` cargo feature 网住 + 运行期 `RANPU_DEV_SEED=1` 二道门槛；`tauri build` / `cargo build --release` 默认不带 feature，整段代码不会编进安装包。
+
+**PowerShell（Windows）：**
+
+```powershell
+$env:RANPU_DEV_SEED = "1"
+npm run tauri dev -- --features dev-seed
+```
+
+**bash / zsh（macOS / Linux）：**
+
+```bash
+RANPU_DEV_SEED=1 npm run tauri dev -- --features dev-seed
+```
+
+进入 boot 页输完启动口令后种子才会跑（`boot()` 阶段触发）。upsert 幂等，重启不会重复插。想完全清回原状：删 `%APPDATA%\Ranpu`（Windows）/ `~/.config/Ranpu` 走首次启动流程。
+
 ---
 
 ## 打包发布
