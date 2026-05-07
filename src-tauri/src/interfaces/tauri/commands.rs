@@ -167,6 +167,14 @@ pub fn cmd_deactivate_user(state: State<AppState>, user_id: i64) -> CmdResult<()
 }
 
 #[tauri::command]
+pub fn cmd_activate_user(state: State<AppState>, user_id: i64) -> CmdResult<()> {
+    services_or_err(&state)?
+        .identity
+        .activate_user(UserId::new(user_id))
+        .map_err(UiError::from)
+}
+
+#[tauri::command]
 pub fn cmd_list_users(state: State<AppState>) -> CmdResult<Vec<UserView>> {
     let users = services_or_err(&state)?.identity.list_users().map_err(UiError::from)?;
     Ok(users.iter().map(UserView::from).collect())

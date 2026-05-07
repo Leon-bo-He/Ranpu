@@ -45,6 +45,7 @@ pub fn run() {
             cmd_change_password,
             cmd_create_user,
             cmd_deactivate_user,
+            cmd_activate_user,
             cmd_list_users,
             cmd_create_workspace,
             cmd_rename_workspace,

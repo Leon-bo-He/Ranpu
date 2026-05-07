@@ -23,5 +23,8 @@ export const identityApi = {
   deactivateUser: (userId: number) =>
     invoke<void>('cmd_deactivate_user', { userId }),
 
+  activateUser: (userId: number) =>
+    invoke<void>('cmd_activate_user', { userId }),
+
   listUsers: () => invoke<UserView[]>('cmd_list_users'),
 };

@@ -34,11 +34,13 @@ import {
 import { formatDateTime } from '@/lib/format';
 import { useSessionStore } from '@/store/session';
 
+type PendingToggle = { user: UserView; action: 'activate' | 'deactivate' };
+
 export function UserManagementPage() {
   const session = useSessionStore((s) => s.session);
   const [users, setUsers] = useState<UserView[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
-  const [pendingDeactivate, setPendingDeactivate] = useState<UserView | null>(null);
+  const [pendingToggle, setPendingToggle] = useState<PendingToggle | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () => identityApi.listUsers().then(setUsers).catch((e) => setError(String(e)));
@@ -47,17 +49,25 @@ export function UserManagementPage() {
     load();
   }, []);
 
-  const askDeactivate = (u: UserView) => setPendingDeactivate(u);
+  const askDeactivate = (u: UserView) =>
+    setPendingToggle({ user: u, action: 'deactivate' });
+  const askActivate = (u: UserView) =>
+    setPendingToggle({ user: u, action: 'activate' });
 
-  const confirmDeactivate = async () => {
-    if (!pendingDeactivate) return;
+  const confirmToggle = async () => {
+    if (!pendingToggle) return;
+    const { user, action } = pendingToggle;
     try {
-      await identityApi.deactivateUser(pendingDeactivate.id);
-      setPendingDeactivate(null);
+      if (action === 'deactivate') {
+        await identityApi.deactivateUser(user.id);
+      } else {
+        await identityApi.activateUser(user.id);
+      }
+      setPendingToggle(null);
       await load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
-      setPendingDeactivate(null);
+      setPendingToggle(null);
     }
   };
 
@@ -108,15 +118,24 @@ export function UserManagementPage() {
               <TableCell>{formatDateTime(u.last_login)}</TableCell>
               <TableCell>{formatDateTime(u.created_at)}</TableCell>
               <TableCell>
-                {u.is_active && u.id !== session.user_id && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => askDeactivate(u)}
-                  >
-                    停用
-                  </Button>
-                )}
+                {u.id !== session.user_id &&
+                  (u.is_active ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => askDeactivate(u)}
+                    >
+                      停用
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => askActivate(u)}
+                    >
+                      启用
+                    </Button>
+                  ))}
               </TableCell>
             </TableRow>
           ))}
@@ -133,22 +152,26 @@ export function UserManagementPage() {
       />
 
       <ConfirmDialog
-        open={pendingDeactivate !== null}
-        onClose={() => setPendingDeactivate(null)}
-        title="确认停用用户？"
+        open={pendingToggle !== null}
+        onClose={() => setPendingToggle(null)}
+        title={
+          pendingToggle?.action === 'activate' ? '确认启用用户？' : '确认停用用户？'
+        }
         description={
-          pendingDeactivate && (
+          pendingToggle && (
             <>
-              停用账号{' '}
-              <span className="font-mono">{pendingDeactivate.username}</span>{' '}
-              ({pendingDeactivate.role === 'admin' ? '管理员' : '普通用户'})。
-              该账号将无法登录，但既往审计记录与配方归属保留。
+              {pendingToggle.action === 'activate' ? '启用' : '停用'}账号{' '}
+              <span className="font-mono">{pendingToggle.user.username}</span>{' '}
+              ({pendingToggle.user.role === 'admin' ? '管理员' : '普通用户'})。
+              {pendingToggle.action === 'activate'
+                ? '启用后该账号将恢复登录权限。'
+                : '该账号将无法登录，但既往审计记录与配方归属保留。'}
             </>
           )
         }
-        confirmLabel="停用"
-        destructive
-        onConfirm={confirmDeactivate}
+        confirmLabel={pendingToggle?.action === 'activate' ? '启用' : '停用'}
+        destructive={pendingToggle?.action === 'deactivate'}
+        onConfirm={confirmToggle}
       />
     </div>
   );

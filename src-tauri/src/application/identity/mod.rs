@@ -1,3 +1,4 @@
+mod activate_user;
 mod authenticate_user;
 mod change_user_password;
 mod create_user;
