@@ -33,6 +33,8 @@ export function DefaultLibraryPage() {
   const hasWs = hasActiveWorkspace(session);
 
   const [keyword, setKeyword] = useState('');
+  // 防抖关键词: 输入停 300ms 后才触发查询.
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [list, setList] = useState<FormulaView[]>([]);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -44,10 +46,10 @@ export function DefaultLibraryPage() {
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchSummary, setBatchSummary] = useState<BatchCopySummaryView | null>(null);
 
-  const load = (kw?: string) => {
+  const load = (kw: string = debouncedKeyword) => {
     setLoading(true);
     return formulaApi
-      .listDefault({ keyword: kw ?? keyword })
+      .listDefault({ keyword: kw })
       .then((data) => {
         setList(data);
         setSelectedIds((prev) => {
@@ -59,10 +61,16 @@ export function DefaultLibraryPage() {
       .finally(() => setLoading(false));
   };
 
+  // 把 keyword 防抖成 debouncedKeyword.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedKeyword(keyword), 300);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [debouncedKeyword]);
 
   useEffect(() => {
     if (!selectionEnabled) setSelectedIds(new Set());
@@ -177,20 +185,16 @@ export function DefaultLibraryPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 max-w-md">
-        <div className="relative flex-1">
+      <div className="max-w-md">
+        <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-8"
             placeholder="搜索内部色号 / 客户色号 / 颜色俗称"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && load()}
           />
         </div>
-        <Button variant="outline" onClick={() => load()}>
-          搜索
-        </Button>
       </div>
 
       {selectionEnabled && selectedIds.size > 0 && (

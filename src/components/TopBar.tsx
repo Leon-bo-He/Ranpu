@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { identityApi } from '@/api/identity';
 import { Button } from '@/components/ui/button';
 import { RanpuLogo } from '@/components/RanpuLogo';
+import { WorkspaceSearch } from '@/components/WorkspaceSearch';
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
 import { useSessionStore } from '@/store/session';
 
@@ -37,6 +38,8 @@ export function TopBar() {
         </Link>
         <div className="h-6 w-px bg-border" aria-hidden />
         <WorkspaceSwitcher />
+        <div className="h-6 w-px bg-border" aria-hidden />
+        <WorkspaceSearch />
       </div>
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">
