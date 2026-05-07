@@ -71,7 +71,7 @@ export function AboutPage() {
             架构采用 DDD + Hexagonal/Ports-and-Adapters；前端 React + Tailwind +
             shadcn/ui；后端 Rust + Tauri 2。
           </p>
-          <p className="text-muted-foreground">© 2026 染谱 Ranpu</p>
+          <p className="text-muted-foreground">© {new Date().getFullYear()} 染谱 Ranpu</p>
         </CardContent>
       </Card>
 
