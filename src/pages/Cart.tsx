@@ -6,6 +6,7 @@ import { cartApi } from '@/api/cart';
 import { ApiError } from '@/api/invoke';
 import { workspaceApi } from '@/api/workspace';
 import type { CartLineView } from '@/api/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ export function CartPage() {
   const [lines, setLines] = useState<CartLineView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState<string>('');
+  const [askClear, setAskClear] = useState(false);
 
   const load = () => {
     if (!hasWs) {
@@ -83,13 +85,14 @@ export function CartPage() {
     }
   };
 
-  const onClearAll = async () => {
-    if (!confirm('清空整个购物车？')) return;
+  const confirmClear = async () => {
     try {
       await cartApi.clear();
+      setAskClear(false);
       load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
+      setAskClear(false);
     }
   };
 
@@ -132,7 +135,7 @@ export function CartPage() {
           </Button>
           <Button
             variant="ghost"
-            onClick={onClearAll}
+            onClick={() => setAskClear(true)}
             disabled={lines.length === 0}
           >
             <Trash2 className="mr-1 h-4 w-4" /> 清空
@@ -217,6 +220,21 @@ export function CartPage() {
           </TableBody>
         </Table>
       )}
+
+      <ConfirmDialog
+        open={askClear}
+        onClose={() => setAskClear(false)}
+        title="清空购物车？"
+        description={
+          <>
+            将移除当前工作区购物车里的全部 {lines.length} 条配方记录，
+            操作不可撤销。被引用的配方本身不会被删除。
+          </>
+        }
+        confirmLabel="清空"
+        destructive
+        onConfirm={confirmClear}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { UserPlus } from 'lucide-react';
 import { identityApi } from '@/api/identity';
 import { ApiError } from '@/api/invoke';
 import type { UserView } from '@/api/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +38,7 @@ export function UserManagementPage() {
   const session = useSessionStore((s) => s.session);
   const [users, setUsers] = useState<UserView[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
+  const [pendingDeactivate, setPendingDeactivate] = useState<UserView | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () => identityApi.listUsers().then(setUsers).catch((e) => setError(String(e)));
@@ -45,13 +47,17 @@ export function UserManagementPage() {
     load();
   }, []);
 
-  const onDeactivate = async (id: number) => {
-    if (!confirm('确认停用该用户？')) return;
+  const askDeactivate = (u: UserView) => setPendingDeactivate(u);
+
+  const confirmDeactivate = async () => {
+    if (!pendingDeactivate) return;
     try {
-      await identityApi.deactivateUser(id);
+      await identityApi.deactivateUser(pendingDeactivate.id);
+      setPendingDeactivate(null);
       await load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
+      setPendingDeactivate(null);
     }
   };
 
@@ -106,7 +112,7 @@ export function UserManagementPage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => onDeactivate(u.id)}
+                    onClick={() => askDeactivate(u)}
                   >
                     停用
                   </Button>
@@ -124,6 +130,25 @@ export function UserManagementPage() {
           setOpenCreate(false);
           load();
         }}
+      />
+
+      <ConfirmDialog
+        open={pendingDeactivate !== null}
+        onClose={() => setPendingDeactivate(null)}
+        title="确认停用用户？"
+        description={
+          pendingDeactivate && (
+            <>
+              停用账号{' '}
+              <span className="font-mono">{pendingDeactivate.username}</span>{' '}
+              ({pendingDeactivate.role === 'admin' ? '管理员' : '普通用户'})。
+              该账号将无法登录，但既往审计记录与配方归属保留。
+            </>
+          )
+        }
+        confirmLabel="停用"
+        destructive
+        onConfirm={confirmDeactivate}
       />
     </div>
   );

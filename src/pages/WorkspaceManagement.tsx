@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ApiError } from '@/api/invoke';
 import type { WorkspaceView } from '@/api/types';
 import { workspaceApi } from '@/api/workspace';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -30,6 +31,7 @@ export function WorkspaceManagementPage() {
   const session = useSessionStore((s) => s.session);
   const [list, setList] = useState<WorkspaceView[]>([]);
   const [editing, setEditing] = useState<WorkspaceView | 'new' | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<WorkspaceView | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () =>
@@ -48,18 +50,17 @@ export function WorkspaceManagementPage() {
     );
   }
 
-  const onDelete = async (w: WorkspaceView) => {
-    if (
-      !confirm(
-        `确认删除工作区「${w.name}」？该操作会同时删除其下所有配方与购物车条目。`,
-      )
-    )
-      return;
+  const askDelete = (w: WorkspaceView) => setPendingDelete(w);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
     try {
-      await workspaceApi.remove(w.id);
+      await workspaceApi.remove(pendingDelete.id);
+      setPendingDelete(null);
       load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
+      setPendingDelete(null);
     }
   };
 
@@ -93,7 +94,7 @@ export function WorkspaceManagementPage() {
                 <Button size="sm" variant="ghost" onClick={() => setEditing(w)}>
                   <Pencil className="mr-1 h-4 w-4" /> 重命名
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => onDelete(w)}>
+                <Button size="sm" variant="ghost" onClick={() => askDelete(w)}>
                   <Trash2 className="mr-1 h-4 w-4" /> 删除
                 </Button>
               </TableCell>
@@ -109,6 +110,25 @@ export function WorkspaceManagementPage() {
           setEditing(null);
           load();
         }}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        title="确认删除工作区？"
+        description={
+          pendingDelete && (
+            <>
+              将永久删除工作区{' '}
+              <span className="font-mono">{pendingDelete.name}</span>{' '}
+              及其下<strong>所有配方</strong>与<strong>购物车记录</strong>，
+              操作不可撤销。审计日志会保留。
+            </>
+          )
+        }
+        confirmLabel="删除工作区"
+        destructive
+        onConfirm={confirmDelete}
       />
     </div>
   );

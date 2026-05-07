@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { auditApi } from '@/api/audit';
 import { ApiError } from '@/api/invoke';
 import type { AuditEventView } from '@/api/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -156,6 +157,7 @@ function ExportDialog({
   const [passphrase, setPassphrase] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [askPlainCsv, setAskPlainCsv] = useState(false);
 
   useEffect(() => {
     setFrom(defaultFrom);
@@ -173,9 +175,14 @@ function ExportDialog({
       return;
     }
     if (format === 'csv') {
-      const ok = window.confirm('日志包含敏感操作记录，确定明文导出？');
-      if (!ok) return;
+      // 把明文导出二次确认抬到 ConfirmDialog 而不是 window.confirm.
+      setAskPlainCsv(true);
+      return;
     }
+    await doExport();
+  };
+
+  const doExport = async () => {
     const ext = format === 'csv' ? 'csv' : 'ranpu';
     const filterName = format === 'csv' ? 'CSV' : 'Ranpu 加密包';
     const out = await save({
@@ -199,6 +206,11 @@ function ExportDialog({
     } finally {
       setBusy(false);
     }
+  };
+
+  const onConfirmPlainCsv = async () => {
+    setAskPlainCsv(false);
+    await doExport();
   };
 
   return (
@@ -249,6 +261,22 @@ function ExportDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ConfirmDialog
+        open={askPlainCsv}
+        onClose={() => setAskPlainCsv(false)}
+        title="确认明文导出审计日志？"
+        description={
+          <>
+            日志包含敏感操作记录（用户、动作、时间），明文 CSV{' '}
+            <strong>不会被加密</strong>，任何拿到文件的人都能直接读取。如需对外分发，
+            建议改用 「加密 .ranpu」 格式。
+          </>
+        }
+        confirmLabel="仍然明文导出"
+        destructive
+        onConfirm={onConfirmPlainCsv}
+      />
     </Dialog>
   );
 }
