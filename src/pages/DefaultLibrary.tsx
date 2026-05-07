@@ -18,6 +18,7 @@ import type {
   FormulaView,
   ImportFormulasSummaryView,
 } from '@/api/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FormulaCard } from '@/components/FormulaCard';
 import { FormulaEditor } from '@/components/FormulaEditor';
 import { Badge } from '@/components/ui/badge';
@@ -103,13 +104,20 @@ export function DefaultLibraryPage() {
     }
   };
 
-  const onDelete = async (formula: FormulaView) => {
-    if (!confirm(`确认删除「${formula.internal_color_code}」？`)) return;
+  // 删除前的确认目标；非 null 时 ConfirmDialog 显示
+  const [pendingDelete, setPendingDelete] = useState<FormulaView | null>(null);
+
+  const askDelete = (formula: FormulaView) => setPendingDelete(formula);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
     try {
-      await formulaApi.deleteDefault(formula.id);
+      await formulaApi.deleteDefault(pendingDelete.id);
+      setPendingDelete(null);
       load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
+      setPendingDelete(null);
     }
   };
 
@@ -283,7 +291,7 @@ export function DefaultLibraryPage() {
                     }
                   : undefined
               }
-              onDelete={admin ? onDelete : undefined}
+              onDelete={admin ? askDelete : undefined}
               selected={selectionEnabled ? selectedIds.has(f.id) : undefined}
               onToggleSelected={selectionEnabled ? onToggleSelected : undefined}
             />
@@ -359,6 +367,25 @@ export function DefaultLibraryPage() {
           setImportSummary(summary);
           load();
         }}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        title="确认删除配方？"
+        description={
+          pendingDelete && (
+            <>
+              将永久删除默认库中的{' '}
+              <span className="font-mono">{pendingDelete.internal_color_code}</span>
+              {pendingDelete.color_name && <> · {pendingDelete.color_name}</>}
+              {' '}及其所有染料明细，操作不可撤销。
+            </>
+          )
+        }
+        confirmLabel="删除"
+        destructive
+        onConfirm={confirmDelete}
       />
 
       <Dialog

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import type { FormulaView } from '@/api/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FormulaCard } from '@/components/FormulaCard';
 import { FormulaEditor } from '@/components/FormulaEditor';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ export function WorkspaceFormulasPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<FormulaView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<FormulaView | null>(null);
 
   const load = () => {
     if (!hasWs) {
@@ -51,13 +53,17 @@ export function WorkspaceFormulasPage() {
     );
   }
 
-  const onDelete = async (formula: FormulaView) => {
-    if (!confirm(`确认删除「${formula.internal_color_code}」？`)) return;
+  const askDelete = (formula: FormulaView) => setPendingDelete(formula);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
     try {
-      await formulaApi.deleteWorkspace(formula.id);
+      await formulaApi.deleteWorkspace(pendingDelete.id);
+      setPendingDelete(null);
       load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
+      setPendingDelete(null);
     }
   };
 
@@ -125,7 +131,7 @@ export function WorkspaceFormulasPage() {
                     }
                   : undefined
               }
-              onDelete={admin ? onDelete : undefined}
+              onDelete={admin ? askDelete : undefined}
             />
           ))}
         </div>
@@ -137,6 +143,25 @@ export function WorkspaceFormulasPage() {
         initial={editing}
         scope="工作区"
         onSave={onSave}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        title="确认删除配方？"
+        description={
+          pendingDelete && (
+            <>
+              将永久删除当前工作区中的{' '}
+              <span className="font-mono">{pendingDelete.internal_color_code}</span>
+              {pendingDelete.color_name && <> · {pendingDelete.color_name}</>}
+              {' '}及其所有染料明细，操作不可撤销。
+            </>
+          )
+        }
+        confirmLabel="删除"
+        destructive
+        onConfirm={confirmDelete}
       />
     </div>
   );
