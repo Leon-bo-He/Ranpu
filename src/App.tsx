@@ -8,11 +8,15 @@ import { IdleDetector } from '@/components/IdleDetector';
 import { LockOverlay } from '@/components/LockOverlay';
 import { TopBar } from '@/components/TopBar';
 import { BootScreen } from '@/pages/BootScreen';
+import { CalculatorPage } from '@/pages/Calculator';
+import { CartPage } from '@/pages/Cart';
 import { DashboardPage } from '@/pages/Dashboard';
+import { DefaultLibraryPage } from '@/pages/DefaultLibrary';
 import { FirstRunSetup } from '@/pages/FirstRunSetup';
 import { LoginPage } from '@/pages/Login';
 import { SettingsPage } from '@/pages/Settings';
 import { UserManagementPage } from '@/pages/UserManagement';
+import { WorkspaceFormulasPage } from '@/pages/WorkspaceFormulas';
 import { useSessionStore } from '@/store/session';
 
 type GateState =
@@ -98,6 +102,10 @@ function App() {
         <TopBar />
         <Routes>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/default-library" element={<DefaultLibraryPage />} />
+          <Route path="/workspace-formulas" element={<WorkspaceFormulasPage />} />
+          <Route path="/calculator" element={<CalculatorPage />} />
+          <Route path="/cart" element={<CartPage />} />
           <Route path="/users" element={<UserManagementPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
