@@ -20,18 +20,25 @@ impl OsKeyStore {
 mod windows_impl {
     use super::*;
     use windows::core::PWSTR;
-    use windows::Win32::Foundation::HLOCAL;
     use windows::Win32::Security::Cryptography::{
-        CryptProtectData, CryptUnprotectData, CRYPTOAPI_BLOB,
+        CryptProtectData, CryptUnprotectData, CRYPT_INTEGER_BLOB,
     };
+
+    // windows-rs 0.58 不再 export LocalFree（被 Result<()> 化的版本砍掉了），
+    // 直接 link kernel32 的原生符号绕过版本摆动。LocalFree 释放
+    // CryptProtectData/CryptUnprotectData 通过 LocalAlloc 分配的输出缓冲。
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn LocalFree(hmem: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
+    }
 
     pub fn protect(plain: &[u8]) -> Result<Vec<u8>, KeyStoreError> {
         unsafe {
-            let mut input = CRYPTOAPI_BLOB {
+            let mut input = CRYPT_INTEGER_BLOB {
                 cbData: plain.len() as u32,
                 pbData: plain.as_ptr() as *mut u8,
             };
-            let mut output = CRYPTOAPI_BLOB::default();
+            let mut output = CRYPT_INTEGER_BLOB::default();
             CryptProtectData(
                 &mut input,
                 PWSTR::null(),
@@ -44,19 +51,18 @@ mod windows_impl {
             .map_err(|e| KeyStoreError::Crypto(e.message()))?;
             let bytes =
                 std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec();
-            // 释放 LocalAlloc 出的缓冲
-            let _ = windows::Win32::System::Memory::LocalFree(HLOCAL(output.pbData as _));
+            LocalFree(output.pbData as _);
             Ok(bytes)
         }
     }
 
     pub fn unprotect(encrypted: &[u8]) -> Result<Vec<u8>, KeyStoreError> {
         unsafe {
-            let mut input = CRYPTOAPI_BLOB {
+            let mut input = CRYPT_INTEGER_BLOB {
                 cbData: encrypted.len() as u32,
                 pbData: encrypted.as_ptr() as *mut u8,
             };
-            let mut output = CRYPTOAPI_BLOB::default();
+            let mut output = CRYPT_INTEGER_BLOB::default();
             CryptUnprotectData(
                 &mut input,
                 None,
@@ -69,7 +75,7 @@ mod windows_impl {
             .map_err(|e| KeyStoreError::Crypto(e.message()))?;
             let bytes =
                 std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec();
-            let _ = windows::Win32::System::Memory::LocalFree(HLOCAL(output.pbData as _));
+            LocalFree(output.pbData as _);
             Ok(bytes)
         }
     }
