@@ -58,6 +58,7 @@ pub fn run() {
             cmd_upsert_workspace_formula,
             cmd_delete_workspace_formula,
             cmd_copy_default_to_active_workspace,
+            cmd_batch_copy_default_to_active_workspace,
             cmd_calculate,
             cmd_search_by_customer_code,
             cmd_add_to_cart,

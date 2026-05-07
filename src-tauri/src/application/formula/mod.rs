@@ -1,3 +1,4 @@
+mod batch_copy_default_to_workspace;
 mod copy_default_to_active_workspace;
 mod delete_default_formula;
 mod delete_workspace_formula;
@@ -8,6 +9,9 @@ pub mod service;
 mod upsert_default_formula;
 mod upsert_workspace_formula;
 
+pub use batch_copy_default_to_workspace::{
+    BatchCopyDefaultInput, BatchCopyOutcomeItem, BatchCopySummary,
+};
 pub use list_default_formulas::ListDefaultFormulasInput;
 pub use list_workspace_formulas::ListWorkspaceFormulasInput;
 pub use service::{FormulaItemInput, FormulaService, FormulaUpsertInput};

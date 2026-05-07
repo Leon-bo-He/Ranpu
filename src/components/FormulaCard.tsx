@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { liquorRatioLabel, unitLabel } from '@/lib/format';
 
 export interface FormulaCardActions {
@@ -26,6 +27,9 @@ interface FormulaCardProps extends FormulaCardActions {
   canManage: boolean;
   /** 当前是否选中了 workspace（控制「复制到当前工作区」是否禁用）。 */
   hasActiveWorkspace: boolean;
+  /** 多选模式：传 onToggleSelected 即开启，左上角显示一个 checkbox。 */
+  selected?: boolean;
+  onToggleSelected?: (formula: FormulaView, next: boolean) => void;
 }
 
 export function FormulaCard({
@@ -36,16 +40,39 @@ export function FormulaCard({
   onCopyToWorkspace,
   onEdit,
   onDelete,
+  selected,
+  onToggleSelected,
 }: FormulaCardProps) {
+  const selectable = onToggleSelected !== undefined;
   return (
-    <Card className="flex flex-col">
+    <Card
+      className={cn(
+        'flex flex-col transition-colors',
+        selected && 'ring-2 ring-primary',
+      )}
+    >
       <CardHeader className="space-y-1">
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-base font-bold">{formula.internal_color_code}</span>
-          {formula.customer_color_code && (
-            <Badge variant="secondary">客户：{formula.customer_color_code}</Badge>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="flex flex-1 items-center gap-2">
+            <span className="text-base font-bold">{formula.internal_color_code}</span>
+            {formula.customer_color_code && (
+              <Badge variant="secondary">客户：{formula.customer_color_code}</Badge>
+            )}
+          </CardTitle>
+          {selectable && (
+            <label
+              className="flex cursor-pointer items-center"
+              title="选择以批量复制"
+            >
+              <input
+                type="checkbox"
+                className="h-4 w-4 cursor-pointer accent-primary"
+                checked={!!selected}
+                onChange={(e) => onToggleSelected?.(formula, e.target.checked)}
+              />
+            </label>
           )}
-        </CardTitle>
+        </div>
         {formula.color_name && (
           <CardDescription>{formula.color_name}</CardDescription>
         )}

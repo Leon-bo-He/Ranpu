@@ -11,7 +11,8 @@ use crate::application::cart::{
     AddToCartInput, ExportCartInput, RemoveFromCartInput, UpdateCartItemKgInput,
 };
 use crate::application::formula::{
-    FormulaItemInput, FormulaUpsertInput, ListDefaultFormulasInput, ListWorkspaceFormulasInput,
+    BatchCopyDefaultInput, FormulaItemInput, FormulaUpsertInput, ListDefaultFormulasInput,
+    ListWorkspaceFormulasInput,
 };
 use crate::application::identity::{
     AuthenticateUserInput, ChangeUserPasswordInput, CreateUserInput, UnlockOutcome,
@@ -331,6 +332,20 @@ pub fn cmd_copy_default_to_active_workspace(
         .copy_default_to_active_workspace(FormulaId::new(default_formula_id))
         .map_err(UiError::from)?;
     Ok(new_id.value())
+}
+
+#[tauri::command]
+pub fn cmd_batch_copy_default_to_active_workspace(
+    state: State<AppState>,
+    cmd: BatchCopyDefaultCmd,
+) -> CmdResult<BatchCopySummaryView> {
+    let summary = services_or_err(&state)?
+        .formula
+        .batch_copy_default_to_active_workspace(BatchCopyDefaultInput {
+            default_formula_ids: cmd.default_formula_ids.into_iter().map(FormulaId::new).collect(),
+        })
+        .map_err(UiError::from)?;
+    Ok(BatchCopySummaryView::from(&summary))
 }
 
 // ---------- Calculation ----------

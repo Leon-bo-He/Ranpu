@@ -79,6 +79,18 @@ export interface CustomerCodeMatchView {
   customer_color_code: string | null;
 }
 
+export interface BatchCopyOutcomeItemView {
+  source_default_id: number;
+  new_workspace_formula_id: number | null;
+  error: string | null;
+}
+
+export interface BatchCopySummaryView {
+  items: BatchCopyOutcomeItemView[];
+  succeeded: number;
+  failed: number;
+}
+
 export interface CartLineView {
   source_kind: 'default' | 'workspace';
   source_formula_id: number;

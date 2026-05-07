@@ -267,6 +267,45 @@ fn item_to_view(item: &crate::domain::formula::formula_item::FormulaItem) -> For
     }
 }
 
+// ---------- Formula 批量复制 ----------
+
+#[derive(Debug, Deserialize)]
+pub struct BatchCopyDefaultCmd {
+    pub default_formula_ids: Vec<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BatchCopyOutcomeItemView {
+    pub source_default_id: i64,
+    pub new_workspace_formula_id: Option<i64>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BatchCopySummaryView {
+    pub items: Vec<BatchCopyOutcomeItemView>,
+    pub succeeded: u32,
+    pub failed: u32,
+}
+
+impl From<&crate::application::formula::BatchCopySummary> for BatchCopySummaryView {
+    fn from(s: &crate::application::formula::BatchCopySummary) -> Self {
+        Self {
+            items: s
+                .items
+                .iter()
+                .map(|i| BatchCopyOutcomeItemView {
+                    source_default_id: i.source_default_id.value(),
+                    new_workspace_formula_id: i.new_workspace_formula_id.map(|i| i.value()),
+                    error: i.error.clone(),
+                })
+                .collect(),
+            succeeded: s.succeeded,
+            failed: s.failed,
+        }
+    }
+}
+
 // ---------- Calculation ----------
 
 #[derive(Debug, Deserialize)]
