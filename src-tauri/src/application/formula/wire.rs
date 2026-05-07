@@ -1,6 +1,11 @@
-//! 加密 .ranpu 配方导出文件的 wire 格式 (default 与 workspace 共用).
+//! 加密 .ranpu 配方归档文件的 wire 格式 (聚合默认库 + 任意工作区).
 //!
-//! 文件 = AES-256-GCM 加密的 JSON, 内层就是这里定义的 FormulaExportFile.
+//! 文件 = AES-256-GCM 加密的 JSON, 内层就是这里定义的 FormulaArchive.
+//!
+//! 工作区在归档里以 `name` 作为主键 (而非数据库自增 id), 因为目标机器上
+//! 同名工作区不一定存在 / id 不可能一致. 导入端按 name 在目标库匹配:
+//!   - 找不到 → 新建工作区
+//!   - 找到 → 由 UI 决定 merge / skip
 
 use serde::{Deserialize, Serialize};
 
@@ -8,16 +13,27 @@ use crate::domain::calculation::dye_calculator::CalculableFormula;
 use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::formula::workspace_formula::WorkspaceFormula;
 
-pub const FORMULA_EXPORT_MAGIC: &str = "ranpu-formula-export";
-pub const FORMULA_EXPORT_VERSION: u32 = 1;
+pub const FORMULA_ARCHIVE_MAGIC: &str = "ranpu-formula-export";
+pub const FORMULA_ARCHIVE_VERSION: u32 = 2;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FormulaExportFile {
+pub struct FormulaArchive {
     pub magic: String,
     pub version: u32,
     pub exported_at: String,
-    /// 原始来源 ("default" / "workspace"); 只是元数据, 导入路径决定真正落到哪张表.
-    pub scope: String,
+    /// 默认配方库导出条目; 不导出时为空 Vec.
+    #[serde(default)]
+    pub default_formulas: Vec<FormulaExportItem>,
+    /// 工作区导出条目 (按工作区分组); 不导出时为空 Vec.
+    #[serde(default)]
+    pub workspaces: Vec<WorkspaceArchive>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceArchive {
+    /// 工作区名称, 在目标机器上作为匹配主键.
+    pub name: String,
+    pub description: Option<String>,
     pub formulas: Vec<FormulaExportItem>,
 }
 

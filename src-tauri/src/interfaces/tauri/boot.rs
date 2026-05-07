@@ -99,6 +99,7 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
     let formula = FormulaService::new(
         default_repo.clone(),
         workspace_formula_repo.clone(),
+        workspace_repo.clone(),
         audit_writer.clone(),
         clock.clone(),
         session_store.clone(),

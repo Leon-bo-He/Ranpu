@@ -97,11 +97,50 @@ export interface ImportItemOutcomeView {
   error: string | null;
 }
 
-export interface ImportFormulasSummaryView {
+export interface ImportSectionSummaryView {
   items: ImportItemOutcomeView[];
   imported: number;
   skipped: number;
   failed: number;
+}
+
+export type WorkspaceImportAction = 'skip' | 'merge' | 'create_new';
+
+export interface WorkspaceImportPlanDto {
+  name: string;
+  action: WorkspaceImportAction;
+}
+
+export interface ExportLibraryArchiveView {
+  default_count: number;
+  workspace_count: number;
+  workspace_formula_count: number;
+}
+
+export interface PreviewWorkspaceView {
+  name: string;
+  description: string | null;
+  formula_count: number;
+  already_exists: boolean;
+}
+
+export interface PreviewLibraryArchiveView {
+  exported_at: string;
+  default_count: number;
+  has_default: boolean;
+  workspaces: PreviewWorkspaceView[];
+}
+
+export interface ImportWorkspaceSummaryView {
+  name: string;
+  /** "skipped" | "merged" | "created" */
+  action: string;
+  summary: ImportSectionSummaryView;
+}
+
+export interface ImportLibraryArchiveView {
+  default_summary: ImportSectionSummaryView | null;
+  workspace_summaries: ImportWorkspaceSummaryView[];
 }
 
 export interface CartLineView {

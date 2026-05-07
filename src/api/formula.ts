@@ -1,9 +1,12 @@
 import { invoke } from './invoke';
 import type {
   BatchCopySummaryView,
+  ExportLibraryArchiveView,
   FormulaView,
-  ImportFormulasSummaryView,
+  ImportLibraryArchiveView,
+  PreviewLibraryArchiveView,
   Unit,
+  WorkspaceImportPlanDto,
 } from './types';
 
 export interface FormulaItemDto {
@@ -69,39 +72,38 @@ export const formulaApi = {
       cmd: { default_formula_ids: ids },
     }),
 
-  exportDefaultFormulas: (
-    defaultFormulaIds: number[],
-    passphrase: string,
-    outPath: string,
-  ) =>
-    invoke<number>('cmd_export_default_formulas', {
+  exportLibraryArchive: (args: {
+    includeDefault: boolean;
+    workspaceIds: number[];
+    passphrase: string;
+    outPath: string;
+  }) =>
+    invoke<ExportLibraryArchiveView>('cmd_export_library_archive', {
       cmd: {
-        default_formula_ids: defaultFormulaIds,
-        passphrase,
-        out_path: outPath,
+        include_default: args.includeDefault,
+        workspace_ids: args.workspaceIds,
+        passphrase: args.passphrase,
+        out_path: args.outPath,
       },
     }),
 
-  importDefaultFormulas: (passphrase: string, inPath: string) =>
-    invoke<ImportFormulasSummaryView>('cmd_import_default_formulas', {
+  previewLibraryArchive: (passphrase: string, inPath: string) =>
+    invoke<PreviewLibraryArchiveView>('cmd_preview_library_archive', {
       cmd: { passphrase, in_path: inPath },
     }),
 
-  exportWorkspaceFormulas: (
-    workspaceFormulaIds: number[],
-    passphrase: string,
-    outPath: string,
-  ) =>
-    invoke<number>('cmd_export_workspace_formulas', {
+  importLibraryArchive: (args: {
+    passphrase: string;
+    inPath: string;
+    includeDefault: boolean;
+    workspacePlans: WorkspaceImportPlanDto[];
+  }) =>
+    invoke<ImportLibraryArchiveView>('cmd_import_library_archive', {
       cmd: {
-        workspace_formula_ids: workspaceFormulaIds,
-        passphrase,
-        out_path: outPath,
+        passphrase: args.passphrase,
+        in_path: args.inPath,
+        include_default: args.includeDefault,
+        workspace_plans: args.workspacePlans,
       },
-    }),
-
-  importWorkspaceFormulas: (passphrase: string, inPath: string) =>
-    invoke<ImportFormulasSummaryView>('cmd_import_workspace_formulas', {
-      cmd: { passphrase, in_path: inPath },
     }),
 };

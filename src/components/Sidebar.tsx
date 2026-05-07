@@ -5,6 +5,7 @@ import {
   Home,
   Info,
   Layers,
+  PackageOpen,
   Settings as Cog,
   ShoppingCart,
   Users as UsersIcon,
@@ -49,6 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/workspaces', label: '工作区管理', icon: Layers, adminOnly: true },
   { to: '/users', label: '用户管理', icon: UsersIcon, adminOnly: true },
   { to: '/audit', label: '审计日志', icon: ClipboardList, adminOnly: true },
+  { to: '/library-transfer', label: '配方互导', icon: PackageOpen, adminOnly: true },
   { to: '/settings', label: '设置', icon: Cog },
   { to: '/about', label: '关于', icon: Info },
 ];

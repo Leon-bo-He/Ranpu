@@ -267,37 +267,95 @@ fn item_to_view(item: &crate::domain::formula::formula_item::FormulaItem) -> For
     }
 }
 
-// ---------- Formula 批量复制 / 加密导入导出 ----------
+// ---------- Formula 批量复制 ----------
 
 #[derive(Debug, Deserialize)]
 pub struct BatchCopyDefaultCmd {
     pub default_formula_ids: Vec<i64>,
 }
 
+// ---------- Library Archive (聚合默认库 + 工作区) ----------
+
 #[derive(Debug, Deserialize)]
-pub struct ExportDefaultFormulasCmd {
-    pub default_formula_ids: Vec<i64>,
+pub struct ExportLibraryArchiveCmd {
+    pub include_default: bool,
+    pub workspace_ids: Vec<i64>,
     pub passphrase: String,
     pub out_path: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ExportLibraryArchiveView {
+    pub default_count: u32,
+    pub workspace_count: u32,
+    pub workspace_formula_count: u32,
+}
+
+impl From<&crate::application::formula::ExportArchiveSummary> for ExportLibraryArchiveView {
+    fn from(s: &crate::application::formula::ExportArchiveSummary) -> Self {
+        Self {
+            default_count: s.default_count,
+            workspace_count: s.workspace_count,
+            workspace_formula_count: s.workspace_formula_count,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
-pub struct ImportDefaultFormulasCmd {
+pub struct PreviewLibraryArchiveCmd {
     pub passphrase: String,
     pub in_path: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct ExportWorkspaceFormulasCmd {
-    pub workspace_formula_ids: Vec<i64>,
-    pub passphrase: String,
-    pub out_path: String,
+#[derive(Debug, Serialize)]
+pub struct PreviewLibraryArchiveView {
+    pub exported_at: String,
+    pub default_count: u32,
+    pub has_default: bool,
+    pub workspaces: Vec<PreviewWorkspaceView>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PreviewWorkspaceView {
+    pub name: String,
+    pub description: Option<String>,
+    pub formula_count: u32,
+    pub already_exists: bool,
+}
+
+impl From<&crate::application::formula::PreviewArchive> for PreviewLibraryArchiveView {
+    fn from(p: &crate::application::formula::PreviewArchive) -> Self {
+        Self {
+            exported_at: p.exported_at.clone(),
+            default_count: p.default_count,
+            has_default: p.has_default,
+            workspaces: p
+                .workspaces
+                .iter()
+                .map(|w| PreviewWorkspaceView {
+                    name: w.name.clone(),
+                    description: w.description.clone(),
+                    formula_count: w.formula_count,
+                    already_exists: w.already_exists,
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ImportWorkspaceFormulasCmd {
+pub struct ImportLibraryArchiveCmd {
     pub passphrase: String,
     pub in_path: String,
+    pub include_default: bool,
+    pub workspace_plans: Vec<WorkspaceImportPlanDto>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WorkspaceImportPlanDto {
+    pub name: String,
+    /// "skip" | "merge" | "create_new"
+    pub action: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -308,15 +366,15 @@ pub struct ImportItemOutcomeView {
 }
 
 #[derive(Debug, Serialize)]
-pub struct ImportFormulasSummaryView {
+pub struct ImportSectionSummaryView {
     pub items: Vec<ImportItemOutcomeView>,
     pub imported: u32,
     pub skipped: u32,
     pub failed: u32,
 }
 
-impl From<&crate::application::formula::ImportFormulasSummary> for ImportFormulasSummaryView {
-    fn from(s: &crate::application::formula::ImportFormulasSummary) -> Self {
+impl From<&crate::application::formula::ImportSectionSummary> for ImportSectionSummaryView {
+    fn from(s: &crate::application::formula::ImportSectionSummary) -> Self {
         Self {
             items: s
                 .items
@@ -331,6 +389,48 @@ impl From<&crate::application::formula::ImportFormulasSummary> for ImportFormula
             skipped: s.skipped,
             failed: s.failed,
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct ImportWorkspaceSummaryView {
+    pub name: String,
+    pub action: String,
+    pub summary: ImportSectionSummaryView,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ImportLibraryArchiveView {
+    pub default_summary: Option<ImportSectionSummaryView>,
+    pub workspace_summaries: Vec<ImportWorkspaceSummaryView>,
+}
+
+impl From<&crate::application::formula::ImportArchiveSummary> for ImportLibraryArchiveView {
+    fn from(s: &crate::application::formula::ImportArchiveSummary) -> Self {
+        Self {
+            default_summary: s.default_summary.as_ref().map(ImportSectionSummaryView::from),
+            workspace_summaries: s
+                .workspace_summaries
+                .iter()
+                .map(|w| ImportWorkspaceSummaryView {
+                    name: w.name.clone(),
+                    action: w.action.clone(),
+                    summary: ImportSectionSummaryView::from(&w.summary),
+                })
+                .collect(),
+        }
+    }
+}
+
+pub fn parse_workspace_import_action(
+    s: &str,
+) -> Result<crate::application::formula::WorkspaceImportAction, String> {
+    use crate::application::formula::WorkspaceImportAction;
+    match s {
+        "skip" => Ok(WorkspaceImportAction::Skip),
+        "merge" => Ok(WorkspaceImportAction::Merge),
+        "create_new" => Ok(WorkspaceImportAction::CreateNew),
+        other => Err(format!("未知的工作区导入动作：{other}")),
     }
 }
 

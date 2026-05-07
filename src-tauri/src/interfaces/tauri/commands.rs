@@ -11,9 +11,9 @@ use crate::application::cart::{
     AddToCartInput, ExportCartInput, RemoveFromCartInput, UpdateCartItemKgInput,
 };
 use crate::application::formula::{
-    BatchCopyDefaultInput, ExportDefaultFormulasInput, ExportWorkspaceFormulasInput,
-    FormulaItemInput, FormulaUpsertInput, ImportDefaultFormulasInput,
-    ImportWorkspaceFormulasInput, ListDefaultFormulasInput, ListWorkspaceFormulasInput,
+    BatchCopyDefaultInput, ExportArchiveInput, FormulaItemInput, FormulaUpsertInput,
+    ImportArchiveInput, ListDefaultFormulasInput, ListWorkspaceFormulasInput,
+    PreviewArchiveInput, WorkspaceImportPlan,
 };
 use crate::application::identity::{
     AuthenticateUserInput, ChangeUserPasswordInput, CreateUserInput, UnlockOutcome,
@@ -358,67 +358,61 @@ pub fn cmd_batch_copy_default_to_active_workspace(
 }
 
 #[tauri::command]
-pub fn cmd_export_default_formulas(
+pub fn cmd_export_library_archive(
     state: State<AppState>,
-    cmd: ExportDefaultFormulasCmd,
-) -> CmdResult<u32> {
-    services_or_err(&state)?
+    cmd: ExportLibraryArchiveCmd,
+) -> CmdResult<ExportLibraryArchiveView> {
+    let summary = services_or_err(&state)?
         .formula
-        .export_default_formulas(ExportDefaultFormulasInput {
-            default_formula_ids: cmd.default_formula_ids.into_iter().map(FormulaId::new).collect(),
+        .export_library_archive(ExportArchiveInput {
+            include_default: cmd.include_default,
+            workspace_ids: cmd.workspace_ids.into_iter().map(WorkspaceId::new).collect(),
             passphrase: cmd.passphrase,
             out_path: cmd.out_path.into(),
         })
-        .map_err(UiError::from)
+        .map_err(UiError::from)?;
+    Ok(ExportLibraryArchiveView::from(&summary))
 }
 
 #[tauri::command]
-pub fn cmd_import_default_formulas(
+pub fn cmd_preview_library_archive(
     state: State<AppState>,
-    cmd: ImportDefaultFormulasCmd,
-) -> CmdResult<ImportFormulasSummaryView> {
-    let summary = services_or_err(&state)?
+    cmd: PreviewLibraryArchiveCmd,
+) -> CmdResult<PreviewLibraryArchiveView> {
+    let preview = services_or_err(&state)?
         .formula
-        .import_default_formulas(ImportDefaultFormulasInput {
+        .preview_library_archive(PreviewArchiveInput {
             passphrase: cmd.passphrase,
             in_path: cmd.in_path.into(),
         })
         .map_err(UiError::from)?;
-    Ok(ImportFormulasSummaryView::from(&summary))
+    Ok(PreviewLibraryArchiveView::from(&preview))
 }
 
 #[tauri::command]
-pub fn cmd_export_workspace_formulas(
+pub fn cmd_import_library_archive(
     state: State<AppState>,
-    cmd: ExportWorkspaceFormulasCmd,
-) -> CmdResult<u32> {
-    services_or_err(&state)?
-        .formula
-        .export_workspace_formulas(ExportWorkspaceFormulasInput {
-            workspace_formula_ids: cmd
-                .workspace_formula_ids
-                .into_iter()
-                .map(FormulaId::new)
-                .collect(),
-            passphrase: cmd.passphrase,
-            out_path: cmd.out_path.into(),
-        })
-        .map_err(UiError::from)
-}
-
-#[tauri::command]
-pub fn cmd_import_workspace_formulas(
-    state: State<AppState>,
-    cmd: ImportWorkspaceFormulasCmd,
-) -> CmdResult<ImportFormulasSummaryView> {
+    cmd: ImportLibraryArchiveCmd,
+) -> CmdResult<ImportLibraryArchiveView> {
+    let mut plans = Vec::with_capacity(cmd.workspace_plans.len());
+    for p in cmd.workspace_plans {
+        let action = parse_workspace_import_action(&p.action)
+            .map_err(|e| UiError::from(crate::application::errors::AppError::Internal(e)))?;
+        plans.push(WorkspaceImportPlan {
+            name: p.name,
+            action,
+        });
+    }
     let summary = services_or_err(&state)?
         .formula
-        .import_workspace_formulas(ImportWorkspaceFormulasInput {
+        .import_library_archive(ImportArchiveInput {
             passphrase: cmd.passphrase,
             in_path: cmd.in_path.into(),
+            include_default: cmd.include_default,
+            workspace_plans: plans,
         })
         .map_err(UiError::from)?;
-    Ok(ImportFormulasSummaryView::from(&summary))
+    Ok(ImportLibraryArchiveView::from(&summary))
 }
 
 // ---------- Calculation ----------
