@@ -20,10 +20,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            // 把 %APPDATA%/Ranpu 之类的目录解析出来，挂到 AppState。
+            // 数据放在 %APPDATA%\Ranpu (Windows) 或 ~/.config/Ranpu (Linux)
+            // 等位置, 用 OS 的 base data 目录而非 Tauri 默认的
+            // <data_dir>/<bundle-identifier>，避免出现 %APPDATA%\com.ranpu.app\Ranpu
+            // 这种丑路径，也方便用户和 README 直接对位删除。
             let app_data = app
                 .path()
-                .app_data_dir()
+                .data_dir()
                 .unwrap_or_else(|_| PathBuf::from("."))
                 .join("Ranpu");
             std::fs::create_dir_all(&app_data).ok();
