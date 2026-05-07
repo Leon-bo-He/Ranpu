@@ -50,8 +50,7 @@
         "name": "RanpuEncryptedExport",
         "description": "染谱加密导出包",
         "role": "Editor",
-        "mimeType": "application/x-ranpu",
-        "icon": "icons/icon.ico"
+        "mimeType": "application/x-ranpu"
       }
     ],
     "category": "Productivity",
