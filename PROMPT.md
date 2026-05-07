@@ -364,13 +364,6 @@ src/
   feat/ui-admin             — WorkspaceManagement、AuditLog（含导出 UI）、About 页
   feat/seed-and-polish      — seed 真实数据、README、CONTRIBUTING.md、最终联调
 
-【强制汇报点】
-每完成一条 feat/* 分支并合并 main 后，停下来给我汇报：
-  · 这条分支做了什么（逐文件列出）
-  · `cargo test` / `cargo clippy` / `npm run typecheck` 输出摘要
-  · 下一条分支计划做什么
-等我明确说"继续下一条"再开下一个分支。这避免一口气跑完十条后我才发现某个聚合设计跑偏要全部回退。
-
 不要在 main 直接提交（除了零号步骤的初始化 commit）。
 
 ═══════════════════════════════════════════════════════
