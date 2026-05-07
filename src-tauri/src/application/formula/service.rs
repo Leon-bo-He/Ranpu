@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use crate::application::ports::{
     AuditWriter, Clock, DefaultFormulaRepository, EncryptedExporter, EncryptedImporter,
-    SessionStore, WorkspaceFormulaRepository,
+    SessionStore, WorkspaceFormulaRepository, WorkspaceRepository,
 };
 
 #[derive(Clone)]
 pub struct FormulaService {
     pub(super) default_repo: Arc<dyn DefaultFormulaRepository>,
     pub(super) workspace_repo: Arc<dyn WorkspaceFormulaRepository>,
+    pub(super) workspaces_repo: Arc<dyn WorkspaceRepository>,
     pub(super) audit_writer: Arc<dyn AuditWriter>,
     pub(super) clock: Arc<dyn Clock>,
     pub(super) session_store: Arc<dyn SessionStore>,
@@ -21,6 +22,7 @@ impl FormulaService {
     pub fn new(
         default_repo: Arc<dyn DefaultFormulaRepository>,
         workspace_repo: Arc<dyn WorkspaceFormulaRepository>,
+        workspaces_repo: Arc<dyn WorkspaceRepository>,
         audit_writer: Arc<dyn AuditWriter>,
         clock: Arc<dyn Clock>,
         session_store: Arc<dyn SessionStore>,
@@ -30,6 +32,7 @@ impl FormulaService {
         Self {
             default_repo,
             workspace_repo,
+            workspaces_repo,
             audit_writer,
             clock,
             session_store,

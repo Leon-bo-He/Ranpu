@@ -16,6 +16,7 @@ import { CartPage } from '@/pages/Cart';
 import { DashboardPage } from '@/pages/Dashboard';
 import { DefaultLibraryPage } from '@/pages/DefaultLibrary';
 import { FirstRunSetup } from '@/pages/FirstRunSetup';
+import { LibraryTransferPage } from '@/pages/LibraryTransfer';
 import { LoginPage } from '@/pages/Login';
 import { SettingsPage } from '@/pages/Settings';
 import { UserManagementPage } from '@/pages/UserManagement';
@@ -121,6 +122,7 @@ function App() {
               <Route path="/workspaces" element={<WorkspaceManagementPage />} />
               <Route path="/users" element={<UserManagementPage />} />
               <Route path="/audit" element={<AuditLogPage />} />
+              <Route path="/library-transfer" element={<LibraryTransferPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
