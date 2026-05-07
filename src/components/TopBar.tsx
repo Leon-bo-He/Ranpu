@@ -26,7 +26,7 @@ export function TopBar() {
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b bg-background px-6">
-      <div className="flex items-center">
+      <div className="flex items-center gap-4">
         <Link
           to="/"
           className="flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-accent/50"
@@ -35,8 +35,7 @@ export function TopBar() {
         >
           <RanpuLogo size={28} withText />
         </Link>
-      </div>
-      <div className="flex items-center gap-4">
+        <div className="h-6 w-px bg-border" aria-hidden />
         <WorkspaceSwitcher />
       </div>
       <div className="flex items-center gap-2">
