@@ -9,6 +9,12 @@
     "core:app:default",
     "dialog:default",
     "updater:default",
-    "process:default"
+    "process:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://github.com/Leon-bo-He/Ranpu/releases/*" }
+      ]
+    }
   ]
 }

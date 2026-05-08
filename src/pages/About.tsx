@@ -1,5 +1,6 @@
 import { getVersion } from '@tauri-apps/api/app';
 import { message } from '@tauri-apps/plugin-dialog';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { useEffect, useState } from 'react';
 
@@ -8,6 +9,8 @@ import { RanpuLogo } from '@/components/RanpuLogo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUpdateStore } from '@/store/update';
+
+const RELEASES_URL_BASE = 'https://github.com/Leon-bo-He/Ranpu/releases/tag/';
 
 export function AboutPage() {
   const [version, setVersion] = useState<string>('—');
@@ -106,7 +109,20 @@ export function AboutPage() {
         description={
           <span>
             当前 {version} → 新版本 {pending?.version}。
-            {pending?.body ? <><br />{pending.body}</> : null}
+            {pending && (
+              <>
+                <br />
+                <button
+                  type="button"
+                  className="text-primary underline-offset-2 hover:underline"
+                  onClick={() => {
+                    void openUrl(`${RELEASES_URL_BASE}v${pending.version}`);
+                  }}
+                >
+                  查看完整更新说明 ↗
+                </button>
+              </>
+            )}
             <br />
             点击"立即更新"会下载并安装，然后自动重启应用。
           </span>
