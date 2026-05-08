@@ -60,14 +60,7 @@ export function UpdateNotifier() {
       className="fixed bottom-6 right-6 z-50 w-[340px] rounded-md border bg-background p-4 shadow-lg"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="text-sm font-medium">发现新版本 {pending.version}</p>
-          {pending.body && (
-            <p className="line-clamp-3 break-words text-xs text-muted-foreground">
-              {pending.body}
-            </p>
-          )}
-        </div>
+        <p className="min-w-0 text-sm font-medium">发现新版本 {pending.version}</p>
         <button
           type="button"
           onClick={dismissToast}
