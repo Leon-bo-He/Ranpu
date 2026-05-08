@@ -137,11 +137,26 @@ export function CartPage() {
   };
 
   const onPrintPreview = () => {
-    // iframe 跟主窗口同源 (srcDoc), contentWindow.print() 调起 OS 打印
-    // 对话框 (Windows 内置 "Microsoft Print to PDF" 即可另存 PDF, 文件名
-    // 默认取 HTML <title> = 客户名-批次单-日期).
-    previewIframeRef.current?.contentWindow?.focus();
-    previewIframeRef.current?.contentWindow?.print();
+    const ifWin = previewIframeRef.current?.contentWindow;
+    if (!ifWin) return;
+
+    // Chrome / WebView2 给 iframe 调 print() 时, "Save as PDF" 默认文件名
+    // 取的是 *主窗口* document.title (= "染谱 Ranpu") 而不是 iframe 自己
+    // 的 <title>. 临时把主窗口 title 改成我们要的, 打印结束再还原.
+    const date = new Date().toISOString().slice(0, 10);
+    const printTitle = workspaceName
+      ? `${sanitizeForFilename(workspaceName)}-批次单-${date}`
+      : `批次单-${date}`;
+    const originalTitle = document.title;
+    document.title = printTitle;
+    const restore = () => {
+      document.title = originalTitle;
+      ifWin.removeEventListener('afterprint', restore);
+    };
+    ifWin.addEventListener('afterprint', restore);
+
+    ifWin.focus();
+    ifWin.print();
   };
 
   return (
