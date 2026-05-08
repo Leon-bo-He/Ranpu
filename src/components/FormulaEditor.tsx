@@ -1,8 +1,20 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import type { FormulaItemDto, UpsertFormulaPayload } from '@/api/formula';
+import type { UpsertFormulaPayload } from '@/api/formula';
 import type { FormulaView, Unit } from '@/api/types';
+
+/// UI 内部用的 item 形态: amount 保持字符串, 让 "0." / "0.12" 这种
+/// 输入中态能完整保留. 提交时再 parseFloat 转回 number 进 payload.
+/// 用 number 状态会让 "0." → Number("0.") = 0 → renders "0", 把小数
+/// 点吞掉, 用户敲 "0.12" 永远只能拿到 "012".
+interface ItemForm {
+  dye_name: string;
+  dye_code: string | null;
+  amount: string;
+  unit: Unit;
+  sort_order: number;
+}
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -47,7 +59,7 @@ export function FormulaEditor({
   const [baseKg, setBaseKg] = useState('');
   const [ratio, setRatio] = useState('');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<FormulaItemDto[]>([blankItem(0)]);
+  const [items, setItems] = useState<ItemForm[]>([blankItem(0)]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +77,7 @@ export function FormulaEditor({
         initial.items.map((i, idx) => ({
           dye_name: i.dye_name,
           dye_code: i.dye_code,
-          amount: i.amount,
+          amount: String(i.amount),
           unit: i.unit,
           sort_order: idx,
         })),
@@ -96,7 +108,13 @@ export function FormulaEditor({
         base_weight_kg: baseKg ? Number(baseKg) : null,
         liquor_ratio: ratio ? Number(ratio) : null,
         notes: notes.trim() ? notes.trim() : null,
-        items: items.map((it, idx) => ({ ...it, sort_order: idx })),
+        items: items.map((it, idx) => ({
+          dye_name: it.dye_name,
+          dye_code: it.dye_code,
+          amount: parseFloat(it.amount),
+          unit: it.unit,
+          sort_order: idx,
+        })),
       };
       await onSave(payload);
     } catch (e) {
@@ -109,7 +127,7 @@ export function FormulaEditor({
   const addItem = () =>
     setItems((prev) => [...prev, blankItem(prev.length)]);
 
-  const updateItem = (idx: number, patch: Partial<FormulaItemDto>) =>
+  const updateItem = (idx: number, patch: Partial<ItemForm>) =>
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
   const removeItem = (idx: number) =>
@@ -207,10 +225,8 @@ export function FormulaEditor({
                     type="number"
                     min={0.0001}
                     step={0.01}
-                    value={Number.isFinite(it.amount) ? String(it.amount) : ''}
-                    onChange={(e) =>
-                      updateItem(idx, { amount: Number(e.target.value) })
-                    }
+                    value={it.amount}
+                    onChange={(e) => updateItem(idx, { amount: e.target.value })}
                   />
                 </div>
                 <div className="col-span-3 grid gap-1">
@@ -261,12 +277,13 @@ export function FormulaEditor({
   );
 }
 
-function blankItem(sort: number): FormulaItemDto {
+function blankItem(sort: number): ItemForm {
   return {
     dye_name: '',
     dye_code: null,
-    amount: 1,
-    unit: 'pct_owf',
+    amount: '1',
+    // 默认 g/kg: 染厂车间最常用的克 / 千克纤维, 比 % owf 更直观.
+    unit: 'g_per_kg',
     sort_order: sort,
   };
 }
