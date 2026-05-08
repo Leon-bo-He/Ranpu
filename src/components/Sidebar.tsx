@@ -15,6 +15,7 @@ import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { hasActiveWorkspace, isAdmin, useSessionStore } from '@/store/session';
+import { useUpdateStore } from '@/store/update';
 
 interface NavItem {
   to: string;
@@ -57,6 +58,8 @@ const NAV_ITEMS: NavItem[] = [
 
 export function Sidebar() {
   const session = useSessionStore((s) => s.session);
+  // 全局更新状态: 有 pending 就在 "关于" 项右边贴个红点提示新版本.
+  const hasUpdate = useUpdateStore((s) => s.pending !== null);
   if (!session) return null;
   const admin = isAdmin(session);
   const hasWs = hasActiveWorkspace(session);
@@ -84,6 +87,7 @@ export function Sidebar() {
               </span>
             );
           }
+          const showUpdateBadge = item.to === '/about' && hasUpdate;
           return (
             <NavLink
               key={item.to}
@@ -97,9 +101,16 @@ export function Sidebar() {
                     : 'text-foreground hover:bg-accent hover:text-accent-foreground',
                 )
               }
+              title={showUpdateBadge ? '有可用更新' : undefined}
             >
               <Icon className="h-4 w-4" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {showUpdateBadge && (
+                <span
+                  aria-label="有可用更新"
+                  className="h-2 w-2 shrink-0 rounded-full bg-red-500"
+                />
+              )}
             </NavLink>
           );
         })}
