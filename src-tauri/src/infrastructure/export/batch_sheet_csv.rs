@@ -88,6 +88,11 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     color: #1f1f1f;
     margin: 0;
     padding: 24px;
+    /* 强制打印保留背景色 (th 灰底 / 表格分隔线), 等价于用户勾上
+       "Background graphics" — 这条 CSS 直接覆盖那个勾选, 无论用户
+       怎么设都按这渲染. */
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
   h1 { font-size: 20px; letter-spacing: 4px; margin: 0 0 4px; }
   .sub { color: #888; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
@@ -149,13 +154,7 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     html.push_str("    <div class=\"row\"><span class=\"label\">导出时间:</span><span class=\"value\">");
     html.push_str(&Utc::now().format("%Y-%m-%d %H:%M UTC").to_string());
     html.push_str("</span></div>\n");
-    html.push_str(
-        r#"  </div>
-  <div class="no-print" style="margin-bottom:16px;color:#888;font-size:12px;">
-    提示：在浏览器中按 Ctrl+P 可另存为 PDF 或直接打印。
-  </div>
-"#,
-    );
+    html.push_str("  </div>\n");
 
     for r in results {
         html.push_str(r#"  <div class="formula">"#);
