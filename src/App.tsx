@@ -8,6 +8,7 @@ import { IdleDetector } from '@/components/IdleDetector';
 import { LockOverlay } from '@/components/LockOverlay';
 import { Sidebar } from '@/components/Sidebar';
 import { TopBar } from '@/components/TopBar';
+import { UpdateNotifier } from '@/components/UpdateNotifier';
 import { AboutPage } from '@/pages/About';
 import { AuditLogPage } from '@/pages/AuditLog';
 import { BootScreen } from '@/pages/BootScreen';
@@ -108,6 +109,7 @@ function App() {
   return (
     <BrowserRouter>
       <IdleDetector />
+      <UpdateNotifier />
       <div className="flex h-screen flex-col bg-background text-foreground">
         <TopBar />
         <div className="flex flex-1 overflow-hidden">
