@@ -86,6 +86,17 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     let mut html = String::new();
     html.push_str("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n");
     html.push_str("<meta charset=\"UTF-8\">\n");
+    // 内嵌 CSP, 允许 inline script + inline style — 这是自包含打印预览页,
+    // 没有外部资源, inline 安全. 不写 'self' 因为自定义协议下 'self' 含义
+    // 模糊, 直接给最小集就够了.
+    html.push_str(
+        "<meta http-equiv=\"Content-Security-Policy\" \
+         content=\"default-src 'none'; \
+                  script-src 'unsafe-inline'; \
+                  style-src 'unsafe-inline'; \
+                  img-src data:; \
+                  font-src data:;\">\n",
+    );
     html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
     html.push_str(
         r#"<style>
@@ -141,13 +152,45 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
   th.num { text-align: right; }
   td.num { text-align: right; font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
   td.unit { color: #888; font-size: 12px; }
+  /* 顶部工具栏 — 仅屏幕显示, 打印时藏起. */
+  .ranpu-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 24px;
+    background: #fafafa;
+    border-bottom: 1px solid #e5e5e5;
+    margin: -24px -24px 24px;
+  }
+  .ranpu-toolbar button {
+    font: inherit;
+    padding: 6px 14px;
+    border: 1px solid #d4d4d4;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .ranpu-toolbar button:hover { background: #f0f0f0; }
+  .ranpu-toolbar button.primary {
+    background: #1f1f1f;
+    color: #fff;
+    border-color: #1f1f1f;
+  }
+  .ranpu-toolbar button.primary:hover { background: #000; }
   @media print {
     body { padding: 0; }
-    .no-print { display: none; }
+    .no-print, .ranpu-toolbar { display: none !important; }
   }
 </style>
 </head>
 <body>
+  <div class="ranpu-toolbar no-print">
+    <button onclick="window.close()">关闭</button>
+    <button class="primary" onclick="window.print()">打印 / 另存为 PDF</button>
+  </div>
   <h1>染谱批次单</h1>
   <div class="sub">DYE FORMULA · BATCH SHEET</div>
   <div class="meta">

@@ -534,10 +534,14 @@ pub fn cmd_export_cart(state: State<AppState>, cmd: ExportCartCmd) -> CmdResult<
         .map_err(UiError::from)
 }
 
-/// 主窗口入口: 渲染当前批次清单的 HTML, 缓存到 AppState, 弹一个新的
-/// WebviewWindow 显示预览. 新窗口加载 SPA 带 ?ranpu-view=print-preview
-/// 查询参数, 前端 App 据此分流到独立的 PrintPreviewWindow 组件; 那边
-/// 调 cmd_consume_print_preview 取出 HTML.
+/// 主窗口入口: 渲染当前批次清单 HTML, stash 到 AppState, 用自定义协议
+/// ranpu-print://localhost/preview 开新窗口. 协议 handler (lib.rs) 直接
+/// 把 stash 的 HTML 当响应体返回, 不走 SPA / 不走 React / 不走 IPC.
+/// HTML 自带工具栏 + 内联 window.print() / window.close(), 新窗口完全
+/// 自包含.
+///
+/// 用 run_on_main_thread 把窗口构造调度到主线程, 命令本身立即返回,
+/// 避免 build() 在某些时序下阻塞 IPC 让前端按钮卡住.
 #[tauri::command]
 pub fn cmd_open_print_preview(
     app: AppHandle,
@@ -554,34 +558,41 @@ pub fn cmd_open_print_preview(
         let _ = existing.unminimize();
         let _ = existing.show();
         let _ = existing.set_focus();
-        // 老窗口还在 — 重新加载让它再次 consume 缓冲, 拿到这次的 HTML.
+        // 老窗口还在 — 重新加载让协议 handler 再返回新 HTML.
         let _ = existing.eval("window.location.reload()");
         return Ok(());
     }
 
-    let url = WebviewUrl::App("index.html?ranpu-view=print-preview".into());
-    WebviewWindowBuilder::new(&app, "print-preview", url)
+    let app_handle = app.clone();
+    app.run_on_main_thread(move || {
+        let url_result = tauri::Url::parse("ranpu-print://localhost/preview");
+        let url = match url_result {
+            Ok(u) => u,
+            Err(e) => {
+                eprintln!("[print-preview] URL 拼装失败: {e}");
+                return;
+            }
+        };
+        let result = WebviewWindowBuilder::new(
+            &app_handle,
+            "print-preview",
+            WebviewUrl::CustomProtocol(url),
+        )
         .title("批次单预览 / 打印")
         .inner_size(1100.0, 820.0)
         .min_inner_size(800.0, 600.0)
         .center()
-        .build()
-        .map_err(|e| {
+        .build();
+        if let Err(e) = result {
             eprintln!("[print-preview] 打开窗口失败: {e}");
-            UiError {
-                code: "io",
-                message: format!("打开打印预览窗口失败: {e}"),
-            }
-        })?;
+        }
+    })
+    .map_err(|e| UiError {
+        code: "io",
+        message: format!("调度打印预览窗口失败: {e}"),
+    })?;
 
     Ok(())
-}
-
-/// 子窗口取走主窗口写入的 HTML, 同时清空缓冲. 一次调用就被消费, 重复
-/// 调用返回 None — 防止刷新时复用脏数据.
-#[tauri::command]
-pub fn cmd_consume_print_preview(state: State<AppState>) -> Option<String> {
-    state.print_preview_html.lock().take()
 }
 
 // ---------- Backup ----------

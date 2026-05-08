@@ -8,6 +8,7 @@ pub mod domain;
 pub mod infrastructure;
 pub mod interfaces;
 
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 use tauri::Manager;
@@ -29,6 +30,25 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+        // 自定义 URI 协议: 打印预览窗口加载 ranpu-print://localhost/preview,
+        // handler 直接从 AppState 取出 stash 的 HTML 返回, 不走 SPA / Vite /
+        // React. 自包含 HTML (内联工具栏 + window.print() / window.close())
+        // 让新窗口完全不依赖 Tauri JS API.
+        .register_uri_scheme_protocol("ranpu-print", |ctx, _req| {
+            let app = ctx.app_handle();
+            let state = app.state::<AppState>();
+            let html = state
+                .print_preview_html
+                .lock()
+                .clone()
+                .unwrap_or_else(|| String::from("<!DOCTYPE html><meta charset=utf-8><body>(no content)</body>"));
+            let body: Cow<'static, [u8]> = Cow::Owned(html.into_bytes());
+            tauri::http::Response::builder()
+                .status(200)
+                .header("Content-Type", "text/html; charset=utf-8")
+                .body(body)
+                .unwrap()
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -86,7 +106,6 @@ pub fn run() {
             cmd_list_cart,
             cmd_export_cart,
             cmd_open_print_preview,
-            cmd_consume_print_preview,
             cmd_export_backup,
             cmd_import_backup,
             cmd_list_audit,
