@@ -73,14 +73,22 @@ fn render_csv(results: &[CalculationResult]) -> String {
 }
 
 fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
+    // 算一次 date, 上面的 <title> 和下面的 "导出时间" 行都会用.
+    let now = Utc::now();
+    let date = now.format("%Y-%m-%d").to_string();
+    // 文档 title 决定 WebView2 "Save as PDF" 时的默认文件名: 客户名-批次单-日期.
+    // 文件名里只用安全字符 (Windows 禁 \ / : * ? " < > |); html_escape 防 XSS.
+    let title = match context.workspace_name {
+        Some(name) => format!("{}-批次单-{}", sanitize_for_filename(name), date),
+        None => format!("批次单-{date}"),
+    };
+
     let mut html = String::new();
+    html.push_str("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n");
+    html.push_str("<meta charset=\"UTF-8\">\n");
+    html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
     html.push_str(
-        r#"<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<title>染谱批次单</title>
-<style>
+        r#"<style>
   @page { size: A4; margin: 1.5cm; }
   body {
     font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC",
@@ -152,7 +160,7 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         ));
     }
     html.push_str("    <div class=\"row\"><span class=\"label\">导出时间:</span><span class=\"value\">");
-    html.push_str(&Utc::now().format("%Y-%m-%d %H:%M UTC").to_string());
+    html.push_str(&now.format("%Y-%m-%d %H:%M UTC").to_string());
     html.push_str("</span></div>\n");
     html.push_str("  </div>\n");
 
@@ -205,4 +213,22 @@ fn html_escape(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+/// Windows 文件名禁字符 \ / : * ? " < > | + 控制字符 → 下划线. 跟前端
+/// Cart.tsx 同名工具同样的策略, 保证 PDF 默认文件名不会被 OS 拒收.
+fn sanitize_for_filename(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if matches!(c, '\\' | '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|')
+                || c.is_control()
+            {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect::<String>()
+        .trim()
+        .to_owned()
 }
