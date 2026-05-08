@@ -43,11 +43,12 @@ export function AuditLogPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = () => {
+    // 前端只展示最新 50 条 (按 occurred_at DESC). 全量审计仍由 "导出" 走加密包.
     auditApi
       .list({
         from: from ? new Date(from).toISOString() : undefined,
         to: to ? new Date(to).toISOString() : undefined,
-        limit: 500,
+        limit: 50,
       })
       .then(setEvents)
       .catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
