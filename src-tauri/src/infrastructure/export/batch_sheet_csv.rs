@@ -89,18 +89,15 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
     html.push_str(
         r#"<style>
-  @page { size: A4; margin: 1.5cm; }
+  /* 打印边距: 上下 1.5cm 给足空间, 左右 2cm 留余量 — 实体打印机
+     硬边距通常 6-8mm, 表格 width:100% 边框贴右沿, 太小会被裁掉. */
+  @page { size: A4; margin: 1.5cm 2cm; }
   body {
     font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC",
                  "Noto Sans CJK SC", system-ui, sans-serif;
     color: #1f1f1f;
     margin: 0;
     padding: 24px;
-    /* 强制打印保留背景色 (th 灰底 / 表格分隔线), 等价于用户勾上
-       "Background graphics" — 这条 CSS 直接覆盖那个勾选, 无论用户
-       怎么设都按这渲染. */
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
   }
   h1 { font-size: 20px; letter-spacing: 4px; margin: 0 0 4px; }
   .sub { color: #888; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
@@ -142,7 +139,14 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
   td.num { text-align: right; font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
   td.unit { color: #888; font-size: 12px; }
   @media print {
-    body { padding: 0; }
+    /* 强制保留背景色 (th 灰底 / 表格分隔线), 等价于用户勾上
+       "Background graphics". 放在 @media print 里, 避免老版本 WebView2
+       在 screen 渲染时解析这条新属性出错连带后续规则失效. */
+    body {
+      padding: 0;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
     .no-print { display: none; }
   }
 </style>
