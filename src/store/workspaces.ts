@@ -5,7 +5,7 @@ import type { WorkspaceView } from '@/api/types';
 
 /**
  * 工作区列表的全局缓存. 任何会改动工作区集合的页面 (创建 / 重命名 / 删除 /
- * 通过归档导入) 在操作完成后调一次 refresh(), 顶栏 WorkspaceSwitcher 等订阅者
+ * 通过归档导入) 在操作完成后调一次 refresh(), 顶栏 WorkspacePicker 等订阅者
  * 自动同步.
  */
 interface WorkspacesState {

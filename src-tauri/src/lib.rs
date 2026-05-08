@@ -18,6 +18,17 @@ use crate::interfaces::tauri::{AppPaths, AppState};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 单实例守门: 第二个进程启动会被插件直接退出, 并把 (argv, cwd) 通过
+        // IPC 推回老实例; 我们在回调里把已有窗口取消最小化 + 抢回焦点.
+        // 必须最先注册 (Tauri 官方文档): 越早拦截第二实例越好.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            use tauri::Manager;
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
