@@ -1,9 +1,9 @@
 import { Download, X } from 'lucide-react';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { check, type Update } from '@tauri-apps/plugin-updater';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { useUpdateStore } from '@/store/update';
 
 /// 启动时静默查一次更新; 有新版本就右下角弹一个 toast, 点 "立即更新"
 /// 走 downloadAndInstall + relaunch.
@@ -11,29 +11,27 @@ import { Button } from '@/components/ui/button';
 /// 检查失败 (无网 / endpoint 不通) 一律静默, 不打扰. 用户想主动看错误
 /// 详情可去 "关于" 页手动点 "检查更新".
 ///
-/// 一次会话只检查一次 — 用户 dismiss "稍后" 后, 本次会话不再骚扰.
-/// 下次启动 / 重新登录会再 mount, 那时会再查一次.
+/// toast 不自动消失 — 自动隐藏会让用户错过, 用户必须显式 dismiss.
+/// 用户点 "稍后" / X 后, 本会话 toast 不再出现, 但 About 页按钮仍会
+/// 显示 "有新版本 + 红点" (那是用户主动查询入口).
 export function UpdateNotifier() {
-  const [pending, setPending] = useState<Update | null>(null);
+  const pending = useUpdateStore((s) => s.pending);
+  const hasChecked = useUpdateStore((s) => s.hasChecked);
+  const checking = useUpdateStore((s) => s.checking);
+  const toastDismissed = useUpdateStore((s) => s.toastDismissed);
+  const dismissToast = useUpdateStore((s) => s.dismissToast);
+  const runCheck = useUpdateStore((s) => s.runCheck);
+
   const [downloading, setDownloading] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    check()
-      .then((u) => {
-        if (!cancelled && u) setPending(u);
-      })
-      .catch(() => {
-        // 静默: 启动时联网失败不该弹错误对话框打断用户.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!hasChecked && !checking) {
+      runCheck();
+    }
+  }, [hasChecked, checking, runCheck]);
 
-  if (!pending || dismissed) return null;
+  if (!pending || toastDismissed) return null;
 
   const onUpdate = async () => {
     setDownloading(true);
@@ -64,7 +62,7 @@ export function UpdateNotifier() {
         </div>
         <button
           type="button"
-          onClick={() => setDismissed(true)}
+          onClick={dismissToast}
           className="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-50"
           aria-label="稍后再说"
           disabled={downloading}
@@ -77,7 +75,7 @@ export function UpdateNotifier() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setDismissed(true)}
+          onClick={dismissToast}
           disabled={downloading}
         >
           稍后
