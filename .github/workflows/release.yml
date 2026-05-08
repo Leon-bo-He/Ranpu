@@ -16,12 +16,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # 拉全历史 + 全 tag, 后面 generate-notes 要用上一个 tag 做对比基准.
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
+
+      # 用 GitHub 的 generate-release-notes API, 自动按 PR 标题列出本版改动 +
+      # "Full Changelog" 链接. 不需要手写, 也不会再像之前把 "首次安装步骤"
+      # 当成 changelog 给老用户看.
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NOTES=$(gh api -X POST \
+            "repos/${{ github.repository }}/releases/generate-notes" \
+            -f tag_name='${{ github.ref_name }}' \
+            --jq .body)
+          {
+            echo 'body<<RANPU_NOTES_EOF'
+            echo "$NOTES"
+            echo 'RANPU_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -50,13 +72,9 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: '染谱 Ranpu ${{ github.ref_name }}'
-          releaseBody: |
-            Windows x64 安装包 (NSIS, 简体中文 / 英文).
-
-            首次安装提示:
-            1. SmartScreen 警告 → 「更多信息 → 仍要运行」 (未代码签名)
-            2. 启动后设启动口令 (用于本机数据加密, 请记录)
-            3. 创建第一个 admin 账号
+          # 把自动生成的 changelog 灌进去 (会同时进 Release 页面和 latest.json).
+          # 首次安装步骤迁去 README, 这里只放 "本版改了什么".
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           args: --target x86_64-pc-windows-msvc
