@@ -8,7 +8,6 @@ import { IdleDetector } from '@/components/IdleDetector';
 import { LockOverlay } from '@/components/LockOverlay';
 import { Sidebar } from '@/components/Sidebar';
 import { TopBar } from '@/components/TopBar';
-import { UpdateNotifier } from '@/components/UpdateNotifier';
 import { AboutPage } from '@/pages/About';
 import { AuditLogPage } from '@/pages/AuditLog';
 import { BootScreen } from '@/pages/BootScreen';
@@ -24,6 +23,7 @@ import { UserManagementPage } from '@/pages/UserManagement';
 import { WorkspaceFormulasPage } from '@/pages/WorkspaceFormulas';
 import { WorkspaceManagementPage } from '@/pages/WorkspaceManagement';
 import { useSessionStore } from '@/store/session';
+import { useUpdateStore } from '@/store/update';
 
 type GateState =
   | { kind: 'checking' }
@@ -36,6 +36,16 @@ type GateState =
 function App() {
   const session = useSessionStore((s) => s.session);
   const [gate, setGate] = useState<GateState>({ kind: 'checking' });
+
+  // 静默查一次更新; 命中 → useUpdateStore.pending 设上, 侧栏 "关于"
+  // 项右边的红点 + About 页按钮 "有新版本 X.Y.Z" 自动显示. 不弹 toast.
+  const runUpdateCheck = useUpdateStore((s) => s.runCheck);
+  const updateChecked = useUpdateStore((s) => s.hasChecked);
+  useEffect(() => {
+    if (session && !updateChecked) {
+      runUpdateCheck();
+    }
+  }, [session, updateChecked, runUpdateCheck]);
 
   useEffect(() => {
     bootApi
@@ -109,7 +119,6 @@ function App() {
   return (
     <BrowserRouter>
       <IdleDetector />
-      <UpdateNotifier />
       <div className="flex h-screen flex-col bg-background text-foreground">
         <TopBar />
         <div className="flex flex-1 overflow-hidden">

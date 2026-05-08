@@ -105,9 +105,9 @@ export function AboutPage() {
         title={`发现新版本 ${pending?.version ?? ''}`}
         description={
           <span>
-            当前 {version} → 新版本 {pending?.version}。
+            当前 {version} → 新版本 {pending?.version}
             <br />
-            点击"立即更新"会下载并安装，然后自动重启应用。
+            点击"立即更新"会下载并安装，然后自动重启应用
           </span>
         }
         confirmLabel="立即更新"
