@@ -35,4 +35,7 @@ export const cartApi = {
 
   export: (format: 'csv' | 'html', outPath: string) =>
     invoke<void>('cmd_export_cart', { cmd: { format, out_path: outPath } }),
+
+  /// 渲染当前批次清单为 HTML 字符串, 不落盘. 用于 iframe 预览 / 打印.
+  previewHtml: () => invoke<string>('cmd_preview_cart_as_batch_sheet_html'),
 };

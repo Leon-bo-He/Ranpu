@@ -34,12 +34,21 @@ impl BatchSheetExporter for BatchSheetCsvExporter {
         format: BatchSheetFormat,
         out_path: &Path,
     ) -> Result<(), BatchSheetError> {
-        let buf = match format {
-            BatchSheetFormat::Csv => render_csv(results),
-            BatchSheetFormat::Html => render_html(results, context),
-        };
+        let buf = self.render(results, context, format)?;
         std::fs::write(out_path, buf).map_err(|e| BatchSheetError::Io(e.to_string()))?;
         Ok(())
+    }
+
+    fn render(
+        &self,
+        results: &[CalculationResult],
+        context: BatchSheetContext<'_>,
+        format: BatchSheetFormat,
+    ) -> Result<String, BatchSheetError> {
+        Ok(match format {
+            BatchSheetFormat::Csv => render_csv(results),
+            BatchSheetFormat::Html => render_html(results, context),
+        })
     }
 }
 
