@@ -34,12 +34,21 @@ impl BatchSheetExporter for BatchSheetCsvExporter {
         format: BatchSheetFormat,
         out_path: &Path,
     ) -> Result<(), BatchSheetError> {
-        let buf = match format {
-            BatchSheetFormat::Csv => render_csv(results),
-            BatchSheetFormat::Html => render_html(results, context),
-        };
+        let buf = self.render(results, context, format)?;
         std::fs::write(out_path, buf).map_err(|e| BatchSheetError::Io(e.to_string()))?;
         Ok(())
+    }
+
+    fn render(
+        &self,
+        results: &[CalculationResult],
+        context: BatchSheetContext<'_>,
+        format: BatchSheetFormat,
+    ) -> Result<String, BatchSheetError> {
+        Ok(match format {
+            BatchSheetFormat::Csv => render_csv(results),
+            BatchSheetFormat::Html => render_html(results, context),
+        })
     }
 }
 
@@ -64,14 +73,22 @@ fn render_csv(results: &[CalculationResult]) -> String {
 }
 
 fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
+    // 算一次 date, 上面 <title> 和下面 "导出时间" 行共用.
+    let now = Utc::now();
+    let date = now.format("%Y-%m-%d").to_string();
+    // 文档 title 决定 WebView2 "Save as PDF" 时的默认文件名: 客户名-批次单-日期.
+    // 工作区名先过 sanitize_for_filename 去掉 Windows 禁字符.
+    let title = match context.workspace_name {
+        Some(name) => format!("{}-批次单-{}", sanitize_for_filename(name), date),
+        None => format!("批次单-{date}"),
+    };
+
     let mut html = String::new();
+    html.push_str("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n");
+    html.push_str("<meta charset=\"UTF-8\">\n");
+    html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
     html.push_str(
-        r#"<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<title>染谱批次单</title>
-<style>
+        r#"<style>
   @page { size: A4; margin: 1.5cm; }
   body {
     font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC",
@@ -79,6 +96,11 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     color: #1f1f1f;
     margin: 0;
     padding: 24px;
+    /* 强制打印保留背景色 (th 灰底 / 表格分隔线), 等价于用户勾上
+       "Background graphics" — 这条 CSS 直接覆盖那个勾选, 无论用户
+       怎么设都按这渲染. */
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
   h1 { font-size: 20px; letter-spacing: 4px; margin: 0 0 4px; }
   .sub { color: #888; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
@@ -138,15 +160,9 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         ));
     }
     html.push_str("    <div class=\"row\"><span class=\"label\">导出时间:</span><span class=\"value\">");
-    html.push_str(&Utc::now().format("%Y-%m-%d %H:%M UTC").to_string());
+    html.push_str(&now.format("%Y-%m-%d %H:%M UTC").to_string());
     html.push_str("</span></div>\n");
-    html.push_str(
-        r#"  </div>
-  <div class="no-print" style="margin-bottom:16px;color:#888;font-size:12px;">
-    提示：在浏览器中按 Ctrl+P 可另存为 PDF 或直接打印。
-  </div>
-"#,
-    );
+    html.push_str("  </div>\n");
 
     for r in results {
         html.push_str(r#"  <div class="formula">"#);
@@ -197,4 +213,22 @@ fn html_escape(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+/// Windows 文件名禁字符 \ / : * ? " < > | + 控制字符 → 下划线. 跟前端
+/// Cart.tsx 同名工具同样的策略, 保证 PDF 默认文件名不会被 OS 拒收.
+fn sanitize_for_filename(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if matches!(c, '\\' | '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|')
+                || c.is_control()
+            {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect::<String>()
+        .trim()
+        .to_owned()
 }

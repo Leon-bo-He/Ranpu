@@ -85,6 +85,7 @@ pub fn run() {
             cmd_clear_cart,
             cmd_list_cart,
             cmd_export_cart,
+            cmd_preview_cart_as_batch_sheet_html,
             cmd_export_backup,
             cmd_import_backup,
             cmd_list_audit,

@@ -2,6 +2,7 @@ mod add_to_cart;
 mod clear_cart;
 mod export_cart_as_batch_sheet;
 mod list_cart_with_calculations;
+mod preview_cart_as_batch_sheet;
 mod remove_from_cart;
 pub mod service;
 mod update_cart_item_kg;
