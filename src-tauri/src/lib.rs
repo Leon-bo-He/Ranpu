@@ -32,7 +32,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // 数据放在 %APPDATA%\Ranpu (Windows) 或 ~/.config/Ranpu (Linux)
             // 等位置, 用 OS 的 base data 目录而非 Tauri 默认的
