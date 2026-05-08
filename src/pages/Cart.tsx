@@ -1,6 +1,6 @@
 import { save } from '@tauri-apps/plugin-dialog';
-import { Trash, Trash2, Upload } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Printer, Trash, Trash2, Upload } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { cartApi } from '@/api/cart';
 import { ApiError } from '@/api/invoke';
@@ -9,6 +9,13 @@ import type { CartLineView } from '@/api/types';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -29,6 +36,9 @@ export function CartPage() {
   const [error, setError] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState<string>('');
   const [askClear, setAskClear] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const load = () => {
     if (!hasWs) {
@@ -96,26 +106,42 @@ export function CartPage() {
     }
   };
 
-  const onExport = async (format: 'csv' | 'html') => {
+  const onExportCsv = async () => {
     try {
       const date = new Date().toISOString().slice(0, 10);
       const namePrefix = workspaceName
         ? `${sanitizeForFilename(workspaceName)}-批次单-${date}`
         : `批次单-${date}`;
       const out = await save({
-        defaultPath: `${namePrefix}.${format}`,
-        filters: [{ name: format.toUpperCase(), extensions: [format] }],
+        defaultPath: `${namePrefix}.csv`,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
       });
       if (!out) return;
-      await cartApi.export(format, out);
-      alert(
-        format === 'html'
-          ? '已导出 HTML。在浏览器打开后按 Ctrl+P 可另存为 PDF。'
-          : '已导出 CSV。',
-      );
+      await cartApi.export('csv', out);
+      alert('已导出 CSV。');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
     }
+  };
+
+  const onPreview = async () => {
+    setPreviewBusy(true);
+    try {
+      const html = await cartApi.previewHtml();
+      setPreviewHtml(html);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setPreviewBusy(false);
+    }
+  };
+
+  const onPrintPreview = () => {
+    // iframe 跟主窗口同源 (srcDoc), contentWindow.print() 调起 OS 打印
+    // 对话框 (Windows 内置 "Microsoft Print to PDF" 即可另存 PDF, 文件名
+    // 默认取 HTML <title> = 客户名-批次单-日期).
+    previewIframeRef.current?.contentWindow?.focus();
+    previewIframeRef.current?.contentWindow?.print();
   };
 
   return (
@@ -123,15 +149,17 @@ export function CartPage() {
       <div className="flex items-center justify-between">
         <h2 className="font-serif text-xl tracking-[2px]">批次清单</h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => onExport('csv')}>
+          <Button variant="outline" onClick={onExportCsv}>
             <Upload className="mr-1 h-4 w-4" /> 导出 CSV
           </Button>
           <Button
             variant="outline"
-            onClick={() => onExport('html')}
-            title="导出网页版批次单 (浏览器打开后 Ctrl+P 可另存为 PDF)"
+            onClick={onPreview}
+            disabled={previewBusy || lines.length === 0}
+            title="弹出批次单预览, 点打印可调起系统打印对话框 (Windows 内置 Microsoft Print to PDF)"
           >
-            <Upload className="mr-1 h-4 w-4" /> 导出 HTML
+            <Printer className="mr-1 h-4 w-4" />
+            {previewBusy ? '生成中…' : '预览 / 打印'}
           </Button>
           <Button
             variant="ghost"
@@ -235,6 +263,34 @@ export function CartPage() {
         destructive
         onConfirm={confirmClear}
       />
+
+      <Dialog
+        open={previewHtml !== null}
+        onOpenChange={(o) => !o && setPreviewHtml(null)}
+      >
+        <DialogContent className="flex h-[90vh] max-w-5xl flex-col gap-0 p-0">
+          <DialogHeader className="shrink-0 border-b px-6 py-4">
+            <DialogTitle>批次单预览</DialogTitle>
+          </DialogHeader>
+          {previewHtml && (
+            <iframe
+              ref={previewIframeRef}
+              srcDoc={previewHtml}
+              title="批次单预览"
+              className="flex-1 border-0 bg-white"
+            />
+          )}
+          <DialogFooter className="shrink-0 gap-2 border-t bg-background px-6 py-3">
+            <Button variant="ghost" onClick={() => setPreviewHtml(null)}>
+              关闭
+            </Button>
+            <Button onClick={onPrintPreview}>
+              <Printer className="mr-1 h-4 w-4" />
+              打印 / 另存为 PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

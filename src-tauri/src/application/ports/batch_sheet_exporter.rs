@@ -37,4 +37,12 @@ pub trait BatchSheetExporter: Send + Sync {
         format: BatchSheetFormat,
         out_path: &Path,
     ) -> Result<(), BatchSheetError>;
+
+    /// 渲染但不落盘. 用于 UI 内 iframe 预览 / 打印, 不需要让用户先选保存路径.
+    fn render(
+        &self,
+        results: &[CalculationResult],
+        context: BatchSheetContext<'_>,
+        format: BatchSheetFormat,
+    ) -> Result<String, BatchSheetError>;
 }

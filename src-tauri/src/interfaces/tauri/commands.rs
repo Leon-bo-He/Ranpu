@@ -534,6 +534,14 @@ pub fn cmd_export_cart(state: State<AppState>, cmd: ExportCartCmd) -> CmdResult<
         .map_err(UiError::from)
 }
 
+#[tauri::command]
+pub fn cmd_preview_cart_as_batch_sheet_html(state: State<AppState>) -> CmdResult<String> {
+    services_or_err(&state)?
+        .cart
+        .preview_cart_as_batch_sheet_html()
+        .map_err(UiError::from)
+}
+
 // ---------- Backup ----------
 
 #[tauri::command]
