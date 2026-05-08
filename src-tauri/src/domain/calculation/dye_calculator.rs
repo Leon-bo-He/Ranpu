@@ -18,7 +18,7 @@ pub trait CalculableFormula {
     fn items(&self) -> &[FormulaItem];
 }
 
-/// 配方解析时的来源标记，用于 UI 角标显示「来自当前工作区」/「来自默认库（fallback）」。
+/// 配方解析时的来源标记，用于 UI 角标显示「来自当前工作区」/「来自默认库」。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FormulaSource {
     CurrentWorkspace,
@@ -29,7 +29,7 @@ impl FormulaSource {
     pub const fn display_label(self) -> &'static str {
         match self {
             FormulaSource::CurrentWorkspace => "来自当前工作区",
-            FormulaSource::DefaultFallback => "来自默认库（fallback）",
+            FormulaSource::DefaultFallback => "来自默认库",
         }
     }
 }
