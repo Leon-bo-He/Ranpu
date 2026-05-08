@@ -89,7 +89,9 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
     html.push_str(
         r#"<style>
-  @page { size: A4; margin: 1.5cm; }
+  /* 打印边距: 上下 1.5cm 给足空间, 左右 2cm 留余量 — 实体打印机
+     硬边距通常 6-8mm, 表格 width:100% 边框贴右沿, 太小会被裁掉. */
+  @page { size: A4; margin: 1.5cm 2cm; }
   body {
     font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC",
                  "Noto Sans CJK SC", system-ui, sans-serif;
