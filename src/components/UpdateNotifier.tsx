@@ -11,8 +11,8 @@ import { useUpdateStore } from '@/store/update';
 /// 检查失败 (无网 / endpoint 不通) 一律静默, 不打扰. 用户想主动看错误
 /// 详情可去 "关于" 页手动点 "检查更新".
 ///
-/// toast 不自动消失 — 自动隐藏会让用户错过, 用户必须显式 dismiss.
-/// 用户点 "稍后" / X 后, 本会话 toast 不再出现, 但 About 页按钮仍会
+/// toast 30 秒不操作自动收起 (但下载中不计时, 让用户能看到下载进度).
+/// 自动收起后本会话不再弹; 如果用户事后想找, 顶部 "关于" 页按钮仍
 /// 显示 "有新版本 + 红点" (那是用户主动查询入口).
 export function UpdateNotifier() {
   const pending = useUpdateStore((s) => s.pending);
@@ -30,6 +30,14 @@ export function UpdateNotifier() {
       runCheck();
     }
   }, [hasChecked, checking, runCheck]);
+
+  // 30 秒无操作自动收起. 下载中暂停计时 (effect 依赖 downloading,
+  // 切到 true 时上一个 timer 被 cleanup 掉, 切回 false 时重新计时).
+  useEffect(() => {
+    if (!pending || toastDismissed || downloading) return;
+    const t = setTimeout(() => dismissToast(), 30_000);
+    return () => clearTimeout(t);
+  }, [pending, toastDismissed, downloading, dismissToast]);
 
   if (!pending || toastDismissed) return null;
 
