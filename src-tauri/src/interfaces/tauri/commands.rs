@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use tauri::State;
+use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use crate::application::audit::{AuditExportFormat, ExportAuditLogInput, ListAuditEventsInput};
 use crate::application::backup::{ExportBackupInput, ImportBackupInput};
@@ -534,12 +534,49 @@ pub fn cmd_export_cart(state: State<AppState>, cmd: ExportCartCmd) -> CmdResult<
         .map_err(UiError::from)
 }
 
+/// 主窗口入口: 渲染当前批次清单的 HTML, 缓存到 AppState, 弹一个新的
+/// WebviewWindow 显示预览. 新窗口会在 mount 时调 cmd_consume_print_preview
+/// 把 HTML 取出来. 这样 HTML 不走 JS 序列化, 也不走 URL.
 #[tauri::command]
-pub fn cmd_preview_cart_as_batch_sheet_html(state: State<AppState>) -> CmdResult<String> {
-    services_or_err(&state)?
+pub fn cmd_open_print_preview(
+    app: AppHandle,
+    state: State<AppState>,
+) -> CmdResult<()> {
+    let html = services_or_err(&state)?
         .cart
         .preview_cart_as_batch_sheet_html()
-        .map_err(UiError::from)
+        .map_err(UiError::from)?;
+
+    *state.print_preview_html.lock() = Some(html);
+
+    if let Some(existing) = app.get_webview_window("print-preview") {
+        let _ = existing.unminimize();
+        let _ = existing.show();
+        let _ = existing.set_focus();
+        // 老窗口还在 — 让它重新 mount 一次拿新 HTML.
+        let _ = existing.eval("window.location.reload()");
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(&app, "print-preview", WebviewUrl::default())
+        .title("批次单预览 / 打印")
+        .inner_size(1100.0, 820.0)
+        .min_inner_size(800.0, 600.0)
+        .center()
+        .build()
+        .map_err(|e| UiError {
+            code: "io",
+            message: format!("打开打印预览窗口失败: {e}"),
+        })?;
+
+    Ok(())
+}
+
+/// 子窗口取走主窗口写入的 HTML, 同时清空缓冲. 一次调用就被消费, 重复
+/// 调用返回 None — 防止刷新时复用脏数据.
+#[tauri::command]
+pub fn cmd_consume_print_preview(state: State<AppState>) -> Option<String> {
+    state.print_preview_html.lock().take()
 }
 
 // ---------- Backup ----------

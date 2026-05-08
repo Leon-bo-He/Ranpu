@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 
 use crate::application::audit::AuditService;
 use crate::application::backup::BackupService;
@@ -54,6 +54,11 @@ impl AppPaths {
 pub struct AppState {
     pub paths: AppPaths,
     pub services: RwLock<Option<Arc<Services>>>,
+    /// 一次性打印预览 HTML 缓冲: 主窗口 cmd_open_print_preview 写入,
+    /// 新开的 print-preview 窗口 cmd_consume_print_preview 取出并清空.
+    /// 目的是把可能很大的 HTML 字符串避开 URL / 命令行参数, 直接通过
+    /// 进程内 state 传给子窗口.
+    pub print_preview_html: Mutex<Option<String>>,
 }
 
 impl AppState {
@@ -61,6 +66,7 @@ impl AppState {
         Self {
             paths,
             services: RwLock::new(None),
+            print_preview_html: Mutex::new(None),
         }
     }
 

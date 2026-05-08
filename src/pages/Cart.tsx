@@ -1,6 +1,6 @@
 import { save } from '@tauri-apps/plugin-dialog';
 import { Printer, Trash, Trash2, Upload } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { cartApi } from '@/api/cart';
 import { ApiError } from '@/api/invoke';
@@ -9,13 +9,6 @@ import type { CartLineView } from '@/api/types';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -36,9 +29,7 @@ export function CartPage() {
   const [error, setError] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState<string>('');
   const [askClear, setAskClear] = useState(false);
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
-  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const load = () => {
     if (!hasWs) {
@@ -125,22 +116,15 @@ export function CartPage() {
   };
 
   const onPreview = async () => {
+    // 调后端弹独立 print-preview 窗口 — 主窗口不会被 WebView2 打印 UI 接管.
     setPreviewBusy(true);
     try {
-      const html = await cartApi.previewHtml();
-      setPreviewHtml(html);
+      await cartApi.openPrintPreview();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
     } finally {
       setPreviewBusy(false);
     }
-  };
-
-  const onPrintPreview = () => {
-    // iframe 是 srcDoc, 跟主窗口同源, contentWindow.print() 能直接调起 OS
-    // 打印对话框 (Windows 内置 "Microsoft Print to PDF" 即可另存 PDF).
-    previewIframeRef.current?.contentWindow?.focus();
-    previewIframeRef.current?.contentWindow?.print();
   };
 
   return (
@@ -262,34 +246,6 @@ export function CartPage() {
         destructive
         onConfirm={confirmClear}
       />
-
-      <Dialog
-        open={previewHtml !== null}
-        onOpenChange={(o) => !o && setPreviewHtml(null)}
-      >
-        <DialogContent className="flex h-[90vh] max-w-5xl flex-col gap-0 p-0">
-          <DialogHeader className="shrink-0 border-b px-6 py-4">
-            <DialogTitle>批次单预览</DialogTitle>
-          </DialogHeader>
-          {previewHtml && (
-            <iframe
-              ref={previewIframeRef}
-              srcDoc={previewHtml}
-              title="批次单预览"
-              className="flex-1 border-0 bg-white"
-            />
-          )}
-          <DialogFooter className="shrink-0 gap-2 border-t bg-background px-6 py-3">
-            <Button variant="ghost" onClick={() => setPreviewHtml(null)}>
-              关闭
-            </Button>
-            <Button onClick={onPrintPreview}>
-              <Printer className="mr-1 h-4 w-4" />
-              打印 / 另存为 PDF
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

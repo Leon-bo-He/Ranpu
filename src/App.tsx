@@ -1,3 +1,4 @@
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
@@ -19,11 +20,14 @@ import { DefaultLibraryPage } from '@/pages/DefaultLibrary';
 import { FirstRunSetup } from '@/pages/FirstRunSetup';
 import { LibraryTransferPage } from '@/pages/LibraryTransfer';
 import { LoginPage } from '@/pages/Login';
+import { PrintPreviewWindow } from '@/pages/PrintPreviewWindow';
 import { SettingsPage } from '@/pages/Settings';
 import { UserManagementPage } from '@/pages/UserManagement';
 import { WorkspaceFormulasPage } from '@/pages/WorkspaceFormulas';
 import { WorkspaceManagementPage } from '@/pages/WorkspaceManagement';
 import { useSessionStore } from '@/store/session';
+
+const PRINT_PREVIEW_LABEL = 'print-preview';
 
 type GateState =
   | { kind: 'checking' }
@@ -34,6 +38,17 @@ type GateState =
   | { kind: 'error'; message: string };
 
 function App() {
+  // 主进程开 print-preview 子窗口时, 走的是同一个 SPA bundle. 用 window
+  // label 区分: 子窗口完全跳过 boot / login / 路由, 渲染独立 UI.
+  // 拆成两个组件而不是 if-then-return 是为了不违反 rules-of-hooks
+  // (子窗口压根不调那些 hooks, 主窗口照常调).
+  if (getCurrentWebviewWindow().label === PRINT_PREVIEW_LABEL) {
+    return <PrintPreviewWindow />;
+  }
+  return <MainApp />;
+}
+
+function MainApp() {
   const session = useSessionStore((s) => s.session);
   const [gate, setGate] = useState<GateState>({ kind: 'checking' });
 
