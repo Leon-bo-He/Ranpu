@@ -535,8 +535,9 @@ pub fn cmd_export_cart(state: State<AppState>, cmd: ExportCartCmd) -> CmdResult<
 }
 
 /// 主窗口入口: 渲染当前批次清单的 HTML, 缓存到 AppState, 弹一个新的
-/// WebviewWindow 显示预览. 新窗口会在 mount 时调 cmd_consume_print_preview
-/// 把 HTML 取出来. 这样 HTML 不走 JS 序列化, 也不走 URL.
+/// WebviewWindow 显示预览. 新窗口加载 SPA 带 ?ranpu-view=print-preview
+/// 查询参数, 前端 App 据此分流到独立的 PrintPreviewWindow 组件; 那边
+/// 调 cmd_consume_print_preview 取出 HTML.
 #[tauri::command]
 pub fn cmd_open_print_preview(
     app: AppHandle,
@@ -553,20 +554,24 @@ pub fn cmd_open_print_preview(
         let _ = existing.unminimize();
         let _ = existing.show();
         let _ = existing.set_focus();
-        // 老窗口还在 — 让它重新 mount 一次拿新 HTML.
+        // 老窗口还在 — 重新加载让它再次 consume 缓冲, 拿到这次的 HTML.
         let _ = existing.eval("window.location.reload()");
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(&app, "print-preview", WebviewUrl::default())
+    let url = WebviewUrl::App("index.html?ranpu-view=print-preview".into());
+    WebviewWindowBuilder::new(&app, "print-preview", url)
         .title("批次单预览 / 打印")
         .inner_size(1100.0, 820.0)
         .min_inner_size(800.0, 600.0)
         .center()
         .build()
-        .map_err(|e| UiError {
-            code: "io",
-            message: format!("打开打印预览窗口失败: {e}"),
+        .map_err(|e| {
+            eprintln!("[print-preview] 打开窗口失败: {e}");
+            UiError {
+                code: "io",
+                message: format!("打开打印预览窗口失败: {e}"),
+            }
         })?;
 
     Ok(())

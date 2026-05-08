@@ -1,4 +1,3 @@
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
@@ -27,7 +26,14 @@ import { WorkspaceFormulasPage } from '@/pages/WorkspaceFormulas';
 import { WorkspaceManagementPage } from '@/pages/WorkspaceManagement';
 import { useSessionStore } from '@/store/session';
 
-const PRINT_PREVIEW_LABEL = 'print-preview';
+/// 打印预览子窗口标记: 后端创建窗口时把 ?ranpu-view=print-preview 拼到 URL,
+/// 这边读 window.location.search 分流. 比 getCurrentWebviewWindow().label
+/// 可靠 — 是浏览器原生同步 API, 不依赖 Tauri 内部 metadata 注入时机.
+function isPrintPreviewWindow(): boolean {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('ranpu-view') === 'print-preview';
+}
 
 type GateState =
   | { kind: 'checking' }
@@ -38,11 +44,11 @@ type GateState =
   | { kind: 'error'; message: string };
 
 function App() {
-  // 主进程开 print-preview 子窗口时, 走的是同一个 SPA bundle. 用 window
-  // label 区分: 子窗口完全跳过 boot / login / 路由, 渲染独立 UI.
-  // 拆成两个组件而不是 if-then-return 是为了不违反 rules-of-hooks
-  // (子窗口压根不调那些 hooks, 主窗口照常调).
-  if (getCurrentWebviewWindow().label === PRINT_PREVIEW_LABEL) {
+  // 主进程开 print-preview 子窗口时, 走的是同一个 SPA bundle. URL 带
+  // ?ranpu-view=print-preview 区分: 子窗口完全跳过 boot/login/路由,
+  // 渲染独立 UI. 拆成两个组件而不是 if-then-return 是为了不违反
+  // rules-of-hooks (子窗口压根不调那些 hooks).
+  if (isPrintPreviewWindow()) {
     return <PrintPreviewWindow />;
   }
   return <MainApp />;

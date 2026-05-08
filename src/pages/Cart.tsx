@@ -118,11 +118,14 @@ export function CartPage() {
   const onPreview = async () => {
     // 调后端弹独立 print-preview 窗口 — 主窗口不会被 WebView2 打印 UI 接管.
     setPreviewBusy(true);
+    // 5s 兜底: IPC 万一没回, 按钮也不能永远卡 "生成中…".
+    const safetyTimer = window.setTimeout(() => setPreviewBusy(false), 5000);
     try {
       await cartApi.openPrintPreview();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
     } finally {
+      window.clearTimeout(safetyTimer);
       setPreviewBusy(false);
     }
   };
