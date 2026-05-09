@@ -135,13 +135,10 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     color: #888;
     font-weight: normal;
   }
-  /* 所有批次表统一列宽; table-layout:fixed 让 col 宽度严格生效, 否则
-     不同表的列宽会被各自内容撑出差异. */
+  /* 所有批次表统一列宽: col 宽度走 inline style (而不是 col.col-X 选择器) —
+     某些 WebView2 版本在 col 类型选择器后会把后续规则一起丢, 表现为
+     表格 border / th 背景全失效. inline style 是兜底办法, 不依赖 CSS 解析器. */
   table { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: fixed; }
-  col.col-dye    { width: 50%; }
-  col.col-code   { width: 18%; }
-  col.col-grams  { width: 18%; }
-  col.col-unit   { width: 14%; }
   th, td {
     border: 1px solid #ccc;
     padding: 6px 10px;
@@ -196,10 +193,10 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         html.push('\n');
         html.push_str("    <table>\n");
         html.push_str("      <colgroup>\n");
-        html.push_str("        <col class=\"col-dye\" />\n");
-        html.push_str("        <col class=\"col-code\" />\n");
-        html.push_str("        <col class=\"col-grams\" />\n");
-        html.push_str("        <col class=\"col-unit\" />\n");
+        html.push_str("        <col style=\"width:50%\" />\n");
+        html.push_str("        <col style=\"width:18%\" />\n");
+        html.push_str("        <col style=\"width:18%\" />\n");
+        html.push_str("        <col style=\"width:14%\" />\n");
         html.push_str("      </colgroup>\n");
         html.push_str("      <thead><tr><th>染料</th><th>编号</th><th class=\"num\">克数</th><th>原始单位</th></tr></thead>\n");
         html.push_str("      <tbody>\n");
