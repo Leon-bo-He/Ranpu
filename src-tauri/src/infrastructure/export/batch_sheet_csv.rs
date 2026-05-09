@@ -250,7 +250,6 @@ const GRID_WIDE_THRESHOLD: usize = 8;
 
 fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
     let now = Local::now();
-    let date_short = now.format("%m-%d").to_string();
     let date_full = now.format("%Y-%m-%d").to_string();
     let title = match context.workspace_name {
         Some(name) => format!("{}-批次单-{}", sanitize_for_filename(name), date_full),
@@ -275,15 +274,16 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
   .grid-page { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 281mm; page-break-after: always; }
   .grid-page:last-child { page-break-after: auto; }
-  .cell { border: 1px dashed #999; padding: 6mm 5mm 8mm 5mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 11px; line-height: 1.45; }
+  .cell { border: 1px dashed #999; padding: 7mm 6mm 10mm 6mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 13px; line-height: 1.5; }
   .cell.wide { grid-column: span 2; }
-  .vat { font-size: 18px; font-weight: bold; line-height: 1.2; margin-bottom: 2px; }
-  .meta-line { font-size: 12px; margin-bottom: 1px; }
-  .divider { border: 0; border-top: 1.5px solid #1f1f1f; margin: 5px 0 6px; }
-  .dye-row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
+  .vat { font-size: 22px; font-weight: bold; line-height: 1.2; margin-bottom: 3px; }
+  .meta-line { font-size: 14px; margin-bottom: 2px; }
+  .divider { border: 0; border-top: 1.5px solid #1f1f1f; margin: 6px 0 7px; }
+  .dye-row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
   .dye-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dye-row .grams { font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
-  .corner { position: absolute; bottom: 3mm; right: 4mm; font-size: 9px; color: #888; }
+  .corner-l { position: absolute; bottom: 3mm; left: 5mm; font-size: 11px; color: #888; }
+  .corner-r { position: absolute; bottom: 3mm; right: 5mm; font-size: 11px; color: #888; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
@@ -357,12 +357,19 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
                 format_amount(l.grams.value()),
             ));
         }
-        // 角落: 导出时间 + 当前 / 总
+        // 左下角: 导出时间 (带年份)
         html.push_str(&format!(
-            "    <div class=\"corner\">{} {}/{}</div>\n",
-            date_short,
-            idx + 1,
-            total,
+            "    <div class=\"corner-l\">{}</div>\n",
+            html_escape(&date_full),
+        ));
+        // 右下角: 客户名 · N/总数
+        let counter_label = match context.workspace_name {
+            Some(c) => format!("{} · {}/{}", c, idx + 1, total),
+            None => format!("{}/{}", idx + 1, total),
+        };
+        html.push_str(&format!(
+            "    <div class=\"corner-r\">{}</div>\n",
+            html_escape(&counter_label),
         ));
         html.push_str("  </div>\n");
 
