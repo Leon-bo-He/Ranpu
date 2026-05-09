@@ -17,28 +17,32 @@ export function LockOverlay() {
 
   // 自动锁屏从后台 setInterval 触发, 锁屏 div 渲染时 webview 很可能因为长
   // 时间没活动失去焦点 (用户切到别的窗口 / 鼠标静止). 常见症状:
-  //   1. 主窗口还在背景, 没被抢到前面 — 用户看不见锁屏.
-  //   2. 鼠标在 overlay 上能拖出文字选区 — WebView2 hit-test 还停在旧元素.
+  //   1. 主窗口在背景没被抢到前面 — 用户看不见锁屏.
+  //   2. 鼠标在 overlay 上能拖出选区 — WebView2 hit-test 还停在旧元素.
   //   3. autoFocus / input.focus() 调了但 keystrokes 不进密码框 — 焦点
   //      残留在锁屏前的 active 元素 (例如 Calculator 的某 input).
   // 单独 setFocus() 兜不住, 这里多管齐下:
   //   - 异步唤醒序列: unminimize → setAlwaysOnTop(true / false) 触发
   //     Win32 SetForegroundWindow → setFocus → requestUserAttention 任
-  //     务栏 flash. 任一步 deny / 失败都继续走下一步.
-  //   - 重试聚焦: WebView2 在窗口刚回到前台时 hit-test 延迟一帧, 用 poll
-  //     比对 document.activeElement === input, 没拿到再来 (最多 ~1s).
-  //   - document 级捕获: selectstart 一律 preventDefault 杜绝划选; mouse
-  //     move / keydown / focusin 都把焦点强行送回密码输入框, 即便锁屏前
-  //     的某个 input 抢着接 keystrokes 也会被夺回来.
+  //     务栏 flash. 任一步 deny 都继续走下一步.
+  //   - 重试聚焦: WebView2 在窗口刚回到前台时 hit-test 延迟一帧, poll
+  //     直到 document.activeElement === input, 最多 ~1s.
+  //   - document 级捕获:
+  //       selectstart preventDefault — 杜绝在锁屏上划选文本.
+  //       focusin — 焦点跑到密码框以外时拽回来 (用户切窗回来 webview
+  //         默认聚焦到 body 或上次的 input, 直接劫回密码框).
+  //     mousemove / keydown 故意不挂 — 这俩在用户敲键盘时反复 focus
+  //     + removeAllRanges, 在 WebView2 里能让密码框光标闪一下就消失,
+  //     用户根本输不了字.
   useEffect(() => {
     let cancelled = false;
     let attempts = 0;
 
     const focusInput = () => {
       if (cancelled) return;
-      window.getSelection()?.removeAllRanges();
       const input = inputRef.current;
       if (!input) return;
+      if (document.activeElement === input) return;
       input.focus();
       if (document.activeElement !== input && attempts < 10) {
         attempts += 1;
@@ -70,24 +74,23 @@ export function LockOverlay() {
         /* deny — 继续 */
       }
       if (cancelled) return;
+      // 仅在 mount 阶段清一次锁屏前的残留选区, 不在 per-event handler
+      // 里调 — 那会跟用户输入时的 input 内 caret 状态打架.
+      window.getSelection()?.removeAllRanges();
       requestAnimationFrame(focusInput);
     })();
 
     const onSelectStart = (e: Event) => {
       e.preventDefault();
     };
-    const onAnyInteraction = () => focusInput();
+    const onFocusIn = () => focusInput();
     document.addEventListener('selectstart', onSelectStart, true);
-    document.addEventListener('mousemove', onAnyInteraction, true);
-    document.addEventListener('keydown', onAnyInteraction, true);
-    document.addEventListener('focusin', onAnyInteraction, true);
+    document.addEventListener('focusin', onFocusIn, true);
 
     return () => {
       cancelled = true;
       document.removeEventListener('selectstart', onSelectStart, true);
-      document.removeEventListener('mousemove', onAnyInteraction, true);
-      document.removeEventListener('keydown', onAnyInteraction, true);
-      document.removeEventListener('focusin', onAnyInteraction, true);
+      document.removeEventListener('focusin', onFocusIn, true);
     };
   }, []);
 
@@ -117,10 +120,14 @@ export function LockOverlay() {
       className="fixed inset-0 z-[1000] flex select-none flex-col items-center justify-center backdrop-blur-md"
       style={{ background: 'rgba(0, 0, 0, 0.55)' }}
       onMouseDown={(e) => {
-        // 锁屏期间 overlay 上不应该出现新的选区 / 拖拽; 阻止默认行为顺便
-        // 把焦点拽回密码框.
-        e.preventDefault();
-        inputRef.current?.focus();
+        // 仅在 overlay 空白区 (target === currentTarget) 才 preventDefault +
+        // 抢焦点. 否则用户点输入框 / 解锁按钮时, 这里的 preventDefault 会
+        // 在冒泡阶段把 input / button 的默认 focus 给取消掉, 导致光标闪
+        // 一下就消失, 也输不了密码.
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+          inputRef.current?.focus();
+        }
       }}
     >
       <div className="flex flex-col items-center gap-3 rounded-lg bg-background/95 p-10 shadow-2xl">
