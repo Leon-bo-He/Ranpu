@@ -413,7 +413,15 @@ export function CartPage() {
 
       <Dialog
         open={previewHtml !== null}
-        onOpenChange={(o) => !o && setPreviewHtml(null)}
+        onOpenChange={(o) => {
+          // X / Esc / 点外面关闭都视为 "返回批次单信息" — 关掉预览 + 重开
+          // prompt 让用户继续改 (而不是直接退出整个流程). promptCustomer
+          // / promptPerFormula state 没动过, prompt 重开后值都还在.
+          if (!o) {
+            setPreviewHtml(null);
+            setPromptOpen(true);
+          }
+        }}
       >
         <DialogContent className="flex h-[90vh] max-w-5xl flex-col gap-0 p-0">
           <DialogHeader className="shrink-0 flex-row items-center gap-4 border-b px-6 py-4 space-y-0">
@@ -456,8 +464,14 @@ export function CartPage() {
             />
           )}
           <DialogFooter className="shrink-0 gap-2 border-t bg-background px-6 py-3">
-            <Button variant="ghost" onClick={() => setPreviewHtml(null)}>
-              关闭
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPreviewHtml(null);
+                setPromptOpen(true);
+              }}
+            >
+              返回修改
             </Button>
             <Button onClick={onPrintPreview}>
               <Printer className="mr-1 h-4 w-4" />
