@@ -106,12 +106,21 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
     html.push_str(
         r#"<style>
-  /* 打印边距: 上下 1.5cm 给足空间, 左右 2cm 留余量 — 实体打印机
-     硬边距通常 6-8mm, 表格 width:100% 边框贴右沿, 太小会被裁掉. */
   @page { size: A4; margin: 1.5cm 2cm; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: fixed; }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 6px 10px;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-wrap: break-word;
+  }
+  th { background-color: #f3f3f3; }
+  th.num { text-align: right; }
+  td.num { text-align: right; font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
   body {
-    font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC",
-                 "Noto Sans CJK SC", system-ui, sans-serif;
+    font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
     color: #1f1f1f;
     margin: 0;
     padding: 24px;
@@ -130,35 +139,11 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     padding-bottom: 4px;
   }
   .formula h2 .target { color: #555; font-weight: normal; margin-left: 8px; }
-  /* 单个配方的缸号 / 纱支 紧贴 h2 下面一行, 12px 灰字 — 跟 meta 头部
-     视觉一致, 但偏小避免抢主色号风头. */
   .formula-meta { color: #666; font-size: 12px; margin: 4px 0 8px; }
   .formula-meta .label { color: #888; margin-right: 4px; }
   .formula-meta .value { color: #1f1f1f; font-weight: 500; margin-right: 16px; }
-  /* 所有批次表统一列宽: col 宽度走 inline style (而不是 col.col-X 选择器) —
-     某些 WebView2 版本在 col 类型选择器后会把后续规则一起丢, 表现为
-     表格 border / th 背景全失效. inline style 是兜底办法, 不依赖 CSS 解析器. */
-  table { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: fixed; }
-  th, td {
-    border: 1px solid #ccc;
-    padding: 6px 10px;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-wrap: break-word;
-  }
-  th { background: #f3f3f3; }
-  th.num { text-align: right; }
-  td.num { text-align: right; font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
   @media print {
-    /* 强制保留背景色 (th 灰底 / 表格分隔线), 等价于用户勾上
-       "Background graphics". 放在 @media print 里, 避免老版本 WebView2
-       在 screen 渲染时解析这条新属性出错连带后续规则失效. */
-    body {
-      padding: 0;
-      print-color-adjust: exact;
-      -webkit-print-color-adjust: exact;
-    }
+    body { padding: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     .no-print { display: none; }
   }
 </style>
@@ -215,17 +200,28 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
             }
             html.push_str("    </div>\n");
         }
-        html.push_str("    <table>\n");
+        // 表格 / th / td 的 border + th 灰底也 inline 一份, 兜底 CSS 解析
+        // 万一在某条规则上 bail (历史上 col selector + Chinese / em-dash 注释
+        // 都中过招). Inline style 不经过 CSS 解析器, 保证视觉永远在.
+        let th_style = "border:1px solid #ccc;padding:6px 10px;text-align:left;background-color:#f3f3f3;";
+        let th_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;background-color:#f3f3f3;";
+        let td_style = "border:1px solid #ccc;padding:6px 10px;text-align:left;";
+        let td_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;font-family:'Cascadia Mono','JetBrains Mono',monospace;";
+        html.push_str(
+            "    <table style=\"border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed;\">\n",
+        );
         html.push_str("      <colgroup>\n");
         html.push_str("        <col style=\"width:55%\" />\n");
         html.push_str("        <col style=\"width:22%\" />\n");
         html.push_str("        <col style=\"width:23%\" />\n");
         html.push_str("      </colgroup>\n");
-        html.push_str("      <thead><tr><th>染料</th><th>编号</th><th class=\"num\">克数</th></tr></thead>\n");
+        html.push_str(&format!(
+            "      <thead><tr><th style=\"{th_style}\">染料</th><th style=\"{th_style}\">编号</th><th style=\"{th_num_style}\">克数</th></tr></thead>\n",
+        ));
         html.push_str("      <tbody>\n");
         for l in &r.lines {
             html.push_str(&format!(
-                "        <tr><td>{}</td><td>{}</td><td class=\"num\">{}</td></tr>\n",
+                "        <tr><td style=\"{td_style}\">{}</td><td style=\"{td_style}\">{}</td><td style=\"{td_num_style}\">{}</td></tr>\n",
                 html_escape(&l.dye_name),
                 html_escape(l.dye_code.as_deref().unwrap_or("—")),
                 format_amount(l.grams.value()),
