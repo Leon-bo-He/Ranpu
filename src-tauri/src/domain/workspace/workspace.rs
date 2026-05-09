@@ -4,11 +4,11 @@ use std::str::FromStr;
 use chrono::{DateTime, Utc};
 
 use crate::domain::shared::errors::{DomainError, DomainResult};
-use crate::domain::shared::id::{UserId, WorkspaceId};
+use crate::domain::shared::id::WorkspaceId;
 
 /// 工作区类型。
 ///
-/// - `Normal`: 用户/admin 创建的常规工作区, 配方可自由增删改.
+/// - `Normal`: 用户创建的常规工作区, 配方可自由增删改.
 /// - `SystemMirror`: 系统内置 "通用" 工作区, 配方与默认配方库一一同步,
 ///   不可在此工作区内直接增删改, 工作区本身也不能改名 / 删除.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -71,39 +71,29 @@ impl fmt::Display for WorkspaceName {
 /// Workspace 聚合根。
 ///
 /// 一个独立的车间工作站工作区，归属一个客户/项目。
-/// 任何登录用户都可以切换进入；只有 admin 能创建/重命名/删除（PROMPT 第 63 行）。
+/// 单用户解锁模型: 没有 created_by_user_id (没有用户表).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Workspace {
     id: Option<WorkspaceId>,
     name: WorkspaceName,
     description: Option<String>,
-    created_by_user_id: Option<UserId>,
     created_at: DateTime<Utc>,
     kind: WorkspaceKind,
 }
 
 impl Workspace {
     /// 构造一个尚未持久化的 Workspace（默认 `Normal` 类型）。
-    /// `created_by_user_id` 允许 None：seed/系统初始化时没有用户。
     pub fn new(
         name: WorkspaceName,
         description: Option<String>,
-        created_by_user_id: Option<UserId>,
         created_at: DateTime<Utc>,
     ) -> DomainResult<Self> {
-        Self::new_with_kind(
-            name,
-            description,
-            created_by_user_id,
-            created_at,
-            WorkspaceKind::Normal,
-        )
+        Self::new_with_kind(name, description, created_at, WorkspaceKind::Normal)
     }
 
     pub fn new_with_kind(
         name: WorkspaceName,
         description: Option<String>,
-        created_by_user_id: Option<UserId>,
         created_at: DateTime<Utc>,
         kind: WorkspaceKind,
     ) -> DomainResult<Self> {
@@ -112,7 +102,6 @@ impl Workspace {
             id: None,
             name,
             description,
-            created_by_user_id,
             created_at,
             kind,
         })
@@ -122,24 +111,15 @@ impl Workspace {
         id: WorkspaceId,
         name: WorkspaceName,
         description: Option<String>,
-        created_by_user_id: Option<UserId>,
         created_at: DateTime<Utc>,
     ) -> Self {
-        Self::rehydrate_with_kind(
-            id,
-            name,
-            description,
-            created_by_user_id,
-            created_at,
-            WorkspaceKind::Normal,
-        )
+        Self::rehydrate_with_kind(id, name, description, created_at, WorkspaceKind::Normal)
     }
 
     pub fn rehydrate_with_kind(
         id: WorkspaceId,
         name: WorkspaceName,
         description: Option<String>,
-        created_by_user_id: Option<UserId>,
         created_at: DateTime<Utc>,
         kind: WorkspaceKind,
     ) -> Self {
@@ -147,7 +127,6 @@ impl Workspace {
             id: Some(id),
             name,
             description,
-            created_by_user_id,
             created_at,
             kind,
         }
@@ -163,10 +142,6 @@ impl Workspace {
 
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
-    }
-
-    pub fn created_by_user_id(&self) -> Option<UserId> {
-        self.created_by_user_id
     }
 
     pub fn created_at(&self) -> DateTime<Utc> {
@@ -246,15 +221,8 @@ mod tests {
 
     #[test]
     fn new_workspace_has_no_id() {
-        let w = Workspace::new(
-            WorkspaceName::new("X").unwrap(),
-            None,
-            Some(UserId::new(1)),
-            now(),
-        )
-        .unwrap();
+        let w = Workspace::new(WorkspaceName::new("X").unwrap(), None, now()).unwrap();
         assert!(w.id().is_none());
-        assert_eq!(w.created_by_user_id(), Some(UserId::new(1)));
     }
 
     #[test]
@@ -262,7 +230,6 @@ mod tests {
         let w = Workspace::new(
             WorkspaceName::new("X").unwrap(),
             Some("   ".into()),
-            Some(UserId::new(1)),
             now(),
         )
         .unwrap();
@@ -275,7 +242,6 @@ mod tests {
         let err = Workspace::new(
             WorkspaceName::new("X").unwrap(),
             Some(too_long),
-            Some(UserId::new(1)),
             now(),
         )
         .unwrap_err();
@@ -284,13 +250,7 @@ mod tests {
 
     #[test]
     fn rename_updates_name() {
-        let mut w = Workspace::new(
-            WorkspaceName::new("旧名").unwrap(),
-            None,
-            Some(UserId::new(1)),
-            now(),
-        )
-        .unwrap();
+        let mut w = Workspace::new(WorkspaceName::new("旧名").unwrap(), None, now()).unwrap();
         w.rename(WorkspaceName::new("新名").unwrap());
         assert_eq!(w.name().as_str(), "新名");
     }

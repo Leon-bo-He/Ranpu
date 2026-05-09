@@ -25,13 +25,12 @@ impl AuditCsvExporter for PlainAuditCsvExporter {
         out_path: &Path,
     ) -> Result<(), BatchSheetError> {
         let mut buf = String::new();
-        buf.push_str("时间,事件 UUID,用户 ID,工作区 ID,动作,目标,详情\n");
+        buf.push_str("时间,事件 UUID,工作区 ID,动作,目标,详情\n");
         for e in events {
             buf.push_str(&format!(
-                "{},{},{},{},{},{},{}\n",
+                "{},{},{},{},{},{}\n",
                 e.occurred_at().format("%Y-%m-%d %H:%M:%S"),
                 e.event_uuid(),
-                e.user_id().map(|i| i.to_string()).unwrap_or_default(),
                 e.workspace_context_id()
                     .map(|i| i.to_string())
                     .unwrap_or_default(),

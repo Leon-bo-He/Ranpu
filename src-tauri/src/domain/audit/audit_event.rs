@@ -5,25 +5,17 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::shared::errors::DomainError;
-use crate::domain::shared::id::{AuditEventId, UserId, WorkspaceId};
+use crate::domain::shared::id::{AuditEventId, WorkspaceId};
 
 /// 审计动作类型。
 ///
-/// 列表对应 PROMPT 各上下文用例 + 生命周期事件。导出审计日志时按这里
-/// 的字符串表示存盘，便于离线审计工具按字符串匹配。
+/// 单用户解锁模型: login / account / password / user_* 这些事件没有了 —
+/// 没有用户体系自然就写不出这些. 保留 SessionLocked / SessionUnlocked
+/// (锁屏 / 解锁).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Action {
-    LoginSucceeded,
-    LoginFailed,
-    AccountLocked,
-    AccountUnlocked,
     SessionLocked,
     SessionUnlocked,
-    SessionForceLogout,
-    PasswordChanged,
-    UserCreated,
-    UserActivated,
-    UserDeactivated,
     WorkspaceCreated,
     WorkspaceRenamed,
     WorkspaceDescriptionUpdated,
@@ -54,17 +46,8 @@ pub enum Action {
 impl Action {
     pub const fn as_db_str(self) -> &'static str {
         match self {
-            Action::LoginSucceeded => "login_succeeded",
-            Action::LoginFailed => "login_failed",
-            Action::AccountLocked => "account_locked",
-            Action::AccountUnlocked => "account_unlocked",
             Action::SessionLocked => "session_locked",
             Action::SessionUnlocked => "session_unlocked",
-            Action::SessionForceLogout => "session_force_logout",
-            Action::PasswordChanged => "password_changed",
-            Action::UserCreated => "user_created",
-            Action::UserActivated => "user_activated",
-            Action::UserDeactivated => "user_deactivated",
             Action::WorkspaceCreated => "workspace_created",
             Action::WorkspaceRenamed => "workspace_renamed",
             Action::WorkspaceDescriptionUpdated => "workspace_description_updated",
@@ -99,17 +82,8 @@ impl FromStr for Action {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // 将 db_str 反查回枚举值，避免维护两份字符串映射。
         const ALL: &[Action] = &[
-            Action::LoginSucceeded,
-            Action::LoginFailed,
-            Action::AccountLocked,
-            Action::AccountUnlocked,
             Action::SessionLocked,
             Action::SessionUnlocked,
-            Action::SessionForceLogout,
-            Action::PasswordChanged,
-            Action::UserCreated,
-            Action::UserActivated,
-            Action::UserDeactivated,
             Action::WorkspaceCreated,
             Action::WorkspaceRenamed,
             Action::WorkspaceDescriptionUpdated,
@@ -153,13 +127,14 @@ impl fmt::Display for Action {
 ///
 /// 一条事件由 application 层在用例完成时构造（含失败用例），写入仓储。
 /// `target` 与 `details` 可空：target 是被操作对象的标识（比如配方内部色号
-/// 或 user_id），details 是结构化信息（一般是 JSON 字符串）。
+/// 或工作区 id），details 是结构化信息（一般是 JSON 字符串）。
+///
+/// 单用户解锁模型: 没有 user_id 字段 — 操作主体只可能是当前解锁的人.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AuditEvent {
     id: Option<AuditEventId>,
     /// 服务端生成的 UUID，给离线审计工具一个稳定句柄。
     event_uuid: Uuid,
-    user_id: Option<UserId>,
     workspace_context_id: Option<WorkspaceId>,
     action: Action,
     target: Option<String>,
@@ -169,7 +144,6 @@ pub struct AuditEvent {
 
 impl AuditEvent {
     pub fn new(
-        user_id: Option<UserId>,
         workspace_context_id: Option<WorkspaceId>,
         action: Action,
         target: Option<String>,
@@ -179,7 +153,6 @@ impl AuditEvent {
         Self {
             id: None,
             event_uuid: Uuid::new_v4(),
-            user_id,
             workspace_context_id,
             action,
             target,
@@ -188,11 +161,9 @@ impl AuditEvent {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn rehydrate(
         id: AuditEventId,
         event_uuid: Uuid,
-        user_id: Option<UserId>,
         workspace_context_id: Option<WorkspaceId>,
         action: Action,
         target: Option<String>,
@@ -202,7 +173,6 @@ impl AuditEvent {
         Self {
             id: Some(id),
             event_uuid,
-            user_id,
             workspace_context_id,
             action,
             target,
@@ -216,9 +186,6 @@ impl AuditEvent {
     }
     pub fn event_uuid(&self) -> Uuid {
         self.event_uuid
-    }
-    pub fn user_id(&self) -> Option<UserId> {
-        self.user_id
     }
     pub fn workspace_context_id(&self) -> Option<WorkspaceId> {
         self.workspace_context_id
@@ -253,7 +220,7 @@ mod tests {
     #[test]
     fn action_round_trips_through_db_str() {
         for a in [
-            Action::LoginSucceeded,
+            Action::SessionLocked,
             Action::CartItemAdded,
             Action::WorkspaceFormulaUpserted,
             Action::AuditLogExported,
@@ -270,16 +237,15 @@ mod tests {
     #[test]
     fn new_event_has_no_id_but_has_uuid() {
         let e = AuditEvent::new(
-            Some(UserId::new(1)),
             Some(WorkspaceId::new(2)),
-            Action::LoginSucceeded,
+            Action::SessionUnlocked,
             Some("alice".into()),
             None,
             t(),
         );
         assert!(e.id().is_none());
         assert_ne!(e.event_uuid(), Uuid::nil());
-        assert_eq!(e.action(), Action::LoginSucceeded);
+        assert_eq!(e.action(), Action::SessionUnlocked);
         assert_eq!(e.target(), Some("alice"));
     }
 }

@@ -8,11 +8,12 @@ use crate::application::ports::audit_repository::{AuditQuery, AuditRepository};
 use crate::application::ports::audit_writer::AuditWriter;
 use crate::application::ports::errors::RepositoryError;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
-use crate::domain::shared::id::{AuditEventId, UserId, WorkspaceId};
+use crate::domain::shared::id::{AuditEventId, WorkspaceId};
 use crate::infrastructure::persistence::sqlcipher::connection::SqliteConnection;
 use crate::infrastructure::persistence::sqlcipher::row_mapping::{corrupt, parse_dt, rfc3339};
 
-const COLS: &str = "id, event_uuid, user_id, workspace_context_id, action, target, details, occurred_at";
+const COLS: &str =
+    "id, event_uuid, workspace_context_id, action, target, details, occurred_at";
 
 pub struct SqliteAuditRepository {
     db: Arc<SqliteConnection>,
@@ -27,7 +28,6 @@ impl SqliteAuditRepository {
 struct EventRow {
     id: i64,
     event_uuid: String,
-    user_id: Option<i64>,
     workspace_context_id: Option<i64>,
     action: String,
     target: Option<String>,
@@ -40,12 +40,11 @@ impl EventRow {
         Ok(Self {
             id: r.get(0)?,
             event_uuid: r.get(1)?,
-            user_id: r.get(2)?,
-            workspace_context_id: r.get(3)?,
-            action: r.get(4)?,
-            target: r.get(5)?,
-            details: r.get(6)?,
-            occurred_at: r.get(7)?,
+            workspace_context_id: r.get(2)?,
+            action: r.get(3)?,
+            target: r.get(4)?,
+            details: r.get(5)?,
+            occurred_at: r.get(6)?,
         })
     }
 
@@ -56,7 +55,6 @@ impl EventRow {
         Ok(AuditEvent::rehydrate(
             AuditEventId::new(self.id),
             uuid,
-            self.user_id.map(UserId::new),
             self.workspace_context_id.map(WorkspaceId::new),
             action,
             self.target,
@@ -82,24 +80,6 @@ impl AuditRepository for SqliteAuditRepository {
                 idx += 1;
                 sql.push_str(&format!(" AND occurred_at <= ?{idx}"));
                 bound.push(rusqlite::types::Value::Text(rfc3339(to)));
-            }
-            if let Some(users) = query.user_ids {
-                if !users.is_empty() {
-                    let placeholders: Vec<String> = users
-                        .iter()
-                        .map(|_| {
-                            idx += 1;
-                            format!("?{idx}")
-                        })
-                        .collect();
-                    sql.push_str(&format!(
-                        " AND user_id IN ({})",
-                        placeholders.join(",")
-                    ));
-                    for u in users {
-                        bound.push(rusqlite::types::Value::Integer(u.value()));
-                    }
-                }
             }
             if let Some(actions) = query.actions {
                 if !actions.is_empty() {
@@ -170,11 +150,10 @@ impl AuditWriter for SqliteAuditWriter {
         self.db.with(|c| {
             c.execute(
                 "INSERT INTO audit_log
-                    (event_uuid, user_id, workspace_context_id, action, target, details, occurred_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    (event_uuid, workspace_context_id, action, target, details, occurred_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![
                     event.event_uuid().to_string(),
-                    event.user_id().map(|i| i.value()),
                     event.workspace_context_id().map(|i| i.value()),
                     event.action().as_db_str(),
                     event.target(),
@@ -204,8 +183,7 @@ mod tests {
 
         let event = AuditEvent::new(
             None,
-            None,
-            Action::LoginSucceeded,
+            Action::SessionUnlocked,
             Some("alice".into()),
             None,
             Utc.timestamp_opt(0, 0).unwrap(),
@@ -216,14 +194,13 @@ mod tests {
             .list(AuditQuery {
                 from: None,
                 to: None,
-                user_ids: None,
                 actions: None,
                 limit: None,
                 offset: None,
             })
             .unwrap();
         assert_eq!(listed.len(), 1);
-        assert_eq!(listed[0].action(), Action::LoginSucceeded);
+        assert_eq!(listed[0].action(), Action::SessionUnlocked);
     }
 
     #[test]
@@ -231,11 +208,10 @@ mod tests {
         let db = db();
         let writer = SqliteAuditWriter::new(db.clone());
         let repo = SqliteAuditRepository::new(db);
-        for action in [Action::LoginSucceeded, Action::CartItemAdded, Action::CalculationPerformed]
+        for action in [Action::SessionUnlocked, Action::CartItemAdded, Action::CalculationPerformed]
         {
             writer
                 .record(&AuditEvent::new(
-                    None,
                     None,
                     action,
                     None,
@@ -248,7 +224,6 @@ mod tests {
             .list(AuditQuery {
                 from: None,
                 to: None,
-                user_ids: None,
                 actions: Some(&[Action::CalculationPerformed]),
                 limit: None,
                 offset: None,

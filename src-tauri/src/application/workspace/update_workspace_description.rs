@@ -1,5 +1,5 @@
 use crate::application::errors::{AppError, AppResult};
-use crate::application::session_guard::ensure_admin;
+use crate::application::session_guard::ensure_active;
 use crate::application::workspace::service::WorkspaceService;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::shared::id::WorkspaceId;
@@ -16,7 +16,7 @@ impl WorkspaceService {
         &self,
         input: UpdateWorkspaceDescriptionInput,
     ) -> AppResult<()> {
-        let snap = ensure_admin(&*self.session_store)?;
+        let _ = ensure_active(&*self.session_store)?;
         if let Some(target) = self.workspace_repo.find_by_id(input.workspace_id)? {
             if target.is_system_mirror() {
                 return Err(AppError::Internal(
@@ -42,7 +42,6 @@ impl WorkspaceService {
         self.workspace_repo
             .update_description(input.workspace_id, normalized.as_deref())?;
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             Some(input.workspace_id),
             Action::WorkspaceDescriptionUpdated,
             Some(input.workspace_id.to_string()),

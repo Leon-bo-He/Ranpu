@@ -166,7 +166,6 @@ fn build_default(family: &Family, n: usize, now: DateTime<Utc>) -> DefaultFormul
         liquor_ratio,
         notes,
         items,
-        None,
         now,
     )
     .expect("dev seed default formula invariants ok")
@@ -295,7 +294,6 @@ fn seed_customers(
                 let w = Workspace::new(
                     WorkspaceName::new(&name).expect("dev seed ws name valid"),
                     Some(format!("开发种子客户 #{:02}, 用于配方分页 / 搜索压测.", i)),
-                    None,
                     now,
                 )
                 .expect("dev seed workspace invariants ok");

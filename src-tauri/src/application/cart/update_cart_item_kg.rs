@@ -18,12 +18,12 @@ pub struct UpdateCartItemKgInput {
 
 impl CartService {
     pub fn update_cart_item_kg(&self, input: UpdateCartItemKgInput) -> AppResult<()> {
-        let (snap, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         let source_kind = SourceKind::from_str(&input.source_kind)?;
         let target_kg = Kilograms::new(input.target_kg)?;
         let now = self.clock.now();
 
-        let mut cart = self.cart_repo.load(snap.user_id(), workspace_id)?;
+        let mut cart = self.cart_repo.load(workspace_id)?;
         let updated = cart.update_kg(source_kind, input.source_formula_id, target_kg, now);
         if !updated {
             return Err(AppError::Repository(RepositoryError::NotFound));
@@ -31,7 +31,6 @@ impl CartService {
         self.cart_repo.save(&cart)?;
 
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             Some(workspace_id),
             Action::CartItemKgUpdated,
             Some(format!(

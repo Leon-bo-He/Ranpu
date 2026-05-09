@@ -16,7 +16,7 @@ use crate::application::formula::wire::{
     FormulaArchive, FormulaExportItem, WorkspaceArchive, FORMULA_ARCHIVE_MAGIC,
     FORMULA_ARCHIVE_VERSION,
 };
-use crate::application::session_guard::ensure_admin;
+use crate::application::session_guard::ensure_active;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::formula::amounts::Kilograms;
 use crate::domain::formula::customer_color_code::CustomerColorCode;
@@ -107,7 +107,7 @@ impl FormulaService {
         &self,
         input: ImportArchiveInput,
     ) -> AppResult<ImportArchiveSummary> {
-        let snap = ensure_admin(&*self.session_store)?;
+        let _ = ensure_active(&*self.session_store)?;
         let now = self.clock.now();
 
         let bytes = self
@@ -178,7 +178,7 @@ impl FormulaService {
                             "created",
                             self.import_workspace_section(
                                 ws,
-                                self.create_workspace_for_import(ws, snap.user_id(), now)?,
+                                self.create_workspace_for_import(ws, now)?,
                                 now,
                             )?,
                         ),
@@ -200,7 +200,7 @@ impl FormulaService {
                             "created",
                             self.import_workspace_section(
                                 ws,
-                                self.create_workspace_for_import(ws, snap.user_id(), now)?,
+                                self.create_workspace_for_import(ws, now)?,
                                 now,
                             )?,
                         ),
@@ -229,7 +229,6 @@ impl FormulaService {
             .count() as u32;
 
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             None,
             Action::LibraryArchiveImported,
             Some(input.in_path.to_string_lossy().into_owned()),
@@ -249,15 +248,13 @@ impl FormulaService {
     fn create_workspace_for_import(
         &self,
         ws: &WorkspaceArchive,
-        user_id: crate::domain::shared::id::UserId,
         now: chrono::DateTime<chrono::Utc>,
     ) -> AppResult<WorkspaceId> {
         let name = WorkspaceName::new(ws.name.clone())?;
-        let workspace = Workspace::new(name, ws.description.clone(), Some(user_id), now)?;
+        let workspace = Workspace::new(name, ws.description.clone(), now)?;
         let id = self.workspaces_repo.insert(&workspace)?;
         // 顺手补一笔工作区创建审计 (与正常 create_workspace 保持一致)
         let evt = AuditEvent::new(
-            Some(user_id),
             Some(id),
             Action::WorkspaceCreated,
             Some(ws.name.clone()),
@@ -397,7 +394,6 @@ impl FormulaService {
             ratio,
             wire.notes.clone(),
             items,
-            None,
             now,
         )?;
         self.default_repo.upsert(&formula)?;

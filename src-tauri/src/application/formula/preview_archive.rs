@@ -12,7 +12,7 @@ use crate::application::formula::service::FormulaService;
 use crate::application::formula::wire::{
     FormulaArchive, FORMULA_ARCHIVE_MAGIC, FORMULA_ARCHIVE_VERSION,
 };
-use crate::application::session_guard::ensure_admin;
+use crate::application::session_guard::ensure_active;
 
 #[derive(Debug, Clone)]
 pub struct PreviewArchiveInput {
@@ -43,7 +43,7 @@ impl FormulaService {
         &self,
         input: PreviewArchiveInput,
     ) -> AppResult<PreviewArchive> {
-        ensure_admin(&*self.session_store)?;
+        ensure_active(&*self.session_store)?;
 
         let bytes = self
             .encrypted_importer

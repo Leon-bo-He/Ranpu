@@ -2,18 +2,16 @@ use chrono::{DateTime, Utc};
 
 use crate::domain::cart::cart_item::{CartItem, SourceKind};
 use crate::domain::formula::amounts::Kilograms;
-use crate::domain::shared::id::{FormulaId, UserId, WorkspaceId};
+use crate::domain::shared::id::{FormulaId, WorkspaceId};
 
 /// Cart 聚合根。
 ///
-/// 复合键 (user_id, workspace_id) —— 切换 workspace 即看到不同的购物车
-/// (PROMPT 第 128 行）。
+/// 单用户解锁模型: 复合键就是 workspace_id 一个 — 切 workspace 看到不同购物车.
 ///
 /// 不变量：同一 cart 不能重复添加同一 (source_kind, source_formula_id)，
-/// 二次添加视作更新 target_kg（PROMPT 第 128 行）。
+/// 二次添加视作更新 target_kg.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cart {
-    user_id: UserId,
     workspace_id: WorkspaceId,
     items: Vec<CartItem>,
 }
@@ -26,25 +24,20 @@ pub enum CartChange {
 }
 
 impl Cart {
-    pub fn new(user_id: UserId, workspace_id: WorkspaceId) -> Self {
+    pub fn new(workspace_id: WorkspaceId) -> Self {
         Self {
-            user_id,
             workspace_id,
             items: Vec::new(),
         }
     }
 
-    pub fn rehydrate(user_id: UserId, workspace_id: WorkspaceId, items: Vec<CartItem>) -> Self {
+    pub fn rehydrate(workspace_id: WorkspaceId, items: Vec<CartItem>) -> Self {
         Self {
-            user_id,
             workspace_id,
             items,
         }
     }
 
-    pub fn user_id(&self) -> UserId {
-        self.user_id
-    }
     pub fn workspace_id(&self) -> WorkspaceId {
         self.workspace_id
     }
@@ -128,7 +121,7 @@ mod tests {
     }
 
     fn make() -> Cart {
-        Cart::new(UserId::new(1), WorkspaceId::new(2))
+        Cart::new(WorkspaceId::new(2))
     }
 
     #[test]

@@ -1,7 +1,7 @@
 //! Composition root：装配所有 adapter → service。
 //!
 //! 由 Tauri 命令 `boot_app` / `setup_first_run` 触发，将构造好的
-//! `Services` 注入到 `AppState`。
+//! `Services` 注入到 `AppState`. 单用户解锁模型: 没有 IdentityService.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -12,28 +12,25 @@ use crate::application::calculation::CalculationService;
 use crate::application::cart::CartService;
 use crate::application::errors::{AppError, AppResult};
 use crate::application::formula::FormulaService;
-use crate::application::identity::IdentityService;
-use crate::application::ports::password_hasher::PasswordHasher;
-use crate::application::ports::user_repository::UserRepository;
+use crate::application::ports::SessionStore;
 use crate::application::workspace::WorkspaceService;
 use crate::domain::calculation::dye_calculator::{DyeCalculator, StandardDyeCalculator};
 use crate::infrastructure::clock_system::SystemClock;
 use crate::infrastructure::crypto::{
-    derive_db_key_hex, ensure_master_key, Argon2PasswordHasher, OsKeyStore, RanpuExporter,
+    derive_db_key_hex, ensure_master_key, OsKeyStore, RanpuExporter,
 };
 use crate::infrastructure::export::{BatchSheetCsvExporter, PlainAuditCsvExporter};
 use crate::infrastructure::persistence::seed;
 use crate::infrastructure::persistence::{
     SqliteAuditRepository, SqliteAuditWriter, SqliteCartRepository, SqliteConnection,
-    SqliteDbSnapshot, SqliteDefaultFormulaRepository, SqliteUserRepository,
-    SqliteWorkspaceFormulaRepository, SqliteWorkspaceRepository,
+    SqliteDbSnapshot, SqliteDefaultFormulaRepository, SqliteWorkspaceFormulaRepository,
+    SqliteWorkspaceRepository,
 };
 use crate::infrastructure::session::InMemorySessionStore;
 use crate::interfaces::tauri::state::{AppPaths, Services};
 
 pub struct BootResult {
     pub services: Services,
-    pub user_count: u64,
 }
 
 pub fn keystore_exists(paths: &AppPaths) -> bool {
@@ -52,7 +49,6 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
     let db = open_db_or_wrong_passphrase(&paths.db_path, &db_key_hex)?;
     let db_arc = Arc::new(db);
 
-    let user_repo = Arc::new(SqliteUserRepository::new(db_arc.clone()));
     let workspace_repo = Arc::new(SqliteWorkspaceRepository::new(db_arc.clone()));
     let default_repo = Arc::new(SqliteDefaultFormulaRepository::new(db_arc.clone()));
     let workspace_formula_repo =
@@ -62,9 +58,8 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
     let audit_writer = Arc::new(SqliteAuditWriter::new(db_arc.clone()));
     let snapshot = Arc::new(SqliteDbSnapshot::new(db_arc.clone(), paths.tmp_dir.clone()));
 
-    let session_store = Arc::new(InMemorySessionStore::new());
+    let session_store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::new());
     let clock = Arc::new(SystemClock::new());
-    let hasher: Arc<dyn PasswordHasher> = Arc::new(Argon2PasswordHasher::new());
     let calculator: Arc<dyn DyeCalculator> = Arc::new(StandardDyeCalculator::new());
     let csv_audit = Arc::new(PlainAuditCsvExporter::new());
     let batch_sheet_exporter = Arc::new(BatchSheetCsvExporter::new());
@@ -105,15 +100,6 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
         chrono::Utc::now(),
     )?;
 
-    let user_count = user_repo.count()?;
-
-    let identity = IdentityService::new(
-        user_repo.clone(),
-        hasher.clone(),
-        audit_writer.clone(),
-        clock.clone(),
-        session_store.clone(),
-    );
     let workspace = WorkspaceService::new(
         workspace_repo.clone(),
         audit_writer.clone(),
@@ -163,20 +149,19 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
         csv_audit,
         Arc::new(RanpuExporter::new()),
         clock,
-        session_store,
+        session_store.clone(),
     );
 
     Ok(BootResult {
         services: Services {
-            identity,
             workspace,
             formula,
             calculation,
             cart,
             backup,
             audit,
+            session_store,
         },
-        user_count,
     })
 }
 

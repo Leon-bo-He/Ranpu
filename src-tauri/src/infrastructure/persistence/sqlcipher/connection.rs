@@ -87,6 +87,47 @@ fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
             "ALTER TABLE workspaces ADD COLUMN kind TEXT NOT NULL DEFAULT 'normal'",
         )?;
     }
+
+    // 单用户迁移: 老 DB 有 users 表 + user_id / created_by_user_id FK; 全部清掉.
+    // SQLCipher / SQLite ≥ 3.35 支持 ALTER TABLE DROP COLUMN. cart_items 因 UNIQUE
+    // 跨 user_id, 用 "新建表 + 拷数据 + 改名" 的标准模式重建.
+    if column_exists(conn, "workspaces", "created_by_user_id")? {
+        conn.execute_batch("ALTER TABLE workspaces DROP COLUMN created_by_user_id")?;
+    }
+    if column_exists(conn, "default_formulas", "created_by_user_id")? {
+        conn.execute_batch("ALTER TABLE default_formulas DROP COLUMN created_by_user_id")?;
+    }
+    if column_exists(conn, "audit_log", "user_id")? {
+        conn.execute_batch("ALTER TABLE audit_log DROP COLUMN user_id")?;
+    }
+    if column_exists(conn, "cart_items", "user_id")? {
+        // UNIQUE 跨 user_id, 直接 DROP COLUMN 会被 SQLite 拒绝. 整张表重建.
+        conn.execute_batch(
+            "CREATE TABLE cart_items_new (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                workspace_id      INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+                source_kind       TEXT NOT NULL CHECK(source_kind IN ('default','workspace')),
+                source_formula_id INTEGER NOT NULL,
+                target_kg         REAL NOT NULL CHECK(target_kg > 0),
+                added_at          TEXT NOT NULL,
+                UNIQUE(workspace_id, source_kind, source_formula_id)
+            );
+            INSERT OR IGNORE INTO cart_items_new
+                (id, workspace_id, source_kind, source_formula_id, target_kg, added_at)
+            SELECT id, workspace_id, source_kind, source_formula_id, target_kg, added_at
+            FROM cart_items;
+            DROP TABLE cart_items;
+            ALTER TABLE cart_items_new RENAME TO cart_items;
+            CREATE INDEX IF NOT EXISTS idx_cart_workspace ON cart_items(workspace_id);",
+        )?;
+    }
+    if table_exists(conn, "users")? {
+        conn.execute_batch("DROP TABLE users")?;
+    }
+
+    // 老索引按 user_id 建的, 现在 user_id 没了, 索引也失效. 删掉重建.
+    let _ = conn.execute_batch("DROP INDEX IF EXISTS idx_cart_user_workspace");
+    let _ = conn.execute_batch("DROP INDEX IF EXISTS idx_audit_user_time");
     Ok(())
 }
 
@@ -100,6 +141,15 @@ fn column_exists(conn: &Connection, table: &str, column: &str) -> rusqlite::Resu
         }
     }
     Ok(false)
+}
+
+fn table_exists(conn: &Connection, table: &str) -> rusqlite::Result<bool> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+        [table],
+        |r| r.get(0),
+    )?;
+    Ok(count > 0)
 }
 
 pub(crate) fn map_err(e: rusqlite::Error) -> RepositoryError {
@@ -127,7 +177,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn in_memory_db_runs_schema_and_has_users_table() {
+    fn in_memory_db_runs_schema_and_has_workspaces_table() {
+        let db = SqliteConnection::open_in_memory().unwrap();
+        let count: i64 = db
+            .with(|c| {
+                c.query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='workspaces'",
+                    [],
+                    |r| r.get(0),
+                )
+            })
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn in_memory_db_has_no_users_table() {
         let db = SqliteConnection::open_in_memory().unwrap();
         let count: i64 = db
             .with(|c| {
@@ -138,6 +203,6 @@ mod tests {
                 )
             })
             .unwrap();
-        assert_eq!(count, 1);
+        assert_eq!(count, 0);
     }
 }

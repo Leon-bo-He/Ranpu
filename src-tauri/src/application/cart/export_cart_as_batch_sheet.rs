@@ -14,7 +14,7 @@ pub struct ExportCartInput {
 
 impl CartService {
     pub fn export_cart_as_batch_sheet(&self, input: ExportCartInput) -> AppResult<()> {
-        let (snap, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         let lines = self.list_cart_with_calculations()?;
 
         // 只导出能算出结果的行；失败行交给 UI 提示用户先修配方。
@@ -40,7 +40,6 @@ impl CartService {
             BatchSheetFormat::Html => "html",
         };
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             Some(workspace_id),
             Action::CartExported,
             Some(input.out_path.to_string_lossy().into_owned()),

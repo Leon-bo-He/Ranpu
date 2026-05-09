@@ -1,12 +1,12 @@
 use crate::application::errors::AppResult;
 use crate::application::formula::service::FormulaService;
-use crate::application::session_guard::ensure_admin;
+use crate::application::session_guard::ensure_active;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::shared::id::FormulaId;
 
 impl FormulaService {
     pub fn delete_default_formula(&self, id: FormulaId) -> AppResult<()> {
-        let snap = ensure_admin(&*self.session_store)?;
+        let _ = ensure_active(&*self.session_store)?;
         // 先取出 internal_color_code 以便随后镜像删除 (默认库 delete 后就拿不到了).
         let internal = self
             .default_repo
@@ -21,7 +21,6 @@ impl FormulaService {
             self.mirror_default_delete_by_internal(&code)?;
         }
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             None,
             Action::DefaultFormulaDeleted,
             Some(id.to_string()),

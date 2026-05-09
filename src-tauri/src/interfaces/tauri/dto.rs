@@ -1,7 +1,10 @@
 //! 与前端交互的所有 DTO（serde 序列化）。
 //!
 //! 命名约定：Cmd 是命令入参，View 是返回。所有时间字段输出 RFC3339 字符串，
-//! 前端按 PROMPT 第 299 行 `YYYY-MM-DD HH:mm` 自行格式化。
+//! 前端按 `YYYY-MM-DD HH:mm` 自行格式化。
+//!
+//! 单用户解锁模型: 没有 LoginCmd / ChangePasswordCmd / CreateUserCmd /
+//! UserView / UnlockOutcomeView 之类 — 没有用户体系自然就没有这些 DTO.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -13,54 +16,23 @@ use crate::domain::calculation::dye_calculator::{
 use crate::domain::cart::cart_item::CartItem;
 use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::formula::workspace_formula::WorkspaceFormula;
-use crate::domain::identity::role::Role;
-use crate::domain::identity::session::Session;
-use crate::domain::identity::user::User;
+use crate::domain::session::Session;
 use crate::domain::workspace::workspace::Workspace;
 
-// ---------- Identity ----------
-
-#[derive(Debug, Deserialize)]
-pub struct LoginCmd {
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct UnlockSessionCmd {
-    pub password: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ChangePasswordCmd {
-    pub old_password: String,
-    pub new_password: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CreateUserCmd {
-    pub username: String,
-    pub password: String,
-    pub role: String, // "admin" | "user"
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CreateFirstAdminCmd {
-    pub boot_passphrase: String,
-    pub username: String,
-    pub password: String,
-}
+// ---------- Boot / 解锁 ----------
 
 #[derive(Debug, Deserialize)]
 pub struct BootAppCmd {
     pub boot_passphrase: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UnlockSessionCmd {
+    pub passphrase: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct SessionView {
-    pub user_id: i64,
-    pub username: String,
-    pub role: String,
     pub active_workspace_id: Option<i64>,
     pub locked: bool,
     pub last_activity_at: DateTime<Utc>,
@@ -69,45 +41,9 @@ pub struct SessionView {
 impl From<&Session> for SessionView {
     fn from(s: &Session) -> Self {
         Self {
-            user_id: s.user_id().value(),
-            username: s.username().as_str().to_owned(),
-            role: s.role().as_db_str().to_owned(),
             active_workspace_id: s.active_workspace_id().map(|i| i.value()),
             locked: s.is_locked(),
             last_activity_at: s.last_activity_at(),
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct UnlockOutcomeView {
-    pub kind: String,
-    pub remaining: Option<u32>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct UserView {
-    pub id: i64,
-    pub username: String,
-    pub role: String,
-    pub is_active: bool,
-    pub failed_attempts: u32,
-    pub locked_until: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
-    pub last_login: Option<DateTime<Utc>>,
-}
-
-impl From<&User> for UserView {
-    fn from(u: &User) -> Self {
-        Self {
-            id: u.id().expect("persisted").value(),
-            username: u.username().as_str().to_owned(),
-            role: u.role().as_db_str().to_owned(),
-            is_active: u.is_active(),
-            failed_attempts: u.failed_attempts(),
-            locked_until: u.locked_until(),
-            created_at: u.created_at(),
-            last_login: u.last_login(),
         }
     }
 }
@@ -613,7 +549,7 @@ impl CartLineView {
 
 #[derive(Debug, Deserialize)]
 pub struct ExportCartCmd {
-    pub format: String, // "csv" | "pdf"
+    pub format: String, // "csv" | "html"
     pub out_path: String,
 }
 
@@ -637,7 +573,6 @@ pub struct ImportBackupCmd {
 pub struct ListAuditCmd {
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
-    pub user_ids: Option<Vec<i64>>,
     pub actions: Option<Vec<String>>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
@@ -647,7 +582,6 @@ pub struct ListAuditCmd {
 pub struct ExportAuditCmd {
     pub from: DateTime<Utc>,
     pub to: DateTime<Utc>,
-    pub user_ids: Option<Vec<i64>>,
     pub actions: Option<Vec<String>>,
     pub format: String, // "encrypted" | "csv"
     pub passphrase: Option<String>,
@@ -658,7 +592,6 @@ pub struct ExportAuditCmd {
 pub struct AuditEventView {
     pub id: i64,
     pub event_uuid: String,
-    pub user_id: Option<i64>,
     pub workspace_context_id: Option<i64>,
     pub action: String,
     pub target: Option<String>,
@@ -671,7 +604,6 @@ impl From<&AuditEvent> for AuditEventView {
         Self {
             id: e.id().expect("persisted").value(),
             event_uuid: e.event_uuid().to_string(),
-            user_id: e.user_id().map(|i| i.value()),
             workspace_context_id: e.workspace_context_id().map(|i| i.value()),
             action: e.action().as_db_str().to_owned(),
             target: e.target().map(str::to_owned),
@@ -687,15 +619,4 @@ impl From<&AuditEvent> for AuditEventView {
 pub struct BootStatusView {
     pub keystore_exists: bool,
     pub db_initialized: bool,
-    pub user_count: u64,
-}
-
-// ---------- Helper: 角色解析 ----------
-
-pub fn parse_role(s: &str) -> Result<Role, String> {
-    match s {
-        "admin" => Ok(Role::Admin),
-        "user" => Ok(Role::User),
-        other => Err(format!("未知的角色：{other}")),
-    }
 }

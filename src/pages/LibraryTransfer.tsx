@@ -39,18 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { isAdmin, useSessionStore } from '@/store/session';
-
 export function LibraryTransferPage() {
-  const session = useSessionStore((s) => s.session);
-  if (!session || !isAdmin(session)) {
-    return (
-      <p className="p-6 text-sm text-muted-foreground">
-        只有管理员可以使用配方互导。
-      </p>
-    );
-  }
-
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-2">

@@ -5,10 +5,9 @@ use chrono::{DateTime, Utc};
 use crate::application::audit::service::AuditService;
 use crate::application::errors::{AppError, AppResult};
 use crate::application::ports::audit_repository::AuditQuery;
-use crate::application::session_guard::ensure_admin;
+use crate::application::session_guard::ensure_active;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::shared::errors::DomainError;
-use crate::domain::shared::id::UserId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditExportFormat {
@@ -22,7 +21,6 @@ pub enum AuditExportFormat {
 pub struct ExportAuditLogInput {
     pub from: DateTime<Utc>,
     pub to: DateTime<Utc>,
-    pub user_ids: Option<Vec<UserId>>,
     pub actions: Option<Vec<Action>>,
     pub format: AuditExportFormat,
     pub passphrase: Option<String>,
@@ -31,7 +29,7 @@ pub struct ExportAuditLogInput {
 
 impl AuditService {
     pub fn export_audit_log(&self, input: ExportAuditLogInput) -> AppResult<()> {
-        let snap = ensure_admin(&*self.session_store)?;
+        let _ = ensure_active(&*self.session_store)?;
         if input.from > input.to {
             return Err(AppError::Domain(DomainError::AuditDateRangeInvalid));
         }
@@ -39,7 +37,6 @@ impl AuditService {
         let query = AuditQuery {
             from: Some(input.from),
             to: Some(input.to),
-            user_ids: input.user_ids.as_deref(),
             actions: input.actions.as_deref(),
             limit: None,
             offset: None,
@@ -62,9 +59,8 @@ impl AuditService {
                 for e in &events {
                     use std::io::Write;
                     let line = format!(
-                        "{{\"event_uuid\":\"{}\",\"user_id\":{},\"workspace_id\":{},\"action\":\"{}\",\"target\":{},\"details\":{},\"occurred_at\":\"{}\"}}\n",
+                        "{{\"event_uuid\":\"{}\",\"workspace_id\":{},\"action\":\"{}\",\"target\":{},\"details\":{},\"occurred_at\":\"{}\"}}\n",
                         e.event_uuid(),
-                        e.user_id().map(|i| i.to_string()).unwrap_or_else(|| "null".into()),
                         e.workspace_context_id().map(|i| i.to_string()).unwrap_or_else(|| "null".into()),
                         e.action().as_db_str(),
                         e.target().map(|s| format!("\"{}\"", s.replace('"', "\\\""))).unwrap_or_else(|| "null".into()),
@@ -85,7 +81,6 @@ impl AuditService {
             AuditExportFormat::PlainCsv => "csv",
         };
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             None,
             Action::AuditLogExported,
             Some(input.out_path.to_string_lossy().into_owned()),

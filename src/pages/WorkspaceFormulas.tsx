@@ -20,11 +20,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { hasActiveWorkspace, isAdmin, useSessionStore } from '@/store/session';
+import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
 export function WorkspaceFormulasPage() {
   const session = useSessionStore((s) => s.session);
-  const admin = isAdmin(session);
   const hasWs = hasActiveWorkspace(session);
   const activeWorkspaceId = session?.active_workspace_id ?? null;
 
@@ -39,7 +38,7 @@ export function WorkspaceFormulasPage() {
   const [pendingDelete, setPendingDelete] = useState<FormulaView | null>(null);
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView | null>(null);
   const isSystemMirror = activeWorkspace?.kind === 'system_mirror';
-  const canEdit = admin && !isSystemMirror;
+  const canEdit = !isSystemMirror;
 
   // 加入批次清单流程: 打开 dialog → 输入 kg → 处理冲突 (累加 / 覆盖).
   const [cartTarget, setCartTarget] = useState<FormulaView | null>(null);

@@ -4,7 +4,6 @@ import type { AuditEventView } from './types';
 export interface ListAuditArgs {
   from?: string;
   to?: string;
-  user_ids?: number[];
   actions?: string[];
   limit?: number;
   offset?: number;
@@ -13,7 +12,6 @@ export interface ListAuditArgs {
 export interface ExportAuditArgs {
   from: string;
   to: string;
-  user_ids?: number[];
   actions?: string[];
   format: 'encrypted' | 'csv';
   passphrase?: string;
@@ -26,7 +24,6 @@ export const auditApi = {
       cmd: {
         from: args.from ?? null,
         to: args.to ?? null,
-        user_ids: args.user_ids ?? null,
         actions: args.actions ?? null,
         limit: args.limit ?? null,
         offset: args.offset ?? null,
@@ -38,7 +35,6 @@ export const auditApi = {
       cmd: {
         from: args.from,
         to: args.to,
-        user_ids: args.user_ids ?? null,
         actions: args.actions ?? null,
         format: args.format,
         passphrase: args.passphrase ?? null,

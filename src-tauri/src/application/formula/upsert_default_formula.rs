@@ -1,14 +1,14 @@
 use crate::application::errors::AppResult;
 use crate::application::formula::parse::parse_upsert;
 use crate::application::formula::service::{FormulaService, FormulaUpsertInput};
-use crate::application::session_guard::ensure_admin;
+use crate::application::session_guard::ensure_active;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::shared::id::FormulaId;
 
 impl FormulaService {
     pub fn upsert_default_formula(&self, input: FormulaUpsertInput) -> AppResult<FormulaId> {
-        let snap = ensure_admin(&*self.session_store)?;
+        let _ = ensure_active(&*self.session_store)?;
         let now = self.clock.now();
         let parsed = parse_upsert(input)?;
         let internal_code_str = parsed.internal.as_str().to_owned();
@@ -22,7 +22,6 @@ impl FormulaService {
                 parsed.ratio,
                 parsed.notes,
                 parsed.items,
-                Some(snap.user_id()),
                 now,
             )?,
             Some(id) => DefaultFormula::rehydrate(
@@ -35,7 +34,6 @@ impl FormulaService {
                 parsed.ratio,
                 parsed.notes,
                 parsed.items,
-                Some(snap.user_id()),
                 now,
                 now,
             )?,
@@ -46,7 +44,6 @@ impl FormulaService {
             self.mirror_default_upsert(&persisted, now)?;
         }
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             None,
             Action::DefaultFormulaUpserted,
             Some(internal_code_str),
