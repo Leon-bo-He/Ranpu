@@ -38,7 +38,7 @@ export function SettingsPage() {
         <CardContent className="space-y-3">
           <EditModeToggle
             label="配方管理"
-            whenOffCanStill="计算配方 / 加入批次清单 / 复制到工作区"
+            whenOffCanStill="计算配方 / 加入批次清单"
             enabled={formulaEdit}
             onEnable={enableFormula}
             onDisable={disableFormula}

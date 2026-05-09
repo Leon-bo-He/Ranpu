@@ -43,7 +43,9 @@ export function DefaultLibraryPage() {
   const [editing, setEditing] = useState<FormulaView | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectionEnabled = hasWs;
+  // 批量选 + 复制到工作区 都是写操作 (会在目标工作区生成新配方),
+  // 所以同时受 配方管理 toggle 限制 — 没开就不显示这一组按钮.
+  const selectionEnabled = hasWs && editEnabled;
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchSummary, setBatchSummary] = useState<BatchCopySummaryView | null>(null);
