@@ -52,7 +52,13 @@ export function CloseConfirmGuard() {
     <DialogPrimitive.Root open={open} onOpenChange={(o) => !o && setOpen(false)}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[1100] bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-[1100] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+        <DialogPrimitive.Content
+          // Radix 默认 open 时 auto-focus 第一个 focusable 元素 (这里是 "取消"
+          // 按钮), 出现一圈 focus ring 视觉杂乱. preventDefault 跳过自动聚焦,
+          // 用户点哪个走哪个.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="fixed left-[50%] top-[50%] z-[1100] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg"
+        >
           <div className="flex flex-col space-y-1.5">
             <DialogPrimitive.Title className="text-lg font-semibold leading-none tracking-tight">
               确认关闭染谱?
