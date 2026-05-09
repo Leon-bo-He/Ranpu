@@ -90,18 +90,17 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 
 -- ---------- 索引 ----------
+-- color_family 索引在 connection.rs run_migrations 里建, 因为 schema.sql
+-- 这一段在老 DB 上跑时, ALTER TABLE ADD COLUMN color_family 还没执行,
+-- 直接 CREATE INDEX ON ...(color_family) 会 "no such column" 报错.
 CREATE INDEX IF NOT EXISTS idx_workspace_formulas_ws_internal
     ON workspace_formulas(workspace_id, internal_color_code);
 CREATE INDEX IF NOT EXISTS idx_workspace_formulas_ws_customer
     ON workspace_formulas(workspace_id, customer_color_code);
-CREATE INDEX IF NOT EXISTS idx_workspace_formulas_ws_family
-    ON workspace_formulas(workspace_id, color_family);
 CREATE INDEX IF NOT EXISTS idx_default_formulas_internal
     ON default_formulas(internal_color_code);
 CREATE INDEX IF NOT EXISTS idx_default_formulas_customer
     ON default_formulas(customer_color_code);
-CREATE INDEX IF NOT EXISTS idx_default_formulas_family
-    ON default_formulas(color_family);
 CREATE INDEX IF NOT EXISTS idx_cart_workspace
     ON cart_items(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_audit_time

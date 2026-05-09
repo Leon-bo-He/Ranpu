@@ -152,6 +152,16 @@ fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
         }
     }
 
+    // color_family 索引在这里建 (而不是 schema.sql), 因为老 DB 上 schema.sql
+    // 那段先于 ALTER TABLE ADD COLUMN 跑, 直接 CREATE INDEX(color_family) 会
+    // "no such column" 报错. 现在 ADD COLUMN 已完成, 这里 CREATE INDEX 安全.
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_workspace_formulas_ws_family
+            ON workspace_formulas(workspace_id, color_family);
+         CREATE INDEX IF NOT EXISTS idx_default_formulas_family
+            ON default_formulas(color_family);",
+    )?;
+
     // 老 items 表 unit CHECK 还允许 g_per_L. 数据里如果有 g_per_L 行先迁成 g_per_kg
     // (语义上的近似 fallback, 总比直接报错强), 然后整表重建以同步新 CHECK.
     for items_table in ["default_formula_items", "workspace_formula_items"] {
