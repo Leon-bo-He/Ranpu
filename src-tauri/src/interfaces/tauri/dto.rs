@@ -547,6 +547,9 @@ pub struct PreviewCartCmd {
     /// {None, None} 兜底; 长了多余忽略.
     #[serde(default)]
     pub per_formula: Vec<PreviewFormulaMetaCmd>,
+    /// "standard" (默认) 或 "grid" — 选择批次单渲染版本.
+    #[serde(default)]
+    pub layout: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

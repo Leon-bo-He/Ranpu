@@ -12,6 +12,16 @@ pub struct PreviewBatchSheetInput {
     /// 每个购物车条目对应的缸号 / 纱支, 顺序跟 list_cart_with_calculations
     /// 返回的 lines 一致 (前端在按 cart 顺序展示, 一对一收集).
     pub per_formula: Vec<PreviewFormulaMetaInput>,
+    /// 渲染版本: Standard = 经典每条配方一段; Grid = A4 九宫格.
+    /// 默认 Standard.
+    pub layout: PreviewLayout,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PreviewLayout {
+    #[default]
+    Standard,
+    Grid,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -72,8 +82,12 @@ impl CartService {
             per_formula: &metas,
         };
 
+        let format = match input.layout {
+            PreviewLayout::Standard => BatchSheetFormat::Html,
+            PreviewLayout::Grid => BatchSheetFormat::HtmlGrid,
+        };
         self.batch_sheet_exporter
-            .render(&results, context, BatchSheetFormat::Html)
+            .render(&results, context, format)
             .map_err(|e| AppError::Io(e.to_string()))
     }
 }

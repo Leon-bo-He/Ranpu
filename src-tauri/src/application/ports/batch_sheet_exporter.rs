@@ -16,9 +16,12 @@ pub enum BatchSheetError {
 pub enum BatchSheetFormat {
     /// CSV — 可在 Excel / WPS 直接打开做二次处理.
     Csv,
-    /// HTML — 浏览器打开即可看; Ctrl+P → 另存为 PDF 满足打印 / 归档需求.
-    /// 不直接生成 PDF 是因为要嵌 CJK 字体, 体积代价不划算.
+    /// 标准 HTML — 每条配方一段, 头部 (h2 + 缸号 / 纱支 meta) + 染料表格.
+    /// 浏览器打开即可看; Ctrl+P → 另存为 PDF.
     Html,
+    /// 九宫格 HTML — A4 纸 3x3 格, 每格一条配方, 虚线分割.
+    /// 染料 ≥ 8 种的配方独占跨 2 列, 不影响其他格.
+    HtmlGrid,
 }
 
 /// 批次单上下文 (顶部标题区域引用).
