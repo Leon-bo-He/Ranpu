@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 
 import { bootApi } from '@/api/boot';
 import { ApiError } from '@/api/invoke';
+import { CloseConfirmGuard } from '@/components/CloseConfirmGuard';
 import { IdleDetector } from '@/components/IdleDetector';
 import { LockOverlay } from '@/components/LockOverlay';
 import { Sidebar } from '@/components/Sidebar';
@@ -82,28 +83,49 @@ function App() {
     });
   }, [session]);
 
+  // CloseConfirmGuard 跨所有 gate 状态都要挂着, 否则 splash / boot / lock 时
+  // 用户点 X 直接关掉就跳过确认了. 用 fragment 把它放进各分支的最外层.
   if (gate.kind === 'checking') {
-    return <SplashLoader />;
+    return (
+      <>
+        <CloseConfirmGuard />
+        <SplashLoader />
+      </>
+    );
   }
   if (gate.kind === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center p-8">
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-          启动出错：{gate.message}
+      <>
+        <CloseConfirmGuard />
+        <div className="flex min-h-screen items-center justify-center p-8">
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
+            启动出错：{gate.message}
+          </div>
         </div>
-      </div>
+      </>
     );
   }
   if (gate.kind === 'first-run') {
-    return <FirstRunSetup />;
+    return (
+      <>
+        <CloseConfirmGuard />
+        <FirstRunSetup />
+      </>
+    );
   }
   if (gate.kind === 'boot' || !session) {
-    return <BootScreen />;
+    return (
+      <>
+        <CloseConfirmGuard />
+        <BootScreen />
+      </>
+    );
   }
 
   // App 主体: TopBar 横通栏 + 下方左 Sidebar 200px + 右侧路由内容
   return (
     <BrowserRouter>
+      <CloseConfirmGuard />
       <IdleDetector />
       <div className="flex h-screen flex-col bg-background text-foreground">
         <TopBar />
