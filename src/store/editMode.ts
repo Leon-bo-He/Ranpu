@@ -69,6 +69,10 @@ export const useEditModeStore = create<EditModeState>()((set) => ({
       if (s.auditDisplayEnabled && now - s.auditLastActivity > idle_ms) {
         patch.auditDisplayEnabled = false;
       }
-      return patch;
+      // 没有任何 toggle 超时时返回 s 本身, 让 zustand 的 Object.is(nextState, state)
+      // 命中并 bail. 否则空 patch 会被 Object.assign 合成新 state, 每分钟扫一次
+      // 都会通知所有订阅者跑 selector (即使多数选出的原始值不变, 触发不到真正
+      // rerender, 仍是没必要的工作).
+      return Object.keys(patch).length === 0 ? s : patch;
     }),
 }));
