@@ -201,13 +201,18 @@ jobs:
           LATEST_JSON="$PWD/latest.json"
           TMPDIR=$(mktemp -d)
 
-          # 浅克隆 main 当 fallback 起点; 再试 fetch release-meta. 没有就以 main
-          # 为起点新建.
+          # 浅克隆 default 分支当起点. 现在 Gitee 的默认分支就是 release-meta,
+          # 所以多数情况 clone 之后已经在 release-meta 上, 不用再 fetch.
+          # 兜底: 万一默认分支改回 main 之类的, 显式 fetch + checkout.
           git clone --depth 1 "$REPO_URL" "$TMPDIR"
-          if git -C "$TMPDIR" fetch --depth 1 origin release-meta:release-meta 2>/dev/null; then
-            git -C "$TMPDIR" checkout release-meta
-          else
-            git -C "$TMPDIR" checkout -b release-meta
+          CURRENT=$(git -C "$TMPDIR" branch --show-current)
+          if [ "$CURRENT" != "release-meta" ]; then
+            if git -C "$TMPDIR" fetch --depth 1 origin release-meta:release-meta 2>/dev/null; then
+              git -C "$TMPDIR" checkout release-meta
+            else
+              # 远端没 release-meta, 直接以当前 default 分支为起点新建
+              git -C "$TMPDIR" checkout -b release-meta
+            fi
           fi
 
           cp "$LATEST_JSON" "$TMPDIR/latest.json"
