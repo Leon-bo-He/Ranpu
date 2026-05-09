@@ -150,7 +150,6 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
   th { background: #f3f3f3; }
   th.num { text-align: right; }
   td.num { text-align: right; font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
-  td.unit { color: #888; font-size: 12px; }
   @media print {
     /* 强制保留背景色 (th 灰底 / 表格分隔线), 等价于用户勾上
        "Background graphics". 放在 @media print 里, 避免老版本 WebView2
@@ -212,20 +211,18 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         }
         html.push_str("    <table>\n");
         html.push_str("      <colgroup>\n");
-        html.push_str("        <col style=\"width:50%\" />\n");
-        html.push_str("        <col style=\"width:18%\" />\n");
-        html.push_str("        <col style=\"width:18%\" />\n");
-        html.push_str("        <col style=\"width:14%\" />\n");
+        html.push_str("        <col style=\"width:55%\" />\n");
+        html.push_str("        <col style=\"width:22%\" />\n");
+        html.push_str("        <col style=\"width:23%\" />\n");
         html.push_str("      </colgroup>\n");
-        html.push_str("      <thead><tr><th>染料</th><th>编号</th><th class=\"num\">克数</th><th>原始单位</th></tr></thead>\n");
+        html.push_str("      <thead><tr><th>染料</th><th>编号</th><th class=\"num\">克数</th></tr></thead>\n");
         html.push_str("      <tbody>\n");
         for l in &r.lines {
             html.push_str(&format!(
-                "        <tr><td>{}</td><td>{}</td><td class=\"num\">{}</td><td class=\"unit\">{}</td></tr>\n",
+                "        <tr><td>{}</td><td>{}</td><td class=\"num\">{}</td></tr>\n",
                 html_escape(&l.dye_name),
                 html_escape(l.dye_code.as_deref().unwrap_or("—")),
                 format_amount(l.grams.value()),
-                l.unit_used.display_label(),
             ));
         }
         html.push_str("      </tbody>\n");
