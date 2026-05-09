@@ -566,8 +566,8 @@ export function CartPage() {
             <DialogTitle>如何生成缸号?</DialogTitle>
             <DialogDescription>
               {filledMaxLabel
-                ? `批次单当前已填到 ${filledMaxLabel}. 「全部重新生成」把每一行从存好的号之后重新编号 (已填值会被覆盖); 「只填空白」保留已填行, 把空白行接在 ${filledMaxLabel} 后.`
-                : '批次单已填了缸号. 「全部重新生成」把每一行从存好的号之后重新编号; 「只填空白」保留已填行, 只补空白行.'}
+                ? `当前批次单已填到 ${filledMaxLabel}. 「全部重新生成」会从系统最后一次发出的缸号之后给每一行重新编号 (已填值将被覆盖); 「只填空白」则保留已填行, 把空白行接在 ${filledMaxLabel} 之后.`
+                : '批次单已填了缸号. 「全部重新生成」会从系统最后一次发出的缸号之后给每一行重新编号; 「只填空白」则保留已填行, 只补空白行.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
