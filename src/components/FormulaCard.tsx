@@ -102,9 +102,6 @@ export function FormulaCard({
             </li>
           ))}
         </ul>
-        {formula.notes && (
-          <p className="text-xs text-muted-foreground">{formula.notes}</p>
-        )}
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
         {/* 第一排: 编辑 / 删除 (default 与 workspace 一致) */}

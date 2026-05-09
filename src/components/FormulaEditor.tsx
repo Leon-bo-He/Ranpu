@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 /// UI 内部用的 item 形态: amount 保持字符串, 让 "0." / "0.12" 这种
@@ -59,7 +58,6 @@ export function FormulaEditor({
   const [internal, setInternal] = useState('');
   const [customer, setCustomer] = useState('');
   const [colorFamily, setColorFamily] = useState('');
-  const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ItemForm[]>([blankItem(0)]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +68,6 @@ export function FormulaEditor({
       setInternal(initial.internal_color_code);
       setCustomer(initial.customer_color_code ?? '');
       setColorFamily(initial.color_family ?? '');
-      setNotes(initial.notes ?? '');
       setItems(
         initial.items.map((i, idx) => ({
           dye_name: i.dye_name,
@@ -84,7 +81,6 @@ export function FormulaEditor({
       setInternal('');
       setCustomer('');
       setColorFamily('');
-      setNotes('');
       setItems([blankItem(0)]);
     }
     setError(null);
@@ -99,7 +95,8 @@ export function FormulaEditor({
         internal_color_code: internal.trim(),
         customer_color_code: customer.trim() ? customer.trim() : null,
         color_family: colorFamily.trim() ? colorFamily.trim() : null,
-        notes: notes.trim() ? notes.trim() : null,
+        // 备注栏前端已删, 始终写 null. 老配方原本的备注会被这次保存清空.
+        notes: null,
         items: items.map((it, idx) => ({
           dye_name: it.dye_name,
           dye_code: it.dye_code,
@@ -153,11 +150,6 @@ export function FormulaEditor({
                 options={colorFamilies}
               />
             </Field>
-          </div>
-
-          <div className="grid gap-1">
-            <Label>备注</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
           <div className="space-y-2">
