@@ -1,33 +1,29 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 
-/// 拦截主窗口关闭按钮 (X), 弹一个确认对话框. 用户确认后才真正关闭窗口.
+/// 拦截主窗口关闭按钮 (X), 弹一个确认对话框. 用户确认后才真正销毁窗口.
 ///
 /// 实现细节:
-/// - 用 close() 而不是 destroy(): destroy 不在默认 capability 里, 默认权限拒,
-///   表现为点了 "关闭" 没反应. close() 是默认开的.
-/// - close() 会再次触发 onCloseRequested, 用 bypassRef 在二次进入时不
-///   preventDefault, 让本次走默认关闭. 否则死循环弹框.
+/// - 用 destroy() 而不是 close(): destroy 直接销毁窗口, 不再触发
+///   onCloseRequested, 避免和我们自己的拦截器死循环. core:window:default
+///   capability 没带 allow-destroy / allow-close, 所以 capabilities/default.json
+///   显式加了 core:window:allow-destroy.
 /// - 自渲染 Radix DialogPrimitive (而不是项目里的 shadcn Dialog), 给 overlay +
 ///   content 都硬编 z-[1100], 保证盖在 LockOverlay (z-1000) 之上 — 锁定状态
 ///   下点 X 也能看到 / 操作确认窗口.
 export function CloseConfirmGuard() {
   const [open, setOpen] = useState(false);
-  const bypassRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let unlisten: UnlistenFn | undefined;
     const win = getCurrentWindow();
     win
       .onCloseRequested((event) => {
-        if (bypassRef.current) {
-          // 第二次进入: 用户已确认, 让本次默认关闭走完.
-          return;
-        }
         event.preventDefault();
         setOpen(true);
       })
@@ -43,17 +39,12 @@ export function CloseConfirmGuard() {
   }, []);
 
   const onConfirm = async () => {
-    bypassRef.current = true;
+    setError(null);
     try {
-      await getCurrentWindow().close();
-    } catch {
-      // close() 一般不会拒, 兜底回退到 destroy.
-      try {
-        await getCurrentWindow().destroy();
-      } catch {
-        bypassRef.current = false;
-        setOpen(false);
-      }
+      await getCurrentWindow().destroy();
+    } catch (e) {
+      // 直接把错误显示在对话框里, 否则用户只看到 "点了没反应" 完全无诊断.
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -70,6 +61,9 @@ export function CloseConfirmGuard() {
               关闭后会退出当前会话, 下次打开需要重新输入启动口令解锁数据库.
             </DialogPrimitive.Description>
           </div>
+          {error && (
+            <p className="text-sm text-destructive">关闭失败: {error}</p>
+          )}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>
               取消
