@@ -109,10 +109,7 @@ pub struct UpsertFormulaCmd {
     pub id: Option<i64>,
     pub internal_color_code: String,
     pub customer_color_code: Option<String>,
-    pub color_name: Option<String>,
-    pub description: Option<String>,
-    pub base_weight_kg: Option<f64>,
-    pub liquor_ratio: Option<f64>,
+    pub color_family: Option<String>,
     pub notes: Option<String>,
     pub items: Vec<FormulaItemDto>,
 }
@@ -131,10 +128,7 @@ pub struct FormulaView {
     pub id: i64,
     pub internal_color_code: String,
     pub customer_color_code: Option<String>,
-    pub color_name: Option<String>,
-    pub description: Option<String>,
-    pub base_weight_kg: Option<f64>,
-    pub liquor_ratio: Option<f64>,
+    pub color_family: Option<String>,
     pub notes: Option<String>,
     pub items: Vec<FormulaItemView>,
     pub source_default_id: Option<i64>,
@@ -160,10 +154,7 @@ impl From<&DefaultFormula> for FormulaView {
                 .as_str()
                 .to_owned(),
             customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
-            color_name: f.color_name().map(str::to_owned),
-            description: f.description().map(str::to_owned),
-            base_weight_kg: f.base_weight_kg().map(|k| k.value()),
-            liquor_ratio: <DefaultFormula as CalculableFormula>::liquor_ratio(f).map(|r| r.value()),
+            color_family: f.color_family().map(str::to_owned),
             notes: f.notes().map(str::to_owned),
             items: <DefaultFormula as CalculableFormula>::items(f)
                 .iter()
@@ -184,11 +175,7 @@ impl From<&WorkspaceFormula> for FormulaView {
                 .as_str()
                 .to_owned(),
             customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
-            color_name: f.color_name().map(str::to_owned),
-            description: f.description().map(str::to_owned),
-            base_weight_kg: f.base_weight_kg().map(|k| k.value()),
-            liquor_ratio: <WorkspaceFormula as CalculableFormula>::liquor_ratio(f)
-                .map(|r| r.value()),
+            color_family: f.color_family().map(str::to_owned),
             notes: f.notes().map(str::to_owned),
             items: <WorkspaceFormula as CalculableFormula>::items(f)
                 .iter()
@@ -430,7 +417,7 @@ pub struct CustomerCodeMatchView {
     pub source_label: String,
     pub formula_id: Option<i64>,
     pub internal_color_code: String,
-    pub color_name: Option<String>,
+    pub color_family: Option<String>,
     pub customer_color_code: Option<String>,
 }
 
@@ -444,7 +431,7 @@ impl From<&crate::application::calculation::CustomerCodeMatch> for CustomerCodeM
             source_label: m.source.display_label().to_owned(),
             formula_id: m.formula_id.map(|i| i.value()),
             internal_color_code: m.internal_color_code.as_str().to_owned(),
-            color_name: m.color_name.clone(),
+            color_family: m.color_family.clone(),
             customer_color_code: m.customer_color_code.clone(),
         }
     }
@@ -524,7 +511,7 @@ pub struct CartLineView {
     pub target_kg: f64,
     pub added_at: DateTime<Utc>,
     pub internal_color_code: Option<String>,
-    pub color_name: Option<String>,
+    pub color_family: Option<String>,
     pub customer_color_code: Option<String>,
     pub calculation: Option<CalculationResultView>,
     pub error: Option<String>,
@@ -539,7 +526,7 @@ impl CartLineView {
             target_kg: item.target_kg().value(),
             added_at: item.added_at(),
             internal_color_code: line.internal_color_code.clone(),
-            color_name: line.color_name.clone(),
+            color_family: line.color_family.clone(),
             customer_color_code: line.customer_color_code.clone(),
             calculation: line.calculation.as_ref().ok().map(CalculationResultView::from),
             error: line.calculation.as_ref().err().cloned(),

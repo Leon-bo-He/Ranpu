@@ -65,6 +65,8 @@ pub fn run() {
             cmd_list_workspace_formulas,
             cmd_upsert_workspace_formula,
             cmd_delete_workspace_formula,
+            cmd_list_default_color_families,
+            cmd_list_workspace_color_families,
             cmd_copy_default_to_active_workspace,
             cmd_batch_copy_default_to_active_workspace,
             cmd_export_library_archive,

@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { liquorRatioLabel, unitLabel } from '@/lib/format';
+import { unitLabel } from '@/lib/format';
 
 export interface FormulaCardActions {
   onCopyToWorkspace?: (formula: FormulaView) => void;
@@ -79,8 +79,8 @@ export function FormulaCard({
             </label>
           )}
         </div>
-        {formula.color_name && (
-          <CardDescription>{formula.color_name}</CardDescription>
+        {formula.color_family && (
+          <CardDescription>色系: {formula.color_family}</CardDescription>
         )}
       </CardHeader>
       <CardContent className="flex-1 space-y-2 text-sm">
@@ -102,11 +102,6 @@ export function FormulaCard({
             </li>
           ))}
         </ul>
-        {formula.liquor_ratio !== null && (
-          <p className="text-xs text-muted-foreground">
-            浴比 {liquorRatioLabel(formula.liquor_ratio)}
-          </p>
-        )}
         {formula.notes && (
           <p className="text-xs text-muted-foreground">{formula.notes}</p>
         )}

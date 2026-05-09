@@ -1,14 +1,10 @@
 use chrono::{DateTime, Utc};
 
 use crate::domain::calculation::dye_calculator::CalculableFormula;
-use crate::domain::formula::amounts::Kilograms;
 use crate::domain::formula::customer_color_code::CustomerColorCode;
-use crate::domain::formula::default_formula::{
-    check_invariants, normalize_color_name, normalize_description, normalize_notes,
-};
+use crate::domain::formula::default_formula::{check_invariants, normalize_color_family, normalize_notes};
 use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
-use crate::domain::formula::liquor_ratio::LiquorRatio;
 use crate::domain::shared::errors::DomainResult;
 use crate::domain::shared::id::{FormulaId, WorkspaceId};
 
@@ -25,10 +21,7 @@ pub struct WorkspaceFormula {
     workspace_id: WorkspaceId,
     internal_color_code: InternalColorCode,
     customer_color_code: Option<CustomerColorCode>,
-    color_name: Option<String>,
-    description: Option<String>,
-    base_weight_kg: Option<Kilograms>,
-    liquor_ratio: Option<LiquorRatio>,
+    color_family: Option<String>,
     notes: Option<String>,
     items: Vec<FormulaItem>,
     source_default_id: Option<FormulaId>,
@@ -42,28 +35,21 @@ impl WorkspaceFormula {
         workspace_id: WorkspaceId,
         internal_color_code: InternalColorCode,
         customer_color_code: Option<CustomerColorCode>,
-        color_name: Option<String>,
-        description: Option<String>,
-        base_weight_kg: Option<Kilograms>,
-        liquor_ratio: Option<LiquorRatio>,
+        color_family: Option<String>,
         notes: Option<String>,
         items: Vec<FormulaItem>,
         source_default_id: Option<FormulaId>,
         created_at: DateTime<Utc>,
     ) -> DomainResult<Self> {
-        let color_name = normalize_color_name(color_name)?;
-        let description = normalize_description(description)?;
+        let color_family = normalize_color_family(color_family)?;
         let notes = normalize_notes(notes)?;
-        check_invariants(&items, liquor_ratio)?;
+        check_invariants(&items)?;
         Ok(Self {
             id: None,
             workspace_id,
             internal_color_code,
             customer_color_code,
-            color_name,
-            description,
-            base_weight_kg,
-            liquor_ratio,
+            color_family,
             notes,
             items,
             source_default_id,
@@ -77,26 +63,20 @@ impl WorkspaceFormula {
         workspace_id: WorkspaceId,
         internal_color_code: InternalColorCode,
         customer_color_code: Option<CustomerColorCode>,
-        color_name: Option<String>,
-        description: Option<String>,
-        base_weight_kg: Option<Kilograms>,
-        liquor_ratio: Option<LiquorRatio>,
+        color_family: Option<String>,
         notes: Option<String>,
         items: Vec<FormulaItem>,
         source_default_id: Option<FormulaId>,
         created_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> DomainResult<Self> {
-        check_invariants(&items, liquor_ratio)?;
+        check_invariants(&items)?;
         Ok(Self {
             id: Some(id),
             workspace_id,
             internal_color_code,
             customer_color_code,
-            color_name,
-            description,
-            base_weight_kg,
-            liquor_ratio,
+            color_family,
             notes,
             items,
             source_default_id,
@@ -114,14 +94,8 @@ impl WorkspaceFormula {
     pub fn customer_color_code(&self) -> Option<&CustomerColorCode> {
         self.customer_color_code.as_ref()
     }
-    pub fn color_name(&self) -> Option<&str> {
-        self.color_name.as_deref()
-    }
-    pub fn description(&self) -> Option<&str> {
-        self.description.as_deref()
-    }
-    pub fn base_weight_kg(&self) -> Option<Kilograms> {
-        self.base_weight_kg
+    pub fn color_family(&self) -> Option<&str> {
+        self.color_family.as_deref()
     }
     pub fn notes(&self) -> Option<&str> {
         self.notes.as_deref()
@@ -145,19 +119,8 @@ impl WorkspaceFormula {
         items: Vec<FormulaItem>,
         now: DateTime<Utc>,
     ) -> DomainResult<()> {
-        check_invariants(&items, self.liquor_ratio)?;
+        check_invariants(&items)?;
         self.items = items;
-        self.updated_at = now;
-        Ok(())
-    }
-
-    pub fn set_liquor_ratio(
-        &mut self,
-        ratio: Option<LiquorRatio>,
-        now: DateTime<Utc>,
-    ) -> DomainResult<()> {
-        check_invariants(&self.items, ratio)?;
-        self.liquor_ratio = ratio;
         self.updated_at = now;
         Ok(())
     }
@@ -179,14 +142,27 @@ impl WorkspaceFormula {
         self.customer_color_code = code;
         self.updated_at = now;
     }
+
+    pub fn set_color_family(
+        &mut self,
+        family: Option<String>,
+        now: DateTime<Utc>,
+    ) -> DomainResult<()> {
+        self.color_family = normalize_color_family(family)?;
+        self.updated_at = now;
+        Ok(())
+    }
+
+    pub fn set_notes(&mut self, notes: Option<String>, now: DateTime<Utc>) -> DomainResult<()> {
+        self.notes = normalize_notes(notes)?;
+        self.updated_at = now;
+        Ok(())
+    }
 }
 
 impl CalculableFormula for WorkspaceFormula {
     fn internal_color_code(&self) -> &InternalColorCode {
         &self.internal_color_code
-    }
-    fn liquor_ratio(&self) -> Option<LiquorRatio> {
-        self.liquor_ratio
     }
     fn items(&self) -> &[FormulaItem] {
         &self.items
@@ -208,18 +184,11 @@ mod tests {
         FormulaItem::new("dye", Some("DC".into()), 2.0, Unit::PctOwf, 0).unwrap()
     }
 
-    fn gpl_item() -> FormulaItem {
-        FormulaItem::new("salt", None, 5.0, Unit::GramsPerL, 1).unwrap()
-    }
-
     #[test]
     fn new_with_workspace_id_and_source_default_id() {
         let f = WorkspaceFormula::new(
             WorkspaceId::new(7),
             InternalColorCode::new("WK-001").unwrap(),
-            None,
-            None,
-            None,
             None,
             None,
             None,
@@ -240,15 +209,12 @@ mod tests {
             None,
             None,
             None,
-            None,
-            None,
-            None,
-            vec![gpl_item()],
+            vec![],
             None,
             t(),
         )
         .unwrap_err();
-        assert!(matches!(err, DomainError::LiquorRatioRequired));
+        assert!(matches!(err, DomainError::FormulaMustHaveAtLeastOneItem));
     }
 
     #[test]
@@ -256,9 +222,6 @@ mod tests {
         let mut f = WorkspaceFormula::new(
             WorkspaceId::new(1),
             InternalColorCode::new("OLD").unwrap(),
-            None,
-            None,
-            None,
             None,
             None,
             None,

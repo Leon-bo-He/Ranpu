@@ -21,10 +21,7 @@ export interface UpsertFormulaPayload {
   id: number | null;
   internal_color_code: string;
   customer_color_code: string | null;
-  color_name: string | null;
-  description: string | null;
-  base_weight_kg: number | null;
-  liquor_ratio: number | null;
+  color_family: string | null;
   notes: string | null;
   items: FormulaItemDto[];
 }
@@ -63,6 +60,9 @@ export const formulaApi = {
     invoke<number>('cmd_upsert_workspace_formula', { cmd: payload }),
 
   deleteWorkspace: (id: number) => invoke<void>('cmd_delete_workspace_formula', { id }),
+
+  listDefaultColorFamilies: () => invoke<string[]>('cmd_list_default_color_families'),
+  listWorkspaceColorFamilies: () => invoke<string[]>('cmd_list_workspace_color_families'),
 
   copyDefaultToWorkspace: (defaultFormulaId: number) =>
     invoke<number>('cmd_copy_default_to_active_workspace', { defaultFormulaId }),

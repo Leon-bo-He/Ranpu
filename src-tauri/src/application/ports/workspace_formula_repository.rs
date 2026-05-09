@@ -36,6 +36,12 @@ pub trait WorkspaceFormulaRepository: Send + Sync {
         query: WorkspaceFormulaQuery<'_>,
     ) -> Result<Vec<WorkspaceFormula>, RepositoryError>;
 
+    /// 列出该工作区已用过的色系 (distinct, 字典序), 给前端 dropdown 用.
+    fn list_color_families(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> Result<Vec<String>, RepositoryError>;
+
     fn upsert(&self, formula: &WorkspaceFormula) -> Result<FormulaId, RepositoryError>;
 
     fn delete(&self, workspace_id: WorkspaceId, id: FormulaId) -> Result<(), RepositoryError>;

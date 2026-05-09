@@ -6,6 +6,10 @@
 //! 同名工作区不一定存在 / id 不可能一致. 导入端按 name 在目标库匹配:
 //!   - 找不到 → 新建工作区
 //!   - 找到 → 由 UI 决定 merge / skip
+//!
+//! version 3 起精简字段: 砍 color_name / description / base_weight_kg /
+//! liquor_ratio, 加 color_family. version 2 老归档仍可读 — 老字段在 wire
+//! 上保留 #[serde(default)] 让旧文件解析不爆, 但导入时会丢失.
 
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +18,7 @@ use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::formula::workspace_formula::WorkspaceFormula;
 
 pub const FORMULA_ARCHIVE_MAGIC: &str = "ranpu-formula-export";
-pub const FORMULA_ARCHIVE_VERSION: u32 = 2;
+pub const FORMULA_ARCHIVE_VERSION: u32 = 3;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FormulaArchive {
@@ -41,10 +45,9 @@ pub struct WorkspaceArchive {
 pub struct FormulaExportItem {
     pub internal_color_code: String,
     pub customer_color_code: Option<String>,
-    pub color_name: Option<String>,
-    pub description: Option<String>,
-    pub base_weight_kg: Option<f64>,
-    pub liquor_ratio: Option<f64>,
+    /// 1.0.7+ 字段; 旧归档没有, 默认 None.
+    #[serde(default)]
+    pub color_family: Option<String>,
     pub notes: Option<String>,
     pub items: Vec<FormulaExportItemDye>,
 }
@@ -64,10 +67,7 @@ pub fn default_to_wire(f: &DefaultFormula) -> FormulaExportItem {
             .as_str()
             .to_owned(),
         customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
-        color_name: f.color_name().map(str::to_owned),
-        description: f.description().map(str::to_owned),
-        base_weight_kg: f.base_weight_kg().map(|k| k.value()),
-        liquor_ratio: <DefaultFormula as CalculableFormula>::liquor_ratio(f).map(|r| r.value()),
+        color_family: f.color_family().map(str::to_owned),
         notes: f.notes().map(str::to_owned),
         items: <DefaultFormula as CalculableFormula>::items(f)
             .iter()
@@ -82,10 +82,7 @@ pub fn workspace_to_wire(f: &WorkspaceFormula) -> FormulaExportItem {
             .as_str()
             .to_owned(),
         customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
-        color_name: f.color_name().map(str::to_owned),
-        description: f.description().map(str::to_owned),
-        base_weight_kg: f.base_weight_kg().map(|k| k.value()),
-        liquor_ratio: <WorkspaceFormula as CalculableFormula>::liquor_ratio(f).map(|r| r.value()),
+        color_family: f.color_family().map(str::to_owned),
         notes: f.notes().map(str::to_owned),
         items: <WorkspaceFormula as CalculableFormula>::items(f)
             .iter()

@@ -63,10 +63,7 @@ pub struct FormulaUpsertInput {
     pub id: Option<crate::domain::shared::id::FormulaId>,
     pub internal_color_code: String,
     pub customer_color_code: Option<String>,
-    pub color_name: Option<String>,
-    pub description: Option<String>,
-    pub base_weight_kg: Option<f64>,
-    pub liquor_ratio: Option<f64>,
+    pub color_family: Option<String>,
     pub notes: Option<String>,
     pub items: Vec<FormulaItemInput>,
 }

@@ -4,6 +4,7 @@ mod delete_default_formula;
 mod delete_workspace_formula;
 mod export_archive;
 mod import_archive;
+mod list_color_families;
 mod list_default_formulas;
 mod list_workspace_formulas;
 pub mod parse;

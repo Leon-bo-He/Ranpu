@@ -25,14 +25,6 @@ pub enum DomainError {
     #[error("未知的染料投料单位：{0}")]
     UnknownUnit(String),
 
-    // ---- formula: 浴比 ----
-    #[error("浴比必须是有限数")]
-    LiquorRatioNotFinite,
-    #[error("浴比必须大于 0（当前 {actual}）")]
-    LiquorRatioMustBePositive { actual: f64 },
-    #[error("配方含 g/L 单位的染料，但没有设置浴比")]
-    LiquorRatioRequired,
-
     // ---- formula: 数量 ----
     #[error("百分比必须是有限数")]
     PercentageNotFinite,

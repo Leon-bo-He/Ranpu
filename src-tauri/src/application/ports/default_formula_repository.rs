@@ -5,7 +5,7 @@ use crate::domain::shared::id::FormulaId;
 
 #[derive(Debug, Clone)]
 pub struct DefaultFormulaQuery<'a> {
-    /// 模糊关键词：同时匹配 内部色号 / 客户色号 / 颜色俗称（PROMPT 第 218 行）。
+    /// 模糊关键词：同时匹配 内部色号 / 客户色号 / 色系。
     pub keyword: Option<&'a str>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
@@ -22,6 +22,8 @@ pub trait DefaultFormulaRepository: Send + Sync {
         customer_code: &str,
     ) -> Result<Vec<DefaultFormula>, RepositoryError>;
     fn list(&self, query: DefaultFormulaQuery<'_>) -> Result<Vec<DefaultFormula>, RepositoryError>;
+    /// 列出已用过的色系 (distinct, 字典序), 给前端 dropdown 用.
+    fn list_color_families(&self) -> Result<Vec<String>, RepositoryError>;
     /// id 为 None → 插入；为 Some → 整体覆盖（含 items）。单事务。
     fn upsert(&self, formula: &DefaultFormula) -> Result<FormulaId, RepositoryError>;
     fn delete(&self, id: FormulaId) -> Result<(), RepositoryError>;

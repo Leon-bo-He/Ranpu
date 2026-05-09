@@ -14,11 +14,10 @@ use crate::domain::shared::id::{FormulaId, WorkspaceId};
 use crate::infrastructure::persistence::sqlcipher::connection::SqliteConnection;
 use crate::infrastructure::persistence::sqlcipher::default_formula_repo::replace_items;
 use crate::infrastructure::persistence::sqlcipher::row_mapping::{
-    corrupt, parse_customer, parse_dt, parse_internal, parse_kg_opt, parse_ratio_opt, parse_unit,
-    rfc3339,
+    corrupt, parse_customer, parse_dt, parse_internal, parse_unit, rfc3339,
 };
 
-const COLS: &str = "id, workspace_id, internal_color_code, customer_color_code, color_name, description, base_weight_kg, liquor_ratio, notes, source_default_id, created_at, updated_at";
+const COLS: &str = "id, workspace_id, internal_color_code, customer_color_code, color_family, notes, source_default_id, created_at, updated_at";
 
 pub struct SqliteWorkspaceFormulaRepository {
     db: Arc<SqliteConnection>,
@@ -35,10 +34,7 @@ struct FormulaRow {
     workspace_id: i64,
     internal_color_code: String,
     customer_color_code: Option<String>,
-    color_name: Option<String>,
-    description: Option<String>,
-    base_weight_kg: Option<f64>,
-    liquor_ratio: Option<f64>,
+    color_family: Option<String>,
     notes: Option<String>,
     source_default_id: Option<i64>,
     created_at: String,
@@ -52,14 +48,11 @@ impl FormulaRow {
             workspace_id: r.get(1)?,
             internal_color_code: r.get(2)?,
             customer_color_code: r.get(3)?,
-            color_name: r.get(4)?,
-            description: r.get(5)?,
-            base_weight_kg: r.get(6)?,
-            liquor_ratio: r.get(7)?,
-            notes: r.get(8)?,
-            source_default_id: r.get(9)?,
-            created_at: r.get(10)?,
-            updated_at: r.get(11)?,
+            color_family: r.get(4)?,
+            notes: r.get(5)?,
+            source_default_id: r.get(6)?,
+            created_at: r.get(7)?,
+            updated_at: r.get(8)?,
         })
     }
 }
@@ -106,8 +99,6 @@ fn assemble(
 ) -> Result<WorkspaceFormula, RepositoryError> {
     let internal = parse_internal(formula.internal_color_code)?;
     let customer = parse_customer(formula.customer_color_code)?;
-    let base_kg = parse_kg_opt(formula.base_weight_kg)?;
-    let ratio = parse_ratio_opt(formula.liquor_ratio)?;
     let created_at = parse_dt(&formula.created_at)?;
     let updated_at = parse_dt(&formula.updated_at)?;
     let mut domain_items = Vec::with_capacity(items.len());
@@ -129,10 +120,7 @@ fn assemble(
         WorkspaceId::new(formula.workspace_id),
         internal,
         customer,
-        formula.color_name,
-        formula.description,
-        base_kg,
-        ratio,
+        formula.color_family,
         formula.notes,
         domain_items,
         formula.source_default_id.map(FormulaId::new),
@@ -229,7 +217,7 @@ impl WorkspaceFormulaRepository for SqliteWorkspaceFormulaRepository {
                     sql.push_str(
                         " AND (internal_color_code LIKE ?2
                               OR customer_color_code LIKE ?2
-                              OR color_name LIKE ?2)",
+                              OR color_family LIKE ?2)",
                     );
                     bound.push(rusqlite::types::Value::Text(format!("%{trimmed}%")));
                 }
@@ -256,23 +244,38 @@ impl WorkspaceFormulaRepository for SqliteWorkspaceFormulaRepository {
         pairs.into_iter().map(|(f, items)| assemble(f, items)).collect()
     }
 
+    fn list_color_families(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> Result<Vec<String>, RepositoryError> {
+        self.db.with(|c| {
+            let mut stmt = c.prepare(
+                "SELECT DISTINCT color_family FROM workspace_formulas
+                 WHERE workspace_id = ?1
+                   AND color_family IS NOT NULL AND TRIM(color_family) != ''
+                 ORDER BY color_family",
+            )?;
+            let collected: rusqlite::Result<Vec<String>> = stmt
+                .query_map(params![workspace_id.value()], |r| r.get::<_, String>(0))?
+                .collect();
+            collected
+        })
+    }
+
     fn upsert(&self, formula: &WorkspaceFormula) -> Result<FormulaId, RepositoryError> {
         self.db.with_tx(|tx| {
             let id = match formula.id() {
                 None => {
                     tx.execute(
                         "INSERT INTO workspace_formulas (workspace_id, internal_color_code,
-                            customer_color_code, color_name, description, base_weight_kg,
-                            liquor_ratio, notes, source_default_id, created_at, updated_at)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                            customer_color_code, color_family, notes, source_default_id,
+                            created_at, updated_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                         params![
                             formula.workspace_id().value(),
                             <WorkspaceFormula as CalculableFormula>::internal_color_code(formula).as_str(),
                             formula.customer_color_code().map(|c| c.as_str()),
-                            formula.color_name(),
-                            formula.description(),
-                            formula.base_weight_kg().map(|k| k.value()),
-                            <WorkspaceFormula as CalculableFormula>::liquor_ratio(formula).map(|r| r.value()),
+                            formula.color_family(),
                             formula.notes(),
                             formula.source_default_id().map(|i| i.value()),
                             rfc3339(formula.created_at()),
@@ -286,21 +289,15 @@ impl WorkspaceFormulaRepository for SqliteWorkspaceFormulaRepository {
                         "UPDATE workspace_formulas SET
                             internal_color_code = ?1,
                             customer_color_code = ?2,
-                            color_name = ?3,
-                            description = ?4,
-                            base_weight_kg = ?5,
-                            liquor_ratio = ?6,
-                            notes = ?7,
-                            source_default_id = ?8,
-                            updated_at = ?9
-                         WHERE workspace_id = ?10 AND id = ?11",
+                            color_family = ?3,
+                            notes = ?4,
+                            source_default_id = ?5,
+                            updated_at = ?6
+                         WHERE workspace_id = ?7 AND id = ?8",
                         params![
                             <WorkspaceFormula as CalculableFormula>::internal_color_code(formula).as_str(),
                             formula.customer_color_code().map(|c| c.as_str()),
-                            formula.color_name(),
-                            formula.description(),
-                            formula.base_weight_kg().map(|k| k.value()),
-                            <WorkspaceFormula as CalculableFormula>::liquor_ratio(formula).map(|r| r.value()),
+                            formula.color_family(),
                             formula.notes(),
                             formula.source_default_id().map(|i| i.value()),
                             rfc3339(formula.updated_at()),
@@ -347,10 +344,7 @@ impl WorkspaceFormulaRepository for SqliteWorkspaceFormulaRepository {
             workspace_id,
             <DefaultFormula as CalculableFormula>::internal_color_code(default).clone(),
             default.customer_color_code().cloned(),
-            default.color_name().map(str::to_owned),
-            default.description().map(str::to_owned),
-            default.base_weight_kg(),
-            <DefaultFormula as CalculableFormula>::liquor_ratio(default),
+            default.color_family().map(str::to_owned),
             default.notes().map(str::to_owned),
             <DefaultFormula as CalculableFormula>::items(default).to_vec(),
             default.id(),
@@ -392,10 +386,7 @@ mod tests {
             workspace_id,
             InternalColorCode::new("WK-001").unwrap(),
             None,
-            Some("玫红".into()),
-            None,
-            None,
-            None,
+            Some("红色系".into()),
             None,
             vec![FormulaItem::new("Reactive Red 195", Some("RR195".into()), 1.0, Unit::PctOwf, 0).unwrap()],
             None,
@@ -425,5 +416,15 @@ mod tests {
         let dup = sample(ws);
         let err = repo.upsert(&dup).unwrap_err();
         assert!(matches!(err, RepositoryError::Conflict(_)));
+    }
+
+    #[test]
+    fn list_color_families_per_workspace() {
+        let db = db();
+        let ws = ensure_workspace(&db);
+        let repo = SqliteWorkspaceFormulaRepository::new(db);
+        repo.upsert(&sample(ws)).unwrap();
+        let families = repo.list_color_families(ws).unwrap();
+        assert_eq!(families, vec!["红色系".to_string()]);
     }
 }

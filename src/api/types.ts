@@ -24,7 +24,7 @@ export interface FormulaItemView {
   dye_name: string;
   dye_code: string | null;
   amount: number;
-  unit: 'pct_owf' | 'g_per_kg' | 'g_per_L';
+  unit: 'pct_owf' | 'g_per_kg';
   sort_order: number;
 }
 
@@ -32,10 +32,7 @@ export interface FormulaView {
   id: number;
   internal_color_code: string;
   customer_color_code: string | null;
-  color_name: string | null;
-  description: string | null;
-  base_weight_kg: number | null;
-  liquor_ratio: number | null;
+  color_family: string | null;
   notes: string | null;
   items: FormulaItemView[];
   source_default_id: number | null;
@@ -47,7 +44,7 @@ export interface CalculationLineView {
   dye_name: string;
   dye_code: string | null;
   grams: number;
-  unit_used: 'pct_owf' | 'g_per_kg' | 'g_per_L';
+  unit_used: 'pct_owf' | 'g_per_kg';
 }
 
 export interface CalculationResultView {
@@ -64,7 +61,7 @@ export interface CustomerCodeMatchView {
   source_label: string;
   formula_id: number | null;
   internal_color_code: string;
-  color_name: string | null;
+  color_family: string | null;
   customer_color_code: string | null;
 }
 
@@ -138,7 +135,7 @@ export interface CartLineView {
   target_kg: number;
   added_at: string;
   internal_color_code: string | null;
-  color_name: string | null;
+  color_family: string | null;
   customer_color_code: string | null;
   calculation: CalculationResultView | null;
   error: string | null;
@@ -159,4 +156,4 @@ export interface BootStatusView {
   db_initialized: boolean;
 }
 
-export type Unit = 'pct_owf' | 'g_per_kg' | 'g_per_L';
+export type Unit = 'pct_owf' | 'g_per_kg';

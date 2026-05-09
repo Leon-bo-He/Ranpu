@@ -420,7 +420,7 @@ export function CalculatorPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>内部色号</TableHead>
-                <TableHead>颜色俗称</TableHead>
+                <TableHead>色系</TableHead>
                 <TableHead>客户色号</TableHead>
                 <TableHead>来源</TableHead>
                 <TableHead></TableHead>
@@ -432,7 +432,7 @@ export function CalculatorPage() {
                   <TableCell className="font-medium">
                     {m.internal_color_code}
                   </TableCell>
-                  <TableCell>{m.color_name ?? '—'}</TableCell>
+                  <TableCell>{m.color_family ?? '—'}</TableCell>
                   <TableCell>{m.customer_color_code ?? '—'}</TableCell>
                   <TableCell>
                     <Badge

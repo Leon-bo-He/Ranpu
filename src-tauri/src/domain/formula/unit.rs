@@ -3,15 +3,16 @@ use std::str::FromStr;
 
 use crate::domain::shared::errors::{DomainError, DomainResult};
 
-/// 三种染料投料单位（PROMPT 第 109 行）：
-/// - PctOwf:    % owf（百分比，相对纤维重量）
-/// - GramsPerKg: g/kg（克每千克纤维）
-/// - GramsPerL:  g/L  （克每升染液，需要 LiquorRatio 才能计算）
+/// 两种染料投料单位:
+/// - PctOwf:    % owf (百分比, 相对纤维重量)
+/// - GramsPerKg: g/kg (克每千克纤维)
+///
+/// 早期版本另有 GramsPerL (克每升染液), 依赖 LiquorRatio. 1.0.7 起去掉了浴比,
+/// g_per_L 一并去除. 老 DB 里残留的 g_per_L 行由 connection.rs 迁移成 g_per_kg.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Unit {
     PctOwf,
     GramsPerKg,
-    GramsPerL,
 }
 
 impl Unit {
@@ -20,7 +21,6 @@ impl Unit {
         match self {
             Unit::PctOwf => "pct_owf",
             Unit::GramsPerKg => "g_per_kg",
-            Unit::GramsPerL => "g_per_L",
         }
     }
 
@@ -29,12 +29,7 @@ impl Unit {
         match self {
             Unit::PctOwf => "% (owf)",
             Unit::GramsPerKg => "g/kg",
-            Unit::GramsPerL => "g/L",
         }
-    }
-
-    pub const fn requires_liquor_ratio(self) -> bool {
-        matches!(self, Unit::GramsPerL)
     }
 }
 
@@ -45,7 +40,6 @@ impl FromStr for Unit {
         match s {
             "pct_owf" => Ok(Unit::PctOwf),
             "g_per_kg" => Ok(Unit::GramsPerKg),
-            "g_per_L" => Ok(Unit::GramsPerL),
             other => Err(DomainError::UnknownUnit(other.to_owned())),
         }
     }
@@ -63,29 +57,22 @@ mod tests {
 
     #[test]
     fn round_trip_db_str() {
-        for u in [Unit::PctOwf, Unit::GramsPerKg, Unit::GramsPerL] {
+        for u in [Unit::PctOwf, Unit::GramsPerKg] {
             assert_eq!(Unit::from_str(u.as_db_str()).unwrap(), u);
         }
     }
 
     #[test]
-    fn requires_liquor_ratio_only_for_g_per_l() {
-        assert!(!Unit::PctOwf.requires_liquor_ratio());
-        assert!(!Unit::GramsPerKg.requires_liquor_ratio());
-        assert!(Unit::GramsPerL.requires_liquor_ratio());
-    }
-
-    #[test]
     fn rejects_unknown_string() {
         assert!(matches!(
-            Unit::from_str("ml_per_kg"),
-            Err(DomainError::UnknownUnit(s)) if s == "ml_per_kg"
+            Unit::from_str("g_per_L"),
+            Err(DomainError::UnknownUnit(s)) if s == "g_per_L"
         ));
     }
 
     #[test]
     fn display_uses_db_str() {
         assert_eq!(format!("{}", Unit::PctOwf), "pct_owf");
-        assert_eq!(format!("{}", Unit::GramsPerL), "g_per_L");
+        assert_eq!(format!("{}", Unit::GramsPerKg), "g_per_kg");
     }
 }

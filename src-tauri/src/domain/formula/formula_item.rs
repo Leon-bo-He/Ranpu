@@ -9,7 +9,6 @@ use crate::domain::shared::id::FormulaItemId;
 /// `amount` 与 `unit` 一起决定克数：
 ///   pct_owf  → grams = target_kg * 1000 * amount / 100
 ///   g_per_kg → grams = target_kg * amount
-///   g_per_L  → grams = target_kg * liquor_ratio * amount
 /// 详见 `domain/calculation/dye_calculator.rs`。
 #[derive(Debug, Clone, PartialEq)]
 pub struct FormulaItem {

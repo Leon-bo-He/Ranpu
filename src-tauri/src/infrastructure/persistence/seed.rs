@@ -1,6 +1,4 @@
-//! 首次启动种子数据（PROMPT 第 304-308 行）+ 系统内置 "通用" 工作区初始化。
-//!
-//! 不创建 user — FirstRunSetup 让用户自己设置第一个 admin 账号。
+//! 首次启动种子数据 + 系统内置 "通用" 工作区初始化。
 //!
 //! - run_if_empty: 老的首次启动种子, 写 3 个示范工作区 + 5 条默认配方.
 //! - ensure_system_mirror: 确保数据库里存在唯一的 SystemMirror 工作区
@@ -19,11 +17,9 @@ use crate::application::ports::workspace_formula_repository::{
     WorkspaceFormulaQuery, WorkspaceFormulaRepository,
 };
 use crate::application::ports::workspace_repository::WorkspaceRepository;
-use crate::domain::formula::amounts::Kilograms;
 use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
-use crate::domain::formula::liquor_ratio::LiquorRatio;
 use crate::domain::formula::unit::Unit;
 use crate::domain::workspace::workspace::{Workspace, WorkspaceKind, WorkspaceName};
 
@@ -44,10 +40,6 @@ pub fn run_if_empty(
 }
 
 /// 确保系统内置 "通用" 工作区存在并镜像默认配方库.
-///
-/// - 没有该工作区 → 创建.
-/// - 该工作区里有但默认库已删除的 → 删除.
-/// - 默认库新增 / 修改的 → upsert 进该工作区.
 pub fn ensure_system_mirror(
     workspace_repo: &Arc<dyn WorkspaceRepository>,
     default_repo: &Arc<dyn DefaultFormulaRepository>,
@@ -147,10 +139,7 @@ pub fn upsert_default_into_mirror(
             mirror_id,
             internal,
             default.customer_color_code().cloned(),
-            default.color_name().map(str::to_owned),
-            default.description().map(str::to_owned),
-            default.base_weight_kg(),
-            <DefaultFormula as CalculableFormula>::liquor_ratio(default),
+            default.color_family().map(str::to_owned),
             default.notes().map(str::to_owned),
             <DefaultFormula as CalculableFormula>::items(default).to_vec(),
             default.id(),
@@ -162,10 +151,7 @@ pub fn upsert_default_into_mirror(
             mirror_id,
             internal,
             default.customer_color_code().cloned(),
-            default.color_name().map(str::to_owned),
-            default.description().map(str::to_owned),
-            default.base_weight_kg(),
-            <DefaultFormula as CalculableFormula>::liquor_ratio(default),
+            default.color_family().map(str::to_owned),
             default.notes().map(str::to_owned),
             <DefaultFormula as CalculableFormula>::items(default).to_vec(),
             default.id(),
@@ -214,18 +200,15 @@ fn navy_n_2024(now: DateTime<Utc>) -> DefaultFormula {
     DefaultFormula::new(
         InternalColorCode::new("N-2024").unwrap(),
         None,
-        Some("藏青".into()),
-        Some("偏冷调藏青，适合棉与混纺。".into()),
-        Some(Kilograms::new(50.0).unwrap()),
-        Some(LiquorRatio::new(8.0).unwrap()),
-        Some("活性染料，纯碱固色。".into()),
+        Some("蓝色系".into()),
+        Some("活性染料, 纯碱固色. 偏冷调藏青, 适合棉与混纺.".into()),
         vec![
             FormulaItem::new("C.I. Reactive Blue 19", Some("RB19".into()), 2.0, Unit::PctOwf, 0)
                 .unwrap(),
             FormulaItem::new("C.I. Reactive Black 5", Some("RB5".into()), 1.5, Unit::PctOwf, 1)
                 .unwrap(),
-            FormulaItem::new("元明粉", None, 60.0, Unit::GramsPerL, 2).unwrap(),
-            FormulaItem::new("纯碱", None, 20.0, Unit::GramsPerL, 3).unwrap(),
+            FormulaItem::new("元明粉", None, 60.0, Unit::GramsPerKg, 2).unwrap(),
+            FormulaItem::new("纯碱", None, 20.0, Unit::GramsPerKg, 3).unwrap(),
         ],
         now,
     )
@@ -236,11 +219,8 @@ fn rose_r_105(now: DateTime<Utc>) -> DefaultFormula {
     DefaultFormula::new(
         InternalColorCode::new("R-105").unwrap(),
         None,
-        Some("玫红".into()),
-        Some("中等饱和度玫红。".into()),
-        Some(Kilograms::new(30.0).unwrap()),
-        Some(LiquorRatio::new(10.0).unwrap()),
-        None,
+        Some("红色系".into()),
+        Some("中等饱和度玫红.".into()),
         vec![
             FormulaItem::new("C.I. Reactive Red 195", Some("RR195".into()), 1.8, Unit::PctOwf, 0)
                 .unwrap(),
@@ -252,7 +232,7 @@ fn rose_r_105(now: DateTime<Utc>) -> DefaultFormula {
                 1,
             )
             .unwrap(),
-            FormulaItem::new("元明粉", None, 50.0, Unit::GramsPerL, 2).unwrap(),
+            FormulaItem::new("元明粉", None, 50.0, Unit::GramsPerKg, 2).unwrap(),
         ],
         now,
     )
@@ -263,11 +243,8 @@ fn forest_g_330(now: DateTime<Utc>) -> DefaultFormula {
     DefaultFormula::new(
         InternalColorCode::new("G-330").unwrap(),
         None,
-        Some("墨绿".into()),
-        Some("偏黑墨绿。".into()),
-        Some(Kilograms::new(40.0).unwrap()),
-        Some(LiquorRatio::new(8.0).unwrap()),
-        None,
+        Some("绿色系".into()),
+        Some("偏黑墨绿.".into()),
         vec![
             FormulaItem::new(
                 "C.I. Reactive Yellow 145",
@@ -293,7 +270,7 @@ fn forest_g_330(now: DateTime<Utc>) -> DefaultFormula {
                 2,
             )
             .unwrap(),
-            FormulaItem::new("元明粉", None, 55.0, Unit::GramsPerL, 3).unwrap(),
+            FormulaItem::new("元明粉", None, 55.0, Unit::GramsPerKg, 3).unwrap(),
         ],
         now,
     )
@@ -304,11 +281,8 @@ fn sunset_o_710(now: DateTime<Utc>) -> DefaultFormula {
     DefaultFormula::new(
         InternalColorCode::new("O-710").unwrap(),
         None,
-        Some("落日橙".into()),
-        Some("偏红的鲜橙色，量多需注意 pH。".into()),
-        None,
-        None,
-        None,
+        Some("橙色系".into()),
+        Some("偏红的鲜橙色, 量多需注意 pH.".into()),
         vec![
             FormulaItem::new(
                 "C.I. Reactive Orange 16",
@@ -337,11 +311,8 @@ fn ivory_w_002(now: DateTime<Utc>) -> DefaultFormula {
     DefaultFormula::new(
         InternalColorCode::new("W-002").unwrap(),
         None,
-        Some("象牙白".into()),
-        Some("浅米色，染色后接近原棉色。".into()),
-        Some(Kilograms::new(20.0).unwrap()),
-        None,
-        Some("浴比 1:8，建议先染浅黄校色再加红.".into()),
+        Some("浅色系".into()),
+        Some("浅米色, 染色后接近原棉色.".into()),
         vec![
             FormulaItem::new(
                 "C.I. Reactive Yellow 145",
