@@ -28,12 +28,21 @@ import {
 } from '@/components/ui/table';
 import { formatGrams } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import {
+  lineKey,
+  useBatchSheetInfoStore,
+  type PerFormulaMeta,
+} from '@/store/batchSheetInfo';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
+import { useSettingsStore } from '@/store/settings';
+import { useVatSequenceStore } from '@/store/vatSequence';
 
 export function CartPage() {
   const session = useSessionStore((s) => s.session);
   const hasWs = hasActiveWorkspace(session);
   const activeWorkspaceId = session?.active_workspace_id ?? null;
+  const vatCount = useSettingsStore((s) => s.vatCount);
+  const setBatchSheetInfo = useBatchSheetInfoStore((s) => s.setInfo);
   const [lines, setLines] = useState<CartLineView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState<string>('');
@@ -45,9 +54,7 @@ export function CartPage() {
   // 每条配方独立的缸号 / 纱支. perFormula 数组与 lines 顺序对齐.
   const [promptOpen, setPromptOpen] = useState(false);
   const [promptCustomer, setPromptCustomer] = useState('');
-  const [promptPerFormula, setPromptPerFormula] = useState<
-    Array<{ vat: string; yarn: string }>
-  >([]);
+  const [promptPerFormula, setPromptPerFormula] = useState<PerFormulaMeta[]>([]);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
   // 预览版本 toggle: standard (每条一段) 或 grid (A4 九宫格). 用户在
@@ -142,15 +149,65 @@ export function CartPage() {
   // 点 "预览/打印" 先开元信息对话框 (客户默认当前工作区名 + 每条配方
   // 独立的缸号 / 纱支), 用户填完再去后端拿渲染好的 HTML.
   const onOpenPreviewPrompt = () => {
-    setPromptCustomer(workspaceName);
-    setPromptPerFormula(lines.map(() => ({ vat: '', yarn: '' })));
+    const saved =
+      activeWorkspaceId !== null
+        ? useBatchSheetInfoStore.getState().byWorkspace[activeWorkspaceId]
+        : undefined;
+    setPromptCustomer(saved?.customer || workspaceName);
+    setPromptPerFormula(
+      lines.map((line) => {
+        const meta = saved?.perFormula[lineKey(line.source_kind, line.source_formula_id)];
+        return { vat: meta?.vat ?? '', yarn: meta?.yarn ?? '' };
+      }),
+    );
     setPromptOpen(true);
   };
 
-  const updatePromptMeta = (idx: number, patch: Partial<{ vat: string; yarn: string }>) =>
+  const updatePromptMeta = (idx: number, patch: Partial<PerFormulaMeta>) =>
     setPromptPerFormula((prev) =>
       prev.map((m, i) => (i === idx ? { ...m, ...patch } : m)),
     );
+
+  // 把当前 prompt 输入持久化到 batchSheetInfo store, 按工作区维度存. 入口:
+  // confirmPreview / 取消按钮 / 生成缸号. 切工作区或重启后重开 prompt 时
+  // 这些值会回填.
+  const persistPromptInfo = (
+    customer: string,
+    perFormula: PerFormulaMeta[],
+  ) => {
+    if (activeWorkspaceId === null) return;
+    const map: Record<string, PerFormulaMeta> = {};
+    perFormula.forEach((m, i) => {
+      const line = lines[i];
+      if (!line) return;
+      if (m.vat || m.yarn) {
+        map[lineKey(line.source_kind, line.source_formula_id)] = m;
+      }
+    });
+    setBatchSheetInfo(activeWorkspaceId, { customer, perFormula: map });
+  };
+
+  // "生成缸号": 从全局 vat 序列里取连续 N 个槽位, 按 lines 顺序填到每行
+  // 的缸号字段. 跨日自动重置, 缸号到 vatCount 自动进入下一批 (例: 4 缸厂
+  // 4-2 之后是 1-3). 现有手填值会被覆盖, 用户事后可单独改某行.
+  const onGenerateVats = () => {
+    if (lines.length === 0) return;
+    const slots = useVatSequenceStore
+      .getState()
+      .reserve(lines.length, vatCount);
+    const next = promptPerFormula.map((m, i) => {
+      const slot = slots[i];
+      if (!slot) return m;
+      return { ...m, vat: `${slot.vat}-${slot.batch}` };
+    });
+    setPromptPerFormula(next);
+    persistPromptInfo(promptCustomer, next);
+  };
+
+  const onCancelPrompt = () => {
+    persistPromptInfo(promptCustomer, promptPerFormula);
+    setPromptOpen(false);
+  };
 
   // 用最新 prompt + 指定 layout 拉一份预览 HTML. 提交 prompt / 切 tab 都走这里.
   const fetchPreview = async (layout: 'standard' | 'grid') => {
@@ -176,6 +233,7 @@ export function CartPage() {
 
   const onConfirmPreview = async () => {
     const customer = promptCustomer.trim();
+    persistPromptInfo(promptCustomer, promptPerFormula);
     setPromptOpen(false);
     setPrintCustomer(customer || workspaceName);
     // 进预览默认 standard 版本; 用户可在右上角切到 grid.
@@ -344,7 +402,9 @@ export function CartPage() {
 
       <Dialog
         open={promptOpen}
-        onOpenChange={(o) => !o && setPromptOpen(false)}
+        onOpenChange={(o) => {
+          if (!o) onCancelPrompt();
+        }}
       >
         <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col gap-0 p-0">
           <DialogHeader className="shrink-0 border-b px-6 py-4">
@@ -362,7 +422,19 @@ export function CartPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>每条配方的缸号 / 纱支 (留空则不显示)</Label>
+              <div className="flex items-center justify-between">
+                <Label>每条配方的缸号 / 纱支 (留空则不显示)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onGenerateVats}
+                  disabled={lines.length === 0}
+                  title={`按设置中的染缸数量 (${vatCount}) 自动生成连续缸号. 跨日自动重置批次.`}
+                >
+                  生成缸号
+                </Button>
+              </div>
               <div className="space-y-2">
                 {lines.map((line, idx) => (
                   <div
@@ -403,7 +475,7 @@ export function CartPage() {
             </div>
           </div>
           <DialogFooter className="shrink-0 gap-2 border-t bg-background px-6 py-3">
-            <Button variant="ghost" onClick={() => setPromptOpen(false)}>
+            <Button variant="ghost" onClick={onCancelPrompt}>
               取消
             </Button>
             <Button onClick={onConfirmPreview}>生成预览</Button>
