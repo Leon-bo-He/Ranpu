@@ -2949,7 +2949,7 @@ dependencies = [
 
 [[package]]
 name = "ranpu"
-version = "1.0.12"
+version = "1.0.13"
 dependencies = [
  "aes-gcm",
  "chrono",
