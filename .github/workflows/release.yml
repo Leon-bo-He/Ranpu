@@ -113,7 +113,7 @@ jobs:
             --arg tag "$TAG" \
             --arg name "染谱 Ranpu $TAG" \
             --arg body "$NOTES" \
-            '{access_token: $tok, tag_name: $tag, name: $name, body: $body, target_commitish: "main", prerelease: false}' \
+            '{access_token: $tok, tag_name: $tag, name: $name, body: $body, target_commitish: "release-meta", prerelease: false}' \
             > /tmp/release.json
 
           RESP=$(curl -fsSL -X POST \
