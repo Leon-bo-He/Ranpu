@@ -210,18 +210,12 @@ export function CartPage() {
     }
   };
 
-  // 全部覆盖: 把所有行从表里最大缸号之后重新编号 (含已填行). 表里没可
-  // 解析号 (空表 / 全是乱码) 才退回 peek 全局计数器. 完成后把计数器推
-  // 到本次最大缸号 — "填了就推进", 让别的入口接着排.
+  // 全部覆盖: 从全局计数器 (存好的号) 之后 peek N 个连续槽位, 重写所有
+  // 行. 跟 "只填空白" 不同, 这里完全忽略表里的已填值 — 用户的语义是
+  // "全部从头重排", 哪怕手填值更大也不沿用. 完成后 commit 推进计数器.
   const doGenerateOverwrite = () => {
-    const filledMax = maxVatSlot(
-      promptPerFormula
-        .map((m) => parseVatSlot(m.vat))
-        .filter((s): s is NonNullable<typeof s> => s !== null),
-    );
-    const slots = filledMax
-      ? nextSlotsFrom(filledMax, lines.length, vatCount)
-      : useVatSequenceStore.getState().peek(lines.length, vatCount);
+    const store = useVatSequenceStore.getState();
+    const slots = store.peek(lines.length, vatCount);
     const next = promptPerFormula.map((m, i) => {
       const slot = slots[i];
       if (!slot) return m;
@@ -229,7 +223,7 @@ export function CartPage() {
     });
     setPromptPerFormula(next);
     const last = slots[slots.length - 1];
-    if (last) useVatSequenceStore.getState().commit(last);
+    if (last) store.commit(last);
     persistPromptInfo(promptCustomer, next);
   };
 
@@ -572,8 +566,8 @@ export function CartPage() {
             <DialogTitle>如何生成缸号?</DialogTitle>
             <DialogDescription>
               {filledMaxLabel
-                ? `批次单当前已填到 ${filledMaxLabel}. 「全部重新生成」把每一行从 ${filledMaxLabel} 之后重新编号 (已填值会被覆盖); 「只填空白」保留已填行, 把空白行接在 ${filledMaxLabel} 后.`
-                : '批次单已填了缸号. 「全部重新生成」清掉所有手填值重新排; 「只填空白」保留已填行, 只补空白行.'}
+                ? `批次单当前已填到 ${filledMaxLabel}. 「全部重新生成」把每一行从存好的号之后重新编号 (已填值会被覆盖); 「只填空白」保留已填行, 把空白行接在 ${filledMaxLabel} 后.`
+                : '批次单已填了缸号. 「全部重新生成」把每一行从存好的号之后重新编号; 「只填空白」保留已填行, 只补空白行.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
