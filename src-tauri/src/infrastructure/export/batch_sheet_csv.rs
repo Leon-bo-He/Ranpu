@@ -293,25 +293,44 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
 "#,
     );
 
-    // 把 results 流式塞进 grid-page. 简单起见: 一页固定 9 列槽位, 来什么放
-    // 什么; 跨 2 列的占两个槽位. 累计满 9 槽位起一个新 page.
-    let mut col_used = 0usize;
+    // 把 results 塞进 grid-page. 一页 9 个 cell-slot, 宽配方占 2 个.
+    // 用 VecDeque + lookahead-swap: 当队首装不下时, 往后找第一个能塞进
+    // 当前页剩余空间的配方, 调上来填. 这样宽配方留下的 1 格空隙不会
+    // 浪费, 也不需要等 CSS dense (dense 只能跨同页, 跨页无效).
+    use std::collections::VecDeque;
+    let mut queue: VecDeque<(usize, &CalculationResult)> = results.iter().enumerate().collect();
+    let mut cells_used = 0usize;
     let mut page_open = false;
-    for (idx, r) in results.iter().enumerate() {
-        let wide = r.lines.len() >= GRID_WIDE_THRESHOLD;
-        let cell_cols = if wide { 2 } else { 1 };
 
-        // 当前 page 装不下 → 关掉再开一页
-        if page_open && col_used + cell_cols > 9 {
-            html.push_str("</div>\n");
-            page_open = false;
-            col_used = 0;
-        }
+    while let Some(&(_, peek)) = queue.front() {
+        let wide = peek.lines.len() >= GRID_WIDE_THRESHOLD;
+        let need = if wide { 2 } else { 1 };
+
         if !page_open {
             html.push_str("<div class=\"grid-page\">\n");
             page_open = true;
         }
 
+        if cells_used + need > 9 {
+            // 队首塞不下. 往后找第一个能塞下的, 调到队首.
+            let swap_pos = queue.iter().enumerate().skip(1).find_map(|(i, (_, f))| {
+                let f_wide = f.lines.len() >= GRID_WIDE_THRESHOLD;
+                let f_need = if f_wide { 2 } else { 1 };
+                if cells_used + f_need <= 9 { Some(i) } else { None }
+            });
+            if let Some(pos) = swap_pos {
+                let item = queue.remove(pos).expect("found above");
+                queue.push_front(item);
+                continue; // 重新走顶端的 wide / need 计算
+            }
+            // 没人塞得下 → 翻页
+            html.push_str("</div>\n");
+            page_open = false;
+            cells_used = 0;
+            continue;
+        }
+
+        let (idx, r) = queue.pop_front().expect("front exists");
         let meta = context.per_formula.get(idx).copied().unwrap_or_default();
         let class = if wide { "cell wide" } else { "cell" };
         html.push_str(&format!("  <div class=\"{class}\">\n"));
@@ -373,11 +392,11 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
         ));
         html.push_str("  </div>\n");
 
-        col_used += cell_cols;
-        if col_used >= 9 {
+        cells_used += need;
+        if cells_used >= 9 {
             html.push_str("</div>\n");
             page_open = false;
-            col_used = 0;
+            cells_used = 0;
         }
     }
     if page_open {
