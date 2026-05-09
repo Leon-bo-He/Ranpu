@@ -27,9 +27,15 @@ pub struct BatchSheetContext<'a> {
     /// 当前工作区名称, 业务上等同于客户名 (HTML 头部「客户」字段).
     /// 用户在预览/打印对话框可以改写这个值 (默认填的是工作区名).
     pub workspace_name: Option<&'a str>,
-    /// 缸号 (例如 "5-2" = 第 5 缸第 2 批), HTML 头部「缸号」字段; None 则不显示.
+    /// 每个配方独立的缸号 / 纱支元信息. 与 results 数组顺序对齐, 长度也应一致;
+    /// 短了会按 None 兜底, 长了多余会忽略.
+    pub per_formula: &'a [FormulaMeta<'a>],
+}
+
+/// 单条配方的额外元信息 — 渲染到该配方块的标题下方.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FormulaMeta<'a> {
     pub vat_number: Option<&'a str>,
-    /// 纱支 (例如 "32S/2"), HTML 头部「纱支」字段; None 则不显示.
     pub yarn_count: Option<&'a str>,
 }
 

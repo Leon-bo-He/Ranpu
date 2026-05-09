@@ -40,11 +40,13 @@ export function CartPage() {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
   const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
-  // 预览前的元信息收集对话框: 客户 (默认当前工作区名) / 缸号 / 纱支.
+  // 预览前的元信息收集对话框: 客户 (默认当前工作区名) +
+  // 每条配方独立的缸号 / 纱支. perFormula 数组与 lines 顺序对齐.
   const [promptOpen, setPromptOpen] = useState(false);
   const [promptCustomer, setPromptCustomer] = useState('');
-  const [promptVat, setPromptVat] = useState('');
-  const [promptYarn, setPromptYarn] = useState('');
+  const [promptPerFormula, setPromptPerFormula] = useState<
+    Array<{ vat: string; yarn: string }>
+  >([]);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
 
@@ -132,27 +134,31 @@ export function CartPage() {
     }
   };
 
-  // 点 "预览/打印" 先开元信息对话框 (客户默认当前工作区名), 用户填完
-  // 再去后端拿渲染好的 HTML.
+  // 点 "预览/打印" 先开元信息对话框 (客户默认当前工作区名 + 每条配方
+  // 独立的缸号 / 纱支), 用户填完再去后端拿渲染好的 HTML.
   const onOpenPreviewPrompt = () => {
     setPromptCustomer(workspaceName);
-    setPromptVat('');
-    setPromptYarn('');
+    setPromptPerFormula(lines.map(() => ({ vat: '', yarn: '' })));
     setPromptOpen(true);
   };
 
+  const updatePromptMeta = (idx: number, patch: Partial<{ vat: string; yarn: string }>) =>
+    setPromptPerFormula((prev) =>
+      prev.map((m, i) => (i === idx ? { ...m, ...patch } : m)),
+    );
+
   const onConfirmPreview = async () => {
     const customer = promptCustomer.trim();
-    const vat = promptVat.trim();
-    const yarn = promptYarn.trim();
     setPromptOpen(false);
     setPrintCustomer(customer || workspaceName);
     setPreviewBusy(true);
     try {
       const html = await cartApi.previewHtml({
         customer: customer || null,
-        vatNumber: vat || null,
-        yarnCount: yarn || null,
+        perFormula: promptPerFormula.map((m) => ({
+          vatNumber: m.vat.trim() || null,
+          yarnCount: m.yarn.trim() || null,
+        })),
       });
       setPreviewHtml(html);
     } catch (e) {
@@ -315,11 +321,11 @@ export function CartPage() {
         open={promptOpen}
         onOpenChange={(o) => !o && setPromptOpen(false)}
       >
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col gap-0 p-0">
+          <DialogHeader className="shrink-0 border-b px-6 py-4">
             <DialogTitle>批次单信息</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-3 py-2">
+          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
             <div className="grid gap-1">
               <Label>客户</Label>
               <Input
@@ -329,24 +335,49 @@ export function CartPage() {
                 autoFocus
               />
             </div>
-            <div className="grid gap-1">
-              <Label>缸号 (例: 5-2)</Label>
-              <Input
-                value={promptVat}
-                onChange={(e) => setPromptVat(e.target.value)}
-                placeholder="缸号-批次"
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label>纱支</Label>
-              <Input
-                value={promptYarn}
-                onChange={(e) => setPromptYarn(e.target.value)}
-                placeholder="例: 32S/2"
-              />
+
+            <div className="space-y-2">
+              <Label>每条配方的缸号 / 纱支 (留空则不显示)</Label>
+              <div className="space-y-2">
+                {lines.map((line, idx) => (
+                  <div
+                    key={`${line.source_kind}-${line.source_formula_id}-${idx}`}
+                    className="grid grid-cols-12 items-end gap-2"
+                  >
+                    <div className="col-span-4 truncate text-sm">
+                      <span className="font-medium">
+                        {line.internal_color_code ?? '（已删除）'}
+                      </span>
+                      {line.color_family && (
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          · {line.color_family}
+                        </span>
+                      )}
+                    </div>
+                    <div className="col-span-4">
+                      <Input
+                        value={promptPerFormula[idx]?.vat ?? ''}
+                        onChange={(e) =>
+                          updatePromptMeta(idx, { vat: e.target.value })
+                        }
+                        placeholder="缸号 (例: 5-2)"
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <Input
+                        value={promptPerFormula[idx]?.yarn ?? ''}
+                        onChange={(e) =>
+                          updatePromptMeta(idx, { yarn: e.target.value })
+                        }
+                        placeholder="纱支 (例: 32S/2)"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="shrink-0 gap-2 border-t bg-background px-6 py-3">
             <Button variant="ghost" onClick={() => setPromptOpen(false)}>
               取消
             </Button>

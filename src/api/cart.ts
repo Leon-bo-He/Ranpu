@@ -37,18 +37,22 @@ export const cartApi = {
     invoke<void>('cmd_export_cart', { cmd: { format, out_path: outPath } }),
 
   /// 渲染当前批次清单为 HTML 字符串, 不落盘. 用于 iframe 预览 / 打印.
-  /// customer / vatNumber / yarnCount 为前端预览对话框收集到的元信息, 写到
-  /// 批次单头部. 都可空, 后端 customer 为空时 fallback 到当前工作区名.
+  /// customer 写到批次单头部 (空则后端 fallback 当前工作区名).
+  /// perFormula 跟 list() 返回的购物车顺序对齐, 每条配方独立的缸号 / 纱支.
   previewHtml: (args: {
     customer?: string | null;
-    vatNumber?: string | null;
-    yarnCount?: string | null;
+    perFormula?: Array<{
+      vatNumber?: string | null;
+      yarnCount?: string | null;
+    }>;
   } = {}) =>
     invoke<string>('cmd_preview_cart_as_batch_sheet_html', {
       cmd: {
         customer: args.customer ?? null,
-        vat_number: args.vatNumber ?? null,
-        yarn_count: args.yarnCount ?? null,
+        per_formula: (args.perFormula ?? []).map((m) => ({
+          vat_number: m.vatNumber ?? null,
+          yarn_count: m.yarnCount ?? null,
+        })),
       },
     }),
 };
