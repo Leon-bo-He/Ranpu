@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use chrono::Utc;
+use chrono::Local;
 
 use crate::application::ports::batch_sheet_exporter::{
     BatchSheetContext, BatchSheetError, BatchSheetExporter, BatchSheetFormat,
@@ -89,8 +89,9 @@ fn format_amount(v: f64) -> String {
 }
 
 fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
-    // 算一次 date, 上面 <title> 和下面 "导出时间" 行共用.
-    let now = Utc::now();
+    // 算一次 local 时间, 上面 <title> 和下面 "导出时间" 行共用.
+    // 用 Local 而非 Utc — 车间用户看到的是机器本地时间, 不需要在脑袋里转换时区.
+    let now = Local::now();
     let date = now.format("%Y-%m-%d").to_string();
     // 文档 title 决定 WebView2 "Save as PDF" 时的默认文件名: 客户名-批次单-日期.
     // 工作区名先过 sanitize_for_filename 去掉 Windows 禁字符.
@@ -189,7 +190,7 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         ));
     }
     html.push_str("    <div class=\"row\"><span class=\"label\">导出时间:</span><span class=\"value\">");
-    html.push_str(&now.format("%Y-%m-%d %H:%M UTC").to_string());
+    html.push_str(&now.format("%Y-%m-%d %H:%M").to_string());
     html.push_str("</span></div>\n");
     html.push_str("  </div>\n");
 
@@ -197,10 +198,9 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         html.push_str(r#"  <div class="formula">"#);
         html.push('\n');
         html.push_str(&format!(
-            r#"    <h2>{} <span class="target">目标 {} kg</span><span class="source">{}</span></h2>"#,
+            r#"    <h2>{} <span class="target">目标 {} kg</span></h2>"#,
             html_escape(r.internal_color_code.as_str()),
             format_amount(r.target_kg.value()),
-            html_escape(r.source.display_label()),
         ));
         html.push('\n');
         html.push_str("    <table>\n");
