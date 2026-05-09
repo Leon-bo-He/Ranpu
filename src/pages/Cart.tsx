@@ -196,11 +196,10 @@ export function CartPage() {
     setBatchSheetInfo(activeWorkspaceId, { customer, perFormula: map });
   };
 
-  // "生成缸号" 入口. 注意 peek 不推进全局计数器 — 只有用户真的点 "打印"
-  // 才 commit (见 onPrintPreview), 重复点这里也会拿到相同号. 跨日自动从
-  // 1-1 重置, 缸号到 vatCount 自动进入下一批 (例: 4 缸厂 4-2 之后是 1-3).
-  // 如果 prompt 里已经填了任何缸号, 弹三选 dialog 让用户决定覆盖还是接
-  // 续; 全部空白则直接走覆盖逻辑.
+  // "生成缸号" 入口. 填一次就把全局计数器推进到本次最大缸号, 下次别的
+  // 入口 (本工作区或其它) 生成会接着往后排. 跨日自动从 1-1 重置, 缸号
+  // 到 vatCount 自动进入下一批 (例: 4 缸厂 4-2 之后是 1-3). 如果 prompt
+  // 里已填了任何缸号, 弹三选 dialog 决定覆盖还是接续; 全空则直接覆盖.
   const onGenerateVats = () => {
     if (lines.length === 0) return;
     const hasFilled = promptPerFormula.some((m) => m.vat.trim() !== '');
@@ -211,11 +210,9 @@ export function CartPage() {
     }
   };
 
-  // 全部覆盖: 把所有行从当前 prompt 的最大缸号之后重新编号 (含已填行).
-  // 注意不能直接 peek 全局计数器: 它只有 print 才推进, 没打印过的话反复
-  // 点 "全部重新生成" 会拿到一样的号 (用户察觉不到变化). 用表里最大号
-  // +1 起算才能保证每次点都向后跳, 同时跟 commit-on-print 的语义一致.
-  // 表里没有可解析号 (空表 / 全是手填乱码) 才退回 peek 全局计数器.
+  // 全部覆盖: 把所有行从表里最大缸号之后重新编号 (含已填行). 表里没可
+  // 解析号 (空表 / 全是乱码) 才退回 peek 全局计数器. 完成后把计数器推
+  // 到本次最大缸号 — "填了就推进", 让别的入口接着排.
   const doGenerateOverwrite = () => {
     const filledMax = maxVatSlot(
       promptPerFormula
@@ -231,12 +228,14 @@ export function CartPage() {
       return { ...m, vat: `${slot.vat}-${slot.batch}` };
     });
     setPromptPerFormula(next);
+    const last = slots[slots.length - 1];
+    if (last) useVatSequenceStore.getState().commit(last);
     persistPromptInfo(promptCustomer, next);
   };
 
   // 接续填写: 按当前 prompt 里能解析出的 (batch, vat) 字典序最大缸号
-  // 往后排, 只填空白行. 如果没法解析出任何合法缸号, 退化为从全局计数
-  // 器接 (相当于覆盖空白行).
+  // 往后排, 只填空白行. 没法解析出合法号时退回 peek 全局计数器. 完成
+  // 后把计数器推到本次最大缸号.
   const doGenerateContinue = () => {
     const emptyIdx: number[] = [];
     promptPerFormula.forEach((m, i) => {
@@ -259,6 +258,8 @@ export function CartPage() {
       return { ...m, vat: `${slot.vat}-${slot.batch}` };
     });
     setPromptPerFormula(next);
+    const last = slots[slots.length - 1];
+    if (last) useVatSequenceStore.getState().commit(last);
     persistPromptInfo(promptCustomer, next);
   };
 
@@ -313,9 +314,8 @@ export function CartPage() {
     const ifWin = previewIframeRef.current?.contentWindow;
     if (!ifWin) return;
 
-    // 真正打印时才把全局 vat 计数器推到当前批次单里出现的最大缸号. 解析
-    // 所有可识别 "X-Y" 缸号, 取 (batch, vat) 字典序最大那个 commit. 用户
-    // 手填的非标准格式或空值会被忽略, 计数器只跟实际打出去的最大号走.
+    // 打印时再 commit 一次, 兜底用户在生成缸号之后手填了更大的号. commit
+    // 内部仅当新值大于当前 (或跨日) 才推进, 重复 commit 没副作用.
     const printedSlots = promptPerFormula
       .map((m) => parseVatSlot(m.vat))
       .filter((s): s is NonNullable<typeof s> => s !== null);
