@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 
 import { bootApi } from '@/api/boot';
 import { ApiError } from '@/api/invoke';
+import { EditModeAutoOffGuard } from '@/components/EditModeAutoOffGuard';
 import { IdleDetector } from '@/components/IdleDetector';
 import { LockOverlay } from '@/components/LockOverlay';
 import { Sidebar } from '@/components/Sidebar';
@@ -105,6 +106,7 @@ function App() {
   return (
     <BrowserRouter>
       <IdleDetector />
+      <EditModeAutoOffGuard />
       <div className="flex h-screen flex-col bg-background text-foreground">
         <TopBar />
         <div className="flex flex-1 overflow-hidden">

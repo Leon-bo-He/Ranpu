@@ -5,6 +5,7 @@ import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import type { BatchCopySummaryView, FormulaView } from '@/api/types';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EditModeToggle } from '@/components/EditModeToggle';
 import { FormulaCard } from '@/components/FormulaCard';
 import { FormulaEditor } from '@/components/FormulaEditor';
 import { Badge } from '@/components/ui/badge';
@@ -25,11 +26,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useEditModeStore } from '@/store/editMode';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
 export function DefaultLibraryPage() {
   const session = useSessionStore((s) => s.session);
   const hasWs = hasActiveWorkspace(session);
+  const editEnabled = useEditModeStore((s) => s.formulaEditEnabled);
+  const enableEdit = useEditModeStore((s) => s.enableFormulaEdit);
+  const disableEdit = useEditModeStore((s) => s.disableFormulaEdit);
+  const touchEdit = useEditModeStore((s) => s.touchFormulaActivity);
 
   const [keyword, setKeyword] = useState('');
   // 防抖关键词: 输入停 300ms 后才触发查询.
@@ -100,6 +106,7 @@ export function DefaultLibraryPage() {
     if (!pendingDelete) return;
     try {
       await formulaApi.deleteDefault(pendingDelete.id);
+      touchEdit();
       setPendingDelete(null);
       load();
     } catch (e) {
@@ -110,6 +117,7 @@ export function DefaultLibraryPage() {
 
   const onSave = async (payload: Parameters<typeof formulaApi.upsertDefault>[0]) => {
     await formulaApi.upsertDefault(payload);
+    touchEdit();
     setEditorOpen(false);
     load();
   };
@@ -181,16 +189,26 @@ export function DefaultLibraryPage() {
               </Button>
             </>
           )}
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setEditorOpen(true);
-            }}
-          >
-            <Plus className="mr-1 h-4 w-4" /> 新建配方
-          </Button>
+          {editEnabled && (
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setEditorOpen(true);
+              }}
+            >
+              <Plus className="mr-1 h-4 w-4" /> 新建配方
+            </Button>
+          )}
         </div>
       </div>
+
+      <EditModeToggle
+        label="配方管理"
+        whenOffCanStill="计算配方 / 加入批次清单 / 复制到工作区"
+        enabled={editEnabled}
+        onEnable={enableEdit}
+        onDisable={disableEdit}
+      />
 
       <div className="max-w-md">
         <div className="relative">
@@ -231,14 +249,18 @@ export function DefaultLibraryPage() {
               key={f.id}
               formula={f}
               source="default"
-              canManage
+              canManage={editEnabled}
               hasActiveWorkspace={hasWs}
               onCopyToWorkspace={onCopyToWorkspace}
-              onEdit={(f) => {
-                setEditing(f);
-                setEditorOpen(true);
-              }}
-              onDelete={askDelete}
+              onEdit={
+                editEnabled
+                  ? (f) => {
+                      setEditing(f);
+                      setEditorOpen(true);
+                    }
+                  : undefined
+              }
+              onDelete={editEnabled ? askDelete : undefined}
               selected={selectionEnabled ? selectedIds.has(f.id) : undefined}
               onToggleSelected={selectionEnabled ? onToggleSelected : undefined}
             />
