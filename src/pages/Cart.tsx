@@ -211,9 +211,20 @@ export function CartPage() {
     }
   };
 
-  // 全部覆盖: 从全局计数器 peek N 个连续槽位, 按行写入 (覆盖原值).
+  // 全部覆盖: 把所有行从当前 prompt 的最大缸号之后重新编号 (含已填行).
+  // 注意不能直接 peek 全局计数器: 它只有 print 才推进, 没打印过的话反复
+  // 点 "全部重新生成" 会拿到一样的号 (用户察觉不到变化). 用表里最大号
+  // +1 起算才能保证每次点都向后跳, 同时跟 commit-on-print 的语义一致.
+  // 表里没有可解析号 (空表 / 全是手填乱码) 才退回 peek 全局计数器.
   const doGenerateOverwrite = () => {
-    const slots = useVatSequenceStore.getState().peek(lines.length, vatCount);
+    const filledMax = maxVatSlot(
+      promptPerFormula
+        .map((m) => parseVatSlot(m.vat))
+        .filter((s): s is NonNullable<typeof s> => s !== null),
+    );
+    const slots = filledMax
+      ? nextSlotsFrom(filledMax, lines.length, vatCount)
+      : useVatSequenceStore.getState().peek(lines.length, vatCount);
     const next = promptPerFormula.map((m, i) => {
       const slot = slots[i];
       if (!slot) return m;
@@ -561,8 +572,8 @@ export function CartPage() {
             <DialogTitle>如何生成缸号?</DialogTitle>
             <DialogDescription>
               {filledMaxLabel
-                ? `批次单当前已填到 ${filledMaxLabel}. 「全部重新生成」会丢弃所有已填缸号, 从头重新排; 「只填空白」保留已填行, 把空白行接在 ${filledMaxLabel} 后.`
-                : '批次单已填了缸号. 「全部重新生成」会丢弃所有已填缸号, 从头重新排; 「只填空白」保留已填行, 只补空白行.'}
+                ? `批次单当前已填到 ${filledMaxLabel}. 「全部重新生成」把每一行从 ${filledMaxLabel} 之后重新编号 (已填值会被覆盖); 「只填空白」保留已填行, 把空白行接在 ${filledMaxLabel} 后.`
+                : '批次单已填了缸号. 「全部重新生成」清掉所有手填值重新排; 「只填空白」保留已填行, 只补空白行.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
