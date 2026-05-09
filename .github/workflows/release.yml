@@ -17,6 +17,10 @@ env:
 jobs:
   build-windows-x64:
     runs-on: windows-latest
+    # generate-release-notes 这一步需要 GITHUB_TOKEN 有 contents: write,
+    # 即使我们不再把产物推 GitHub Releases.
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
