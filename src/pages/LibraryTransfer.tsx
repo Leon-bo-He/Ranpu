@@ -48,7 +48,7 @@ export function LibraryTransferPage() {
       </div>
       <p className="text-sm text-muted-foreground">
         将默认配方库与一个或多个工作区一次性加密导出为 .ranpu
-        文件，或在另一台机器导入。工作区按名称匹配 (找不到则新建，已存在可选合并或跳过)。
+        文件，或在另一台机器导入。工作区按名称匹配（找不到则新建，已存在可选合并或跳过）。
       </p>
       <ExportSection />
       <ImportSection />
@@ -376,9 +376,9 @@ function ImportSection() {
         {state && (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              文件: <span className="font-mono">{state.inPath}</span>
+              文件：<span className="font-mono">{state.inPath}</span>
               {' · '}
-              导出时间: {state.preview.exported_at}
+              导出时间：{state.preview.exported_at}
             </p>
 
             <div className="rounded-md border p-3 space-y-2">

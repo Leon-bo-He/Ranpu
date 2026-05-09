@@ -370,7 +370,7 @@ export function CartPage() {
             variant="outline"
             onClick={onOpenPreviewPrompt}
             disabled={previewBusy || lines.length === 0}
-            title="弹出批次单预览, 点打印可调起系统打印对话框 (Windows 内置 Microsoft Print to PDF)"
+            title="弹出批次单预览，点打印可调起系统打印对话框（Windows 内置 Microsoft Print to PDF）"
           >
             <Printer className="mr-1 h-4 w-4" />
             {previewBusy ? '生成中…' : '预览 / 打印'}
@@ -512,14 +512,14 @@ export function CartPage() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>每条配方的缸号 / 纱支 (留空则不显示)</Label>
+                <Label>每条配方的缸号 / 纱支（留空则不显示）</Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={onGenerateVats}
                   disabled={lines.length === 0}
-                  title={`按设置中的染缸数量 (${vatCount}) 自动生成连续缸号. 跨日自动重置批次.`}
+                  title={`按设置中的染缸数量（${vatCount}）自动生成连续缸号。跨日自动重置批次。`}
                 >
                   生成缸号
                 </Button>
@@ -546,7 +546,7 @@ export function CartPage() {
                         onChange={(e) =>
                           updatePromptMeta(idx, { vat: e.target.value })
                         }
-                        placeholder="缸号 (例: 5-2)"
+                        placeholder="缸号（例：5-2）"
                       />
                     </div>
                     <div className="col-span-4">
@@ -555,7 +555,7 @@ export function CartPage() {
                         onChange={(e) =>
                           updatePromptMeta(idx, { yarn: e.target.value })
                         }
-                        placeholder="纱支 (例: 32S/2)"
+                        placeholder="纱支（例：32S/2）"
                       />
                     </div>
                   </div>
@@ -578,23 +578,23 @@ export function CartPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>如何生成缸号?</DialogTitle>
+            <DialogTitle>如何生成缸号？</DialogTitle>
             <DialogDescription>
               {filledMaxLabel ? (
                 <>
-                  当前批次单已填到 {filledMaxLabel}.
+                  当前批次单已填到 {filledMaxLabel}。
                   <br />
-                  「全部重新生成」会{overwriteFromSegment}给每一行重新编号 (已填值将被覆盖);
+                  「全部重新生成」会{overwriteFromSegment}给每一行重新编号（已填值将被覆盖）；
                   <br />
-                  「只填空白」则保留已填行, 把空白行接在 {filledMaxLabel} 之后.
+                  「只填空白」则保留已填行，把空白行接在 {filledMaxLabel} 之后。
                 </>
               ) : (
                 <>
-                  批次单已填了缸号.
+                  批次单已填了缸号。
                   <br />
-                  「全部重新生成」会{overwriteFromSegment}给每一行重新编号;
+                  「全部重新生成」会{overwriteFromSegment}给每一行重新编号；
                   <br />
-                  「只填空白」则保留已填行, 只补空白行.
+                  「只填空白」则保留已填行，只补空白行。
                 </>
               )}
             </DialogDescription>

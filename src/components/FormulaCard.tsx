@@ -80,7 +80,7 @@ export function FormulaCard({
           )}
         </div>
         {formula.color_family && (
-          <CardDescription>色系: {formula.color_family}</CardDescription>
+          <CardDescription>色系：{formula.color_family}</CardDescription>
         )}
       </CardHeader>
       <CardContent className="flex-1 space-y-2 text-sm">
@@ -93,7 +93,7 @@ export function FormulaCard({
               <span className="truncate">
                 {it.dye_name}
                 {it.dye_code && (
-                  <span className="ml-1 text-muted-foreground">({it.dye_code})</span>
+                  <span className="ml-1 text-muted-foreground">（{it.dye_code}）</span>
                 )}
               </span>
               <span className="whitespace-nowrap font-mono">

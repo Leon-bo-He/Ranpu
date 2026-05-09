@@ -53,7 +53,7 @@ export function DashboardPage() {
         <NavCard
           to="/cart"
           title="批次清单"
-          desc="本缸要染的多条配方汇总，一键导出批次单 (CSV / 可打印 HTML) 交操作工。"
+          desc="本缸要染的多条配方汇总，一键导出批次单（CSV / 可打印 HTML）交操作工。"
           icon={<ShoppingCart className="h-5 w-5" />}
         />
         <NavCard
@@ -71,13 +71,13 @@ export function DashboardPage() {
         <NavCard
           to="/library-transfer"
           title="配方互导"
-          desc="把默认库 + 任意工作区一次性加密导出为 .ranpu，或在另一台机器导入；工作区按名称匹配 (新建 / 合并 / 跳过)。"
+          desc="把默认库 + 任意工作区一次性加密导出为 .ranpu，或在另一台机器导入；工作区按名称匹配（新建 / 合并 / 跳过）。"
           icon={<PackageOpen className="h-5 w-5" />}
         />
         <NavCard
           to="/settings"
           title="设置"
-          desc="自动锁屏时长 (5/10/30/60 分钟)。"
+          desc="自动锁屏时长（5/10/30/60 分钟）。"
           icon={<Cog className="h-5 w-5" />}
         />
       </div>

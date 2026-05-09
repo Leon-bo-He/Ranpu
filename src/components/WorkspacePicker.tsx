@@ -145,7 +145,7 @@ export function WorkspacePicker() {
               <Input
                 ref={inputRef}
                 className="h-9 pl-8"
-                placeholder="搜索工作区: 名字 / 描述"
+                placeholder="搜索工作区：名字 / 描述"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => {
