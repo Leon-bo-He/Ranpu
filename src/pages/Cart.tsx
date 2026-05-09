@@ -237,7 +237,8 @@ export function CartPage() {
               <TableHead>色系</TableHead>
               <TableHead>来源</TableHead>
               <TableHead>目标 kg</TableHead>
-              <TableHead>染料明细 / 总克数</TableHead>
+              <TableHead>染料明细</TableHead>
+              <TableHead className="text-right">克数</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -270,20 +271,19 @@ export function CartPage() {
                     }}
                   />
                 </TableCell>
-                <TableCell className="max-w-md text-xs">
+                {/* 染料明细 + 克数 拆成两列, 用 align-top 让多行染料从顶部
+                    起算, 两列每一行严格对齐 (同 i 下标 = 同一染料行). */}
+                <TableCell className="max-w-md align-top text-xs">
                   {line.calculation ? (
                     <div className="space-y-1">
                       {line.calculation.lines.map((cl, i) => (
-                        <div key={i} className="flex justify-between gap-2">
-                          <span className="truncate">
-                            {cl.dye_name}
-                            {cl.dye_code && (
-                              <span className="ml-1 text-muted-foreground">
-                                ({cl.dye_code})
-                              </span>
-                            )}
-                          </span>
-                          <span className="font-mono">{formatGrams(cl.grams)}</span>
+                        <div key={i} className="truncate">
+                          {cl.dye_name}
+                          {cl.dye_code && (
+                            <span className="ml-1 text-muted-foreground">
+                              ({cl.dye_code})
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -291,7 +291,18 @@ export function CartPage() {
                     <span className="text-destructive">{line.error ?? '无结果'}</span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="align-top text-right text-xs">
+                  {line.calculation && (
+                    <div className="space-y-1">
+                      {line.calculation.lines.map((cl, i) => (
+                        <div key={i} className="font-mono">
+                          {formatGrams(cl.grams)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="align-top">
                   <Button size="icon" variant="ghost" onClick={() => onRemove(line)}>
                     <Trash className="h-4 w-4" />
                   </Button>
