@@ -1,18 +1,22 @@
 name: Release
 
-# 推 v* tag (例: v1.0.0) 触发 Windows x64 打包并发布到 GitHub Releases.
-# 也可以在 Actions 页面手动触发 (workflow_dispatch).
+# 推 v* tag (例: v1.0.0) 触发 Windows x64 打包并发布到 Gitee Releases.
+# GitHub Actions 仍负责跑构建 (Gitee Go 不提供免费 Windows runner),
+# 产出 .exe + .sig 之后通过 Gitee Open API 上传到 Gitee Release,
+# 同时把 latest.json 推到 release-meta 分支供 tauri-updater 读取.
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
 
+env:
+  GITEE_OWNER: Leon-bo-He
+  GITEE_REPO: Ranpu
+
 jobs:
   build-windows-x64:
     runs-on: windows-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -58,23 +62,177 @@ jobs:
       - name: Install frontend deps
         run: npm ci
 
-      - name: Build + bundle + publish to Releases
-        uses: tauri-apps/tauri-action@v0
+      # tauri-plugin-updater 签名: tauri signer generate 出 .key + .pub,
+      # private key 内容贴进 GitHub repo secret TAURI_SIGNING_PRIVATE_KEY,
+      # 生成时设的密码贴进 TAURI_SIGNING_PRIVATE_KEY_PASSWORD,
+      # public key 写到 src-tauri/tauri.conf.json plugins.updater.pubkey.
+      # createUpdaterArtifacts: true 让 tauri build 自动生成 .exe.sig.
+      - name: Build Tauri (Windows x64)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # tauri-plugin-updater 签名: tauri signer generate 出 .key + .pub,
-          # private key 内容贴进 GitHub repo secret TAURI_SIGNING_PRIVATE_KEY,
-          # 生成时设的密码贴进 TAURI_SIGNING_PRIVATE_KEY_PASSWORD,
-          # public key 写到 src-tauri/tauri.conf.json plugins.updater.pubkey.
-          # tauri-action 会自动产 latest.json + .sig 并上传到 Release.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: '染谱 Ranpu ${{ github.ref_name }}'
-          # 把自动生成的 changelog 灌进去 (会同时进 Release 页面和 latest.json).
-          # 首次安装步骤迁去 README, 这里只放 "本版改了什么".
-          releaseBody: ${{ steps.notes.outputs.body }}
-          releaseDraft: false
-          prerelease: false
-          args: --target x86_64-pc-windows-msvc
+        run: npm run tauri -- build --target x86_64-pc-windows-msvc
+
+      - name: Locate artifacts
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE_DIR=src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
+          EXE=$(ls "$BUNDLE_DIR"/*-setup.exe | head -n 1)
+          SIG="${EXE}.sig"
+          [ -f "$EXE" ] || { echo "missing exe: $EXE"; exit 1; }
+          [ -f "$SIG" ] || { echo "missing sig: $SIG"; exit 1; }
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          EXE_NAME=$(basename "$EXE")
+          {
+            echo "exe=$EXE"
+            echo "sig=$SIG"
+            echo "exe_name=$EXE_NAME"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Gitee Release + upload exe / sig
+        id: gitee_release
+        shell: bash
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          NOTES: ${{ steps.notes.outputs.body }}
+          EXE: ${{ steps.artifacts.outputs.exe }}
+          SIG: ${{ steps.artifacts.outputs.sig }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg tok "$GITEE_TOKEN" \
+            --arg tag "$TAG" \
+            --arg name "染谱 Ranpu $TAG" \
+            --arg body "$NOTES" \
+            '{access_token: $tok, tag_name: $tag, name: $name, body: $body, target_commitish: "main", prerelease: false}' \
+            > /tmp/release.json
+
+          RESP=$(curl -fsSL -X POST \
+            -H "Content-Type: application/json" \
+            -d @/tmp/release.json \
+            "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases")
+          REL_ID=$(echo "$RESP" | jq -r .id)
+          if [ -z "$REL_ID" ] || [ "$REL_ID" = "null" ]; then
+            echo "Failed to create Gitee release: $RESP"
+            exit 1
+          fi
+          echo "Gitee release id: $REL_ID"
+
+          curl -fsSL -X POST \
+            -F "access_token=${GITEE_TOKEN}" \
+            -F "file=@${EXE}" \
+            "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases/${REL_ID}/attach_files"
+
+          curl -fsSL -X POST \
+            -F "access_token=${GITEE_TOKEN}" \
+            -F "file=@${SIG}" \
+            "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases/${REL_ID}/attach_files"
+
+          echo "release_id=$REL_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Build latest.json (updater manifest)
+        id: manifest
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.artifacts.outputs.version }}
+          EXE_NAME: ${{ steps.artifacts.outputs.exe_name }}
+          SIG: ${{ steps.artifacts.outputs.sig }}
+          NOTES: ${{ steps.notes.outputs.body }}
+        run: |
+          set -euo pipefail
+          SIG_CONTENT=$(cat "$SIG")
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          DOWNLOAD_URL="https://gitee.com/${GITEE_OWNER}/${GITEE_REPO}/releases/download/${TAG}/${EXE_NAME}"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg notes "$NOTES" \
+            --arg pub_date "$PUB_DATE" \
+            --arg signature "$SIG_CONTENT" \
+            --arg url "$DOWNLOAD_URL" \
+            '{
+              version: $version,
+              notes: $notes,
+              pub_date: $pub_date,
+              platforms: {
+                "windows-x86_64": {
+                  signature: $signature,
+                  url: $url
+                }
+              }
+            }' > latest.json
+          cat latest.json
+
+      - name: Attach latest.json to Gitee Release
+        shell: bash
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          REL_ID: ${{ steps.gitee_release.outputs.release_id }}
+        run: |
+          curl -fsSL -X POST \
+            -F "access_token=${GITEE_TOKEN}" \
+            -F "file=@latest.json" \
+            "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases/${REL_ID}/attach_files"
+
+      # tauri-plugin-updater 需要一个稳定 URL 拉 latest.json (不能挂 tag 上,
+      # 客户端无从知道 "最新 tag 是哪个"). 把它 PUT 到 release-meta 分支根目录
+      # 即可通过 https://gitee.com/{owner}/{repo}/raw/release-meta/latest.json 拉.
+      # 用 contents API 直接 upsert, 不用 git clone, 不用配 SSH key.
+      - name: Upsert latest.json on release-meta branch (Gitee)
+        shell: bash
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          BRANCH=release-meta
+          API="https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}"
+
+          # 没有分支就基于 main 建一个; 已存在就略过.
+          BR_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${API}/branches/${BRANCH}?access_token=${GITEE_TOKEN}")
+          if [ "$BR_CHECK" != "200" ]; then
+            curl -fsSL -X POST \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg tok "$GITEE_TOKEN" --arg br "$BRANCH" \
+                       '{access_token: $tok, refs: "main", branch_name: $br}')" \
+              "${API}/branches" || echo "branch create may have failed (might already exist)"
+          fi
+
+          CONTENT_B64=$(base64 -w 0 latest.json 2>/dev/null || base64 latest.json | tr -d '\n')
+
+          # 文件已存在要带 sha 走 PUT, 不存在走 POST.
+          EXISTING=$(curl -s "${API}/contents/latest.json?ref=${BRANCH}&access_token=${GITEE_TOKEN}")
+          SHA=$(echo "$EXISTING" | jq -r '.sha // empty')
+
+          if [ -n "$SHA" ]; then
+            jq -n \
+              --arg tok "$GITEE_TOKEN" \
+              --arg msg "release: ${TAG}" \
+              --arg content "$CONTENT_B64" \
+              --arg branch "$BRANCH" \
+              --arg sha "$SHA" \
+              '{access_token: $tok, message: $msg, content: $content, branch: $branch, sha: $sha}' \
+              > /tmp/file.json
+            curl -fsSL -X PUT \
+              -H "Content-Type: application/json" \
+              -d @/tmp/file.json \
+              "${API}/contents/latest.json"
+          else
+            jq -n \
+              --arg tok "$GITEE_TOKEN" \
+              --arg msg "release: ${TAG}" \
+              --arg content "$CONTENT_B64" \
+              --arg branch "$BRANCH" \
+              '{access_token: $tok, message: $msg, content: $content, branch: $branch}' \
+              > /tmp/file.json
+            curl -fsSL -X POST \
+              -H "Content-Type: application/json" \
+              -d @/tmp/file.json \
+              "${API}/contents/latest.json"
+          fi
