@@ -223,3 +223,19 @@ jobs:
             -c user.name="Ranpu CI" \
             commit -m "release: ${TAG}"
           git -C "$TMPDIR" push origin release-meta
+
+      # 镜像一份到 GitHub Releases, 海外用户 / 冗余备份用. tauri-updater
+      # 仍只看 Gitee, 这里只是把同一份产物挂到 GitHub Release 页面.
+      # softprops/action-gh-release@v2 用 GITHUB_TOKEN, 不需要额外 secret.
+      - name: Mirror to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: 染谱 Ranpu ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.body }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ steps.artifacts.outputs.exe }}
+            ${{ steps.artifacts.outputs.sig }}
+            latest.json
