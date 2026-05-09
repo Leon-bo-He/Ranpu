@@ -27,6 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatGrams } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
 export function CartPage() {
@@ -49,6 +50,10 @@ export function CartPage() {
   >([]);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
+  // 预览版本 toggle: standard (每条一段) 或 grid (A4 九宫格). 用户在
+  // 预览框右上角切换, 切换时重新请求对应 HTML.
+  const [previewLayout, setPreviewLayout] =
+    useState<'standard' | 'grid'>('standard');
 
   const load = () => {
     if (!hasWs) {
@@ -147,10 +152,9 @@ export function CartPage() {
       prev.map((m, i) => (i === idx ? { ...m, ...patch } : m)),
     );
 
-  const onConfirmPreview = async () => {
+  // 用最新 prompt + 指定 layout 拉一份预览 HTML. 提交 prompt / 切 tab 都走这里.
+  const fetchPreview = async (layout: 'standard' | 'grid') => {
     const customer = promptCustomer.trim();
-    setPromptOpen(false);
-    setPrintCustomer(customer || workspaceName);
     setPreviewBusy(true);
     try {
       const html = await cartApi.previewHtml({
@@ -159,13 +163,23 @@ export function CartPage() {
           vatNumber: m.vat.trim() || null,
           yarnCount: m.yarn.trim() || null,
         })),
+        layout,
       });
       setPreviewHtml(html);
+      setPreviewLayout(layout);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
     } finally {
       setPreviewBusy(false);
     }
+  };
+
+  const onConfirmPreview = async () => {
+    const customer = promptCustomer.trim();
+    setPromptOpen(false);
+    setPrintCustomer(customer || workspaceName);
+    // 进预览默认 standard 版本; 用户可在右上角切到 grid.
+    await fetchPreview('standard');
   };
 
   const onPrintPreview = () => {
@@ -402,8 +416,36 @@ export function CartPage() {
         onOpenChange={(o) => !o && setPreviewHtml(null)}
       >
         <DialogContent className="flex h-[90vh] max-w-5xl flex-col gap-0 p-0">
-          <DialogHeader className="shrink-0 border-b px-6 py-4">
+          <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-b px-6 py-4 space-y-0">
             <DialogTitle>批次单预览</DialogTitle>
+            <div className="inline-flex rounded-md border bg-background">
+              <button
+                type="button"
+                disabled={previewBusy}
+                onClick={() => previewLayout !== 'standard' && fetchPreview('standard')}
+                className={cn(
+                  'rounded-l-md px-3 py-1 text-xs transition-colors',
+                  previewLayout === 'standard'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground hover:bg-accent',
+                )}
+              >
+                标准
+              </button>
+              <button
+                type="button"
+                disabled={previewBusy}
+                onClick={() => previewLayout !== 'grid' && fetchPreview('grid')}
+                className={cn(
+                  'rounded-r-md border-l px-3 py-1 text-xs transition-colors',
+                  previewLayout === 'grid'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground hover:bg-accent',
+                )}
+              >
+                九宫格
+              </button>
+            </div>
           </DialogHeader>
           {previewHtml && (
             <iframe

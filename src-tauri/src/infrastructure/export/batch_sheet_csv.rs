@@ -48,6 +48,7 @@ impl BatchSheetExporter for BatchSheetCsvExporter {
         Ok(match format {
             BatchSheetFormat::Csv => render_csv(results),
             BatchSheetFormat::Html => render_html(results, context),
+            BatchSheetFormat::HtmlGrid => render_html_grid(results, context),
         })
     }
 }
@@ -238,6 +239,144 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         html.push_str("    </table>\n");
         html.push_str("  </div>\n");
     }
+    html.push_str("</body>\n</html>\n");
+    html
+}
+
+/// 九宫格 / 多页 A4 打印格式. 一页 3x3 = 9 格, 虚线分割; 染料 ≥ 8 的配方
+/// 跨 2 列独享一格. 没有顶部 meta 段 — 客户 / 缸号 / 纱支 / 色号 / 色系
+/// 都进每个格子里.
+const GRID_WIDE_THRESHOLD: usize = 8;
+
+fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
+    let now = Local::now();
+    let date_short = now.format("%m-%d").to_string();
+    let date_full = now.format("%Y-%m-%d").to_string();
+    let title = match context.workspace_name {
+        Some(name) => format!("{}-批次单-{}", sanitize_for_filename(name), date_full),
+        None => format!("批次单-{date_full}"),
+    };
+
+    // 把 results 切分到 page-cells: 每页最多 9 columns. 跨 2 列的算 2.
+    // CSS Grid auto-flow 会自动布局, Rust 这边只负责按顺序输出 cell + 在
+    // 累计 columns 达到 9 时插入 page break.
+    let total = results.len();
+
+    let mut html = String::new();
+    html.push_str("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n");
+    html.push_str("<meta charset=\"UTF-8\">\n");
+    html.push_str(
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:\">\n",
+    );
+    html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
+    html.push_str(
+        r#"<style>
+  @page { size: A4; margin: 8mm; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
+  .grid-page { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 281mm; page-break-after: always; }
+  .grid-page:last-child { page-break-after: auto; }
+  .cell { border: 1px dashed #999; padding: 6mm 5mm 8mm 5mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 11px; line-height: 1.45; }
+  .cell.wide { grid-column: span 2; }
+  .vat { font-size: 18px; font-weight: bold; line-height: 1.2; margin-bottom: 2px; }
+  .meta-line { font-size: 12px; margin-bottom: 1px; }
+  .divider { border: 0; border-top: 1.5px solid #1f1f1f; margin: 5px 0 6px; }
+  .dye-row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
+  .dye-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dye-row .grams { font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
+  .corner { position: absolute; bottom: 3mm; right: 4mm; font-size: 9px; color: #888; }
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+"#,
+    );
+
+    // 把 results 流式塞进 grid-page. 简单起见: 一页固定 9 列槽位, 来什么放
+    // 什么; 跨 2 列的占两个槽位. 累计满 9 槽位起一个新 page.
+    let mut col_used = 0usize;
+    let mut page_open = false;
+    for (idx, r) in results.iter().enumerate() {
+        let wide = r.lines.len() >= GRID_WIDE_THRESHOLD;
+        let cell_cols = if wide { 2 } else { 1 };
+
+        // 当前 page 装不下 → 关掉再开一页
+        if page_open && col_used + cell_cols > 9 {
+            html.push_str("</div>\n");
+            page_open = false;
+            col_used = 0;
+        }
+        if !page_open {
+            html.push_str("<div class=\"grid-page\">\n");
+            page_open = true;
+        }
+
+        let meta = context.per_formula.get(idx).copied().unwrap_or_default();
+        let class = if wide { "cell wide" } else { "cell" };
+        html.push_str(&format!("  <div class=\"{class}\">\n"));
+
+        // 第一排 缸号 (没填的话用 "—" 占位, 不空)
+        let vat_display = meta.vat_number.unwrap_or("—");
+        html.push_str(&format!(
+            "    <div class=\"vat\">{}</div>\n",
+            html_escape(vat_display),
+        ));
+        // 第二排 客户名
+        let cust = context.workspace_name.unwrap_or("—");
+        html.push_str(&format!(
+            "    <div class=\"meta-line\">{}</div>\n",
+            html_escape(cust),
+        ));
+        // 第三排 内部色号 + 色系
+        let internal = r.internal_color_code.as_str();
+        let third = match meta.color_family {
+            Some(f) => format!("{} · {}", internal, f),
+            None => internal.to_owned(),
+        };
+        html.push_str(&format!(
+            "    <div class=\"meta-line\">{}</div>\n",
+            html_escape(&third),
+        ));
+        // 第四排 纱支
+        let yarn_display = meta.yarn_count.unwrap_or("—");
+        html.push_str(&format!(
+            "    <div class=\"meta-line\">{}</div>\n",
+            html_escape(yarn_display),
+        ));
+        html.push_str("    <hr class=\"divider\" />\n");
+        // 染料明细
+        for l in &r.lines {
+            let dye_label = match l.dye_code.as_deref() {
+                Some(code) => format!("{} ({})", l.dye_name, code),
+                None => l.dye_name.clone(),
+            };
+            html.push_str(&format!(
+                "    <div class=\"dye-row\"><span class=\"name\">{}</span><span class=\"grams\">{} g</span></div>\n",
+                html_escape(&dye_label),
+                format_amount(l.grams.value()),
+            ));
+        }
+        // 角落: 导出时间 + 当前 / 总
+        html.push_str(&format!(
+            "    <div class=\"corner\">{} {}/{}</div>\n",
+            date_short,
+            idx + 1,
+            total,
+        ));
+        html.push_str("  </div>\n");
+
+        col_used += cell_cols;
+        if col_used >= 9 {
+            html.push_str("</div>\n");
+            page_open = false;
+            col_used = 0;
+        }
+    }
+    if page_open {
+        html.push_str("</div>\n");
+    }
+
     html.push_str("</body>\n</html>\n");
     html
 }

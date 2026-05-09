@@ -39,6 +39,7 @@ impl CartService {
         let format_str = match input.format {
             BatchSheetFormat::Csv => "csv",
             BatchSheetFormat::Html => "html",
+            BatchSheetFormat::HtmlGrid => "html-grid",
         };
         let event = AuditEvent::new(
             Some(workspace_id),
