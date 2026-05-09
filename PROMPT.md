@@ -9,7 +9,7 @@
 ═══════════════════════════════════════════════════════
 - 应用名：染谱
 - 英文名：Ranpu
-- 副标题（用于登录页副标题、About 对话框、README 顶部）：DYE FORMULA
+- 副标题（用于解锁 / 首次启动页副标题、About 对话框、README 顶部）：DYE FORMULA
 
 - Logo SVG（纯图形，不含任何文字。保存为 src/assets/logo.svg，并复制一份到 src-tauri/icons/source-logo.svg）：
 
@@ -46,7 +46,7 @@
   · animated?: boolean — 是否播放绘制动画（默认 false）。为 true 时保留 SVG 内的 <animate> 元素；为 false 时组件渲染时移除 <animate>，只保留静态曲线。
 
 - Logo 出现位置（明确传参）：
-  · 登录页：<RanpuLogo size={120} withText={false} animated={true} /> 居中，下方另起一行单独渲染"染谱"中文（24px 宋体）+ 再下一行"DYE FORMULA"（10px sans，字间距 2px，颜色 var(--color-text-tertiary)）
+  · BootScreen / FirstRunSetup 页：<RanpuLogo size={120} withText={false} animated={true} /> 居中，下方另起一行单独渲染"染谱"中文（24px 宋体）+ 再下一行"DYE FORMULA"（10px sans，字间距 2px，颜色 var(--color-text-tertiary)）
   · 主界面顶栏左侧：<RanpuLogo size={28} withText={true} animated={false} />
   · 锁屏遮罩：<RanpuLogo size={80} withText={false} animated={false} /> 居中，下方"染谱"中文小字
   · 关于对话框：<RanpuLogo size={64} withText={true} animated={false} /> + 版本号
@@ -54,51 +54,62 @@
   · 应用窗口图标 + 任务栏图标 + 系统通知图标：由 tauri icon 命令生成的位图
 
 ═══════════════════════════════════════════════════════
-【认证与会话模型】
+【认证 / 解锁模型】
 ═══════════════════════════════════════════════════════
-- 用户表 users 包含两种 role：'admin' 和 'user'，两种都登录系统。
-- 密码存 argon2 哈希；连续 5 次失败锁定 15 分钟；锁定信息存 users.failed_attempts + users.locked_until。
-- 会话对象 Session 持有 { user_id, role, username, active_workspace_id: Option<i64>, locked: bool, last_activity_at }。
-- 角色权限：
-  · admin：管理 default 配方库（增删改）、管理 workspace 列表、管理用户、看审计日志、导出审计日志、配方计算、所有 user 能做的事。
-  · user：只读 default 配方库、只读当前 workspace 配方、把配方加到当前 workspace 的购物车、做计算。不能新增/编辑/删除任何配方，不能管理用户。
-- 所有用户登录后默认无激活 workspace。
-- 当 active_workspace_id 为 None 时：admin 仍可管理 default 库和 workspace 列表；user 只能浏览 default 库和切换 workspace。
-- 必须激活某个 workspace 才能：操作 workspace 配方、做计算、用购物车。
-- 任何登录用户都可访问任意 workspace（共享车间工作站模型）。
+单用户车间机器人模型 — 不维护用户表 / 角色 / 登录, 只有一道**应用解锁密码**:
+
+- 主密钥: 32 字节随机生成, Windows DPAPI 保护后存 %APPDATA%\Ranpu\keystore.bin.
+- 应用解锁密码: 用户脑里 / 自己保管, 不写任何文件. 启动时输入它, 后端用
+  PBKDF2-SHA256(主密钥 + 密码, 600k 轮) 派生 SQLCipher PRAGMA key, 解开 ranpu.db.
+- 首次启动 (keystore.bin 不存在): 引导用户设置应用解锁密码 (≥ 8 位), 后端生成
+  主密钥 + 写 keystore.bin + 派生 PRAGMA key + 创建空 DB. 第一次解锁直接进系统.
+- 之后每次启动: 输入正确密码 → 进系统; 输错 → SQLCipher 解密失败 → 后端返回
+  AppError::BootPassphraseIncorrect → UI 显示 "解锁密码不对, 请重试". 没有"试 5 次
+  锁定"概念 (单用户场景, 用户自己想试多少次都行; 暴力破解者拿到本机文件也得对着
+  PBKDF2 600k 轮硬算).
+- **不要 users 表, 不要角色, 不要 admin / user 之分**. 任何能进系统的操作都一律
+  放开 — 创建 / 删除 / 编辑 default 配方, 导出审计, 都没有权限门.
+
+会话 (Session) 简化成纯内存状态 (InMemorySessionStore):
+  AppRunState { locked: bool, active_workspace_id: Option<i64>, last_activity_at: DateTime<Utc> }
+登录后默认无激活 workspace; 必须激活某个才能操作 workspace 配方 / 做计算 / 用批次清单.
 
 ═══════════════════════════════════════════════════════
-【登录体验细节】
+【启动 / 解锁体验细节】
 ═══════════════════════════════════════════════════════
-- 登录按钮按下后立即进入 loading 状态：按钮变灰禁用 + 内置 spinner + 文案改为"正在登录…"。
-- 登录失败的提示要具体：
-  · 用户名不存在 → 不能直接说"用户不存在"（防枚举），统一显示"账号或密码不对"
-  · 密码错 → "账号或密码不对，剩余 N 次机会"
-  · 触发锁定 → "已尝试 5 次都不对，账号已锁定 15 分钟，请稍后再来"
-- 登录成功 → 进入 Workspace 选择页（顶栏 logo + 切换器已就位）。
+- BootScreen 一个密码输入框 + "解锁" 按钮; 按下后立即进入 loading: 按钮 disabled +
+  spinner + 文案 "正在解锁…".
+- 解锁失败 → "解锁密码不对, 请重试" (没有"剩余次数"提示).
+- 解锁成功 → 进 Workspace 选择 (顶栏 WorkspacePicker 就位, 默认未选择 workspace).
+- 首次启动走 FirstRunSetup: 设置 ≥ 8 位解锁密码 + 二次确认 + 提示"密码丢失就开不
+  了应用, 数据无法找回". 设完直接进系统.
 
 ═══════════════════════════════════════════════════════
 【自动锁屏与手动锁屏】
 ═══════════════════════════════════════════════════════
-- 默认空闲 10 分钟自动锁屏（鼠标/键盘无活动），可在「设置」里调整 5/10/30/60 分钟或关闭。
-- 顶栏右侧固定一个「锁定」按钮，点击立即锁屏。
-- 锁屏的语义：会话内存状态全部保留（active_workspace_id、购物车、未保存的编辑都不丢），UI 显示全屏遮罩 + 染谱 logo + 密码框 + "解锁"按钮。
-- 解锁：仅校验当前 user 的密码，正确则恢复界面；错 5 次 → 强制登出（清空 Session，回登录页）。
-- 锁屏不通过后端持久化，纯前端 + 后端 Session 标志位；锁屏期间所有非 unlock_session 的 #[tauri::command] 都拒绝执行并返回"会话已锁定"。
+- 默认空闲 10 分钟自动锁屏 (鼠标 / 键盘无活动); 设置页可调 5 / 10 / 30 / 60 分钟
+  或关闭.
+- 顶栏右侧固定 [锁定] 按钮, 点击立即锁屏.
+- 锁屏语义: 内存状态保留 (active_workspace_id / 批次清单 / 未保存编辑都不丢);
+  UI 全屏遮罩 + 染谱 logo + 密码框 + [解锁] 按钮.
+- 解锁: 重新输 app 解锁密码 (跟启动那个同一个), 后端 PBKDF2 派生一次 PRAGMA key
+  对照 (派生 + 一条 SELECT count(*) 探测), 一致则恢复; 不一致 → "解锁密码不对".
+  错多少次都不强制登出 (没有"用户"可登出).
+- 锁屏纯前端 + 后端 SessionStore.locked 标志; 锁屏期间所有非 unlock_session 的
+  #[tauri::command] 都返回 "会话已锁定" 拒绝执行.
 
 ═══════════════════════════════════════════════════════
 【DDD 设计要点 — 限界上下文】
 ═══════════════════════════════════════════════════════
-1) Identity 上下文
-   - 聚合根：User（id, username, password_hash, role, is_active, failed_attempts, locked_until）
-   - 值对象：PasswordHash, Username, Role 枚举(Admin|User)
-   - 领域服务 trait：PasswordHasher（infra 用 argon2 实现）
+**没有 Identity 上下文** (单用户模型, 解锁密码就够). 应用启动 / 解锁通过
+infrastructure 层的 OsKeyStore + key_derivation, application 层只暴露 boot /
+unlock_session / lock_session 命令; 不需要领域聚合或值对象.
 
-2) Workspace 上下文
-   - 聚合根：Workspace（id, name, description, created_by_user_id, created_at）
+1) Workspace 上下文
+   - 聚合根：Workspace（id, name, description, created_at, kind: Normal | SystemMirror）
    - 值对象：WorkspaceId, WorkspaceName
 
-3) Formula 上下文
+2) Formula 上下文
    - 聚合根 1：DefaultFormula（含 FormulaItem 子实体）
    - 聚合根 2：WorkspaceFormula（含 FormulaItem 子实体；通过 source_default_id 引用 DefaultFormula 的 ID）
    - 值对象：
@@ -111,7 +122,7 @@
      · Percentage, Grams, Kilograms
    - 不变量：每个聚合至少 1 个 item；GramsPerL 必须配方有 LiquorRatio；InternalColorCode 在 default 库全局唯一，在 workspace 内按 (workspace_id, internal_color_code) 唯一。
 
-4) Calculation 上下文
+3) Calculation 上下文
    - 领域服务：DyeCalculator
      · 输入：Formula(trait) + Kilograms
      · 输出：Vec<CalculationLine { dye_name, dye_code, grams, unit_used }>
@@ -121,21 +132,22 @@
         - g_per_L  → grams = target_kg * liquor_ratio * pct
    - 应用服务 FormulaResolver：按内部色号查询，先查激活 workspace，找不到再 fallback 到 default 库；同时支持按客户色号查询（返回多个匹配让用户选）。
 
-5) Cart 上下文
-   - 聚合根：Cart（user_id + workspace_id 复合键，含 CartItem 集合）
+4) Cart 上下文 (UI 文案叫 "批次清单", 代码内部仍叫 cart)
+   - 聚合根：Cart (workspace_id 单键, 含 CartItem 集合)
    - 子实体：CartItem { source_kind: Default|Workspace, source_formula_id, target_kg, added_at }
-   - 用例：add_to_cart、remove_from_cart、update_cart_item_kg、clear_cart、list_cart_with_calculations、export_cart_as_batch_sheet
-   - 不变量：同一 cart 不能重复添加同一 (source_kind, source_formula_id)，二次添加视作更新 target_kg；切换 workspace 时显示该 workspace 对应的 cart。
+   - 用例：add_to_cart、remove_from_cart、update_cart_item_kg、clear_cart、list_cart_with_calculations、export_cart_as_batch_sheet、preview_cart_as_batch_sheet_html
+   - 不变量：同一 workspace 的 cart 不能重复添加同一 (source_kind, source_formula_id)，二次添加视作更新 target_kg；切换 workspace 时显示该 workspace 对应的 cart。
 
-6) Audit 上下文
-   - 实体：AuditEvent（user_id, workspace_context_id, action, target, details, occurred_at）
+5) Audit 上下文
+   - 实体：AuditEvent (workspace_context_id, action, target, details, occurred_at)
    - 领域服务 trait：AuditWriter
-   - 应用服务：list_audit_events(filter)、export_audit_log(filter, encryption_passphrase)
-   - 导出范围筛选：起止日期（必填）、用户筛选（可选多选）、动作类型筛选（可选多选）；输出格式两种：
-     · 加密 .ranpu（默认，AES-256-GCM + PBKDF2，独立口令）
-     · 明文 CSV（需二次确认弹窗"日志包含敏感操作记录，确定明文导出？"）
+   - 应用服务：list_audit_events(filter), export_audit_log(filter, encryption_passphrase)
+   - 没有 user_id (单用户车间机器, 主体始终是这台机器的解锁人; 想区分多人操作请上多用户系统).
+   - 导出范围筛选: 起止日期 (必填), 动作类型筛选 (可选多选); 输出格式两种:
+     · 加密 .ranpu (默认, AES-256-GCM + PBKDF2, 独立口令)
+     · 明文 CSV (需二次确认弹窗 "日志包含敏感操作记录, 确定明文导出?")
 
-7) Backup 上下文
+6) Backup 上下文
    - 领域服务 trait：EncryptedExporter / EncryptedImporter
    - infra 实现：VACUUM INTO 临时文件 + AES-256-GCM + PBKDF2 → .ranpu
    - 文件头：MAGIC(4)='RNP1' | VERSION(1) | SALT(16) | NONCE(12) | 密文+TAG，AAD 用 MAGIC
@@ -146,7 +158,7 @@
 ═══════════════════════════════════════════════════════
 - domain/ 层零外部依赖，禁止 import rusqlite、tauri、tokio、serde；只允许 std + chrono + thiserror + uuid。
 - application/ 层定义 trait（ports）和 use case 编排，禁止 import infrastructure。
-- infrastructure/ 实现 application 的 trait（adapters）；SQLCipher、DPAPI、argon2、aes-gcm 都在这里。
+- infrastructure/ 实现 application 的 trait（adapters）；SQLCipher、DPAPI、PBKDF2、aes-gcm 都在这里。
 - interfaces/tauri/ 只做 DTO 转换 + 调用 application + 权限检查；每个 #[tauri::command] ≤ 30 行。
 - main.rs 是 composition root：构造所有 adapter，注入到 application service，注册成 Tauri State。
 - 仓储 trait 返回 domain 类型，绝不返回 sqlite Row 或 serde_json::Value。
@@ -155,10 +167,10 @@
 ═══════════════════════════════════════════════════════
 【数据 schema（infrastructure/persistence/schema.sql）】
 ═══════════════════════════════════════════════════════
-users(id PK, username UNIQUE, password_hash, role CHECK in ('admin','user'),
-      is_active, failed_attempts, locked_until, created_at, last_login)
+**没有 users 表** — 单用户车间模型, 解锁密码就是身份本身.
 
-workspaces(id PK, name UNIQUE, description, created_by_user_id FK SET NULL, created_at)
+workspaces(id PK, name UNIQUE, description, created_at,
+           kind TEXT NOT NULL DEFAULT 'normal' CHECK(kind IN ('normal','system_mirror')))
 
 default_formulas(
   id PK,
@@ -166,7 +178,7 @@ default_formulas(
   customer_color_code TEXT,
   color_name, description,
   base_weight_kg, liquor_ratio, notes,
-  created_by_user_id FK SET NULL, created_at, updated_at
+  created_at, updated_at
 )
 default_formula_items(id PK, formula_id FK CASCADE,
   dye_name, dye_code, percentage, unit CHECK in ('pct_owf','g_per_kg','g_per_L'), sort_order)
@@ -183,15 +195,15 @@ workspace_formulas(
 workspace_formula_items(...)  -- 同 default_formula_items 结构
 
 cart_items(
-  id PK, user_id FK CASCADE, workspace_id FK CASCADE,
+  id PK, workspace_id FK CASCADE,
   source_kind TEXT CHECK in ('default','workspace'),
   source_formula_id INTEGER NOT NULL,
   target_kg REAL NOT NULL CHECK(target_kg > 0),
   added_at,
-  UNIQUE(user_id, workspace_id, source_kind, source_formula_id)
+  UNIQUE(workspace_id, source_kind, source_formula_id)
 )
 
-audit_log(id PK, user_id FK SET NULL, workspace_context_id FK SET NULL,
+audit_log(id PK, workspace_context_id FK SET NULL,
           action, target, details, occurred_at)
 
 索引：
@@ -199,106 +211,132 @@ audit_log(id PK, user_id FK SET NULL, workspace_context_id FK SET NULL,
   idx_workspace_formulas_ws_customer  on workspace_formulas(workspace_id, customer_color_code)
   idx_default_formulas_internal       on default_formulas(internal_color_code)
   idx_default_formulas_customer       on default_formulas(customer_color_code)
-  idx_cart_user_workspace             on cart_items(user_id, workspace_id)
-  idx_audit_user_time                 on audit_log(user_id, occurred_at)
+  idx_cart_workspace                  on cart_items(workspace_id)
+  idx_audit_time                      on audit_log(occurred_at)
 
 ═══════════════════════════════════════════════════════
 【加密设计】
 ═══════════════════════════════════════════════════════
-- 数据库主密钥：32 字节随机生成，Windows DPAPI（windows crate, Win32_Security_Cryptography）保护后存 %APPDATA%\Ranpu\keystore.bin。
-- SQLCipher PRAGMA key 由「主密钥 + 应用启动口令」PBKDF2-SHA256(600k 轮) 派生 64 hex；启动口令首次安装时设置，与登录密码独立。
-- 导出口令独立于 DB 口令；.ranpu 文件用 AES-256-GCM + PBKDF2(600k 轮)。
+- 数据库主密钥: 32 字节随机生成, Windows DPAPI (windows crate, Win32_Security_Cryptography)
+  保护后存 %APPDATA%\Ranpu\keystore.bin.
+- SQLCipher PRAGMA key 由「主密钥 + 应用解锁密码」PBKDF2-SHA256(600k 轮) 派生 64 hex.
+  解锁密码首次启动时设置, 之后每次启动 / 锁屏解锁都要输入.
+- 导出口令独立于解锁密码; .ranpu 文件用 AES-256-GCM + PBKDF2(600k 轮).
+- **不需要 argon2**: 之前版本用 argon2 哈希用户登录密码, 但单用户模型已经把 users
+  表删了, 解锁密码不存任何地方 (PBKDF2 派生 PRAGMA key 即解密 DB; 输错的话
+  SQLCipher 直接 file is encrypted error).
 
 ═══════════════════════════════════════════════════════
 【应用层用例（每个一个文件）】
 ═══════════════════════════════════════════════════════
-identity:    authenticate_user, lock_session, unlock_session, change_user_password,
-             create_user(admin only), deactivate_user(admin only), list_users(admin only)
-workspace:   create_workspace, rename_workspace, list_workspaces,
-             switch_active_workspace, delete_workspace
-formula:     list_default_formulas(关键词搜内部/客户色号都匹配),
-             upsert_default_formula(admin only), delete_default_formula(admin only),
-             list_workspace_formulas, upsert_workspace_formula(admin only),
-             delete_workspace_formula(admin only),
-             copy_default_to_active_workspace(admin only)
-calculation: calculate_dye_amounts(internal_or_customer_code, target_kg) → CalculationResult
+boot:        boot_status, boot_app(passphrase), setup_first_run(passphrase)
+session:     lock_session, unlock_session(passphrase)
+workspace:   create_workspace, rename_workspace, update_workspace_description,
+             list_workspaces, switch_active_workspace, delete_workspace
+formula:     list_default_formulas(关键词搜内部 / 客户色号 / 颜色俗称都匹配),
+             upsert_default_formula, delete_default_formula,
+             list_workspace_formulas, upsert_workspace_formula, delete_workspace_formula,
+             copy_default_to_active_workspace, batch_copy_default_to_active_workspace,
+             export_library_archive, preview_library_archive, import_library_archive
+             (一律放开, 不再有 admin only 守卫)
+calculation: calculate_dye_amounts, search_by_customer_code → 让 UI 挑一条
 cart:        add_to_cart, remove_from_cart, update_cart_item_kg, clear_cart,
-             list_cart_with_calculations, export_cart_as_batch_sheet
+             list_cart_with_calculations, export_cart_as_batch_sheet,
+             preview_cart_as_batch_sheet_html (返回 HTML 字符串给 iframe)
 backup:      export_encrypted_backup, import_encrypted_backup
 audit:       list_audit_events(filter),
-             export_audit_log(date_from, date_to, user_filter?, action_filter?, format=encrypted|csv, passphrase?)
+             export_audit_log(date_from, date_to, action_filter?, format=encrypted|csv, passphrase?)
 
 ═══════════════════════════════════════════════════════
 【项目结构】
 ═══════════════════════════════════════════════════════
 src-tauri/src/
 ├── domain/
-│   ├── identity/{user.rs, session.rs, password.rs, role.rs, errors.rs, mod.rs}
-│   ├── workspace/{workspace.rs, mod.rs}
+│   ├── workspace/{workspace.rs, mod.rs}        # 含 WorkspaceKind enum
 │   ├── formula/{default_formula.rs, workspace_formula.rs, formula_item.rs,
 │   │            internal_color_code.rs, customer_color_code.rs,
 │   │            unit.rs, liquor_ratio.rs, amounts.rs, mod.rs}
 │   ├── calculation/{dye_calculator.rs, mod.rs}
 │   ├── cart/{cart.rs, cart_item.rs, mod.rs}
 │   ├── audit/{audit_event.rs, mod.rs}
+│   ├── session/{session.rs, mod.rs}             # 内存 lock 状态 + active_workspace_id
 │   ├── shared/{id.rs, errors.rs, mod.rs}
 │   └── mod.rs
 ├── application/
 │   ├── ports/  (repository + service traits)
-│   ├── identity/  workspace/  formula/  calculation/  cart/  backup/  audit/
+│   ├── session/  workspace/  formula/  calculation/  cart/  backup/  audit/
 │   └── mod.rs
 ├── infrastructure/
-│   ├── persistence/sqlcipher/{connection.rs, user_repo.rs, workspace_repo.rs,
+│   ├── persistence/sqlcipher/{connection.rs, workspace_repo.rs,
 │   │                          default_formula_repo.rs, workspace_formula_repo.rs,
 │   │                          cart_repo.rs, audit_repo.rs}
 │   ├── persistence/schema.sql
-│   ├── persistence/seed.rs
-│   ├── crypto/{argon2_hasher.rs, dpapi_keystore.rs, key_derivation.rs, aes_gcm_exporter.rs}
+│   ├── persistence/seed.rs                     # 5 默认配方 + ensure 通用 system_mirror
+│   ├── persistence/dev_seed.rs                 # cfg(feature="dev-seed"), 见 K
+│   ├── crypto/{dpapi_keystore.rs, key_derivation.rs, aes_gcm_exporter.rs}
+│   ├── session/in_memory_session_store.rs      # locked + active_workspace_id
 │   └── mod.rs
-├── interfaces/tauri/{commands.rs, dto.rs, error_mapping.rs, state.rs, lock_guard.rs}
+├── interfaces/tauri/{commands.rs, dto.rs, error_mapping.rs, state.rs, lock_guard.rs, boot.rs}
 └── main.rs
+
+注意没有 identity 目录, 没有 user_repo.rs, 没有 argon2_hasher.rs (单用户模型不需要).
 
 src/
 ├── assets/{logo.svg}
 ├── components/
 │   ├── RanpuLogo.tsx
 │   ├── TopBar.tsx
-│   ├── WorkspaceSwitcher.tsx
+│   ├── Sidebar.tsx                # 左侧导航 (含 "关于" 项红点)
+│   ├── WorkspacePicker.tsx        # 顶栏 combobox (取代 Switcher + 搜索)
 │   ├── LockOverlay.tsx
 │   ├── IdleDetector.tsx
 │   ├── FormulaEditor.tsx
 │   ├── FormulaCard.tsx
-│   ├── CartDrawer.tsx
-│   └── ui/  (shadcn/ui 组件)
+│   ├── ConfirmDialog.tsx          # 统一确认弹窗替代 window.confirm
+│   └── ui/                        # shadcn/ui 基础组件
 ├── pages/
-│   ├── Login.tsx
-│   ├── FirstRunSetup.tsx
+│   ├── BootScreen.tsx             # 输应用解锁密码
+│   ├── FirstRunSetup.tsx          # 首次启动设密码
 │   ├── Dashboard.tsx
 │   ├── DefaultLibrary.tsx
 │   ├── WorkspaceFormulas.tsx
 │   ├── Calculator.tsx
 │   ├── Cart.tsx
 │   ├── WorkspaceManagement.tsx
-│   ├── UserManagement.tsx
 │   ├── AuditLog.tsx
+│   ├── LibraryTransfer.tsx        # 加密 .ranpu 库互导
 │   ├── About.tsx
 │   └── Settings.tsx
-├── store/  (zustand 存当前 user + active workspace + cart 缓存 + lock 状态)
-├── api/    (封装 invoke)
-└── App.tsx
+├── store/                         # zustand
+│   ├── session.ts                 # active_workspace_id + locked
+│   ├── workspaces.ts              # 缓存全部工作区
+│   └── update.ts                  # 更新检查状态
+├── api/                           # 按上下文一个文件 (boot, workspace, formula, calculation, cart, audit, backup, types, invoke)
+└── App.tsx                        # boot gate state machine
+
+不再需要: Login.tsx, UserManagement.tsx (没有用户).
 
 ═══════════════════════════════════════════════════════
 【UI 关键交互细节】
 ═══════════════════════════════════════════════════════
-- TopBar 永远显示：左侧 <RanpuLogo size={28} withText={true} />，中间 workspace 下拉切换器（含"未选择工作区"项），右侧用户名 + 锁定按钮 + 登出按钮。
-- 配方列表每条卡片明显展示：内部色号（粗体）+ 客户色号（旁边小字标签"客户：xxx"），颜色俗称做副标题。
-- 搜索框统一支持模糊匹配「内部色号 / 客户色号 / 颜色俗称」三字段。
-- DefaultLibrary 与 WorkspaceFormulas 页：每条配方右侧两个按钮——「加入购物车」（所有人可见）、「复制到当前工作区」（admin 可见，无激活 workspace 时禁用并提示「请先选择工作区」）。
-- Calculator 页：色号输入 + kg 输入 → 表格显示染料名称、染料编号、克数；明确角标「来自当前工作区」或「来自默认库」。
-- Cart 页：表格列出所有购物车条目（色号、客户色号、目标 kg、染料明细总克数），支持修改 kg 后重算、一键清空、导出批次单 (PDF 或 CSV)。
-- 锁屏遮罩：全屏 var(--color-background-primary) 半透明遮罩 + 居中 logo + 密码框 + "解锁"按钮 + 错误次数提示。
-- 所有日期显示格式：YYYY-MM-DD HH:mm（24 小时制）；不要 ISO 8601 带 T 和 Z 的格式。
-- 所有金额/克数显示保留 2 位小数；kg 输入框最大 99999.99，最小 0.01。
+- TopBar 永远显示: 左侧 <RanpuLogo size={28} withText={true} />, 接着 WorkspacePicker
+  combobox (含 "未选择工作区" 项), 右侧 [锁定] 按钮. **没有用户名 / 登出按钮**
+  (单用户模型, 想登出 = 想锁屏).
+- 配方列表每条卡片明显展示: 内部色号 (粗体) + 客户色号 (旁边小字标签 "客户: xxx"),
+  颜色俗称做副标题.
+- 搜索框统一支持模糊匹配「内部色号 / 客户色号 / 颜色俗称」三字段.
+- DefaultLibrary 与 WorkspaceFormulas 页: 每条配方右侧按钮 — 「加入批次清单」(所
+  有人都能用) + 「复制到当前工作区」(没激活 workspace 时禁用, 提示 "请先选择工作
+  区"). **没有 admin only 守卫** — 任何能进系统的人 (= 知道解锁密码的人) 都能增
+  删改默认配方.
+- Calculator 页: 色号输入 + kg 输入 → 表格显示染料名称 / 染料编号 / 克数; 明确
+  角标「来自当前工作区」或「来自默认库」.
+- Cart 页: 表格列出所有批次清单条目 (色号 / 客户色号 / 目标 kg / 染料明细总克数),
+  支持修改 kg 后重算 / 一键清空 / 导出 CSV / 应用内 "预览 / 打印" (Dialog + iframe).
+- 锁屏遮罩: 全屏 var(--color-background-primary) 半透明遮罩 + 居中 logo + 密码框 +
+  「解锁」按钮 + 错误提示 (没有"剩余次数"提示, 单用户模型可以无限重试).
+- 所有日期显示格式: YYYY-MM-DD HH:mm (24 小时制); 不要 ISO 8601 带 T 和 Z 的.
+- 所有金额 / 克数显示保留 2 位小数; kg 输入框最大 99999.99, 最小 0.01.
 
 ═══════════════════════════════════════════════════════
 【种子数据 (infrastructure/persistence/seed.rs)】
@@ -306,7 +344,7 @@ src/
 首次启动 schema 建好后插入：
 - 3 个 workspace：「客户A」「客户B」「客户C」
 - 5 条 default 配方（提供合理的中文颜色名 + 真实风格染料组合，比如「藏青 N-2024」配 C.I. Reactive Blue 19 + Reactive Black 5；「玫红 R-105」配 Reactive Red 195 等），每条 2–4 种染料，单位混合 pct_owf / g_per_kg。
-- 不创建任何 user（首次启动走 FirstRunSetup 流程，引导设置应用启动口令并创建第一个 admin）。
+- 不创建任何 user (没有 users 表). 首次启动走 FirstRunSetup, 引导设置应用解锁密码 (≥ 8 位).
 
 ═══════════════════════════════════════════════════════
 【交付内容】
@@ -357,12 +395,12 @@ src/
   feat/domain-layer         — 所有 domain/ 下的值对象、聚合、领域服务，附完整单元测试，零外部依赖（除 chrono/thiserror/uuid）
   feat/application-ports    — application/ports/ 下所有 trait、application/ 下所有 use case 编排
   feat/infra-persistence    — SQLCipher 连接、schema.sql、所有 *_repo.rs，附 seed.rs
-  feat/infra-crypto         — argon2、DPAPI keystore、PBKDF2 派生、AES-GCM 导出
+  feat/infra-crypto         — DPAPI keystore、PBKDF2 派生 SQLCipher key、AES-GCM 导出
   feat/interfaces-tauri     — 所有 #[tauri::command]、DTO、error 映射、lock_guard、main.rs composition root
   feat/ui-design-system     — RanpuLogo、TopBar、LockOverlay、IdleDetector、FormulaCard、shadcn/ui 组件落位
-  feat/ui-identity          — Login、FirstRunSetup、UserManagement、Settings 页
+  feat/ui-boot              — BootScreen (输解锁密码), FirstRunSetup (首次设密码), Settings 页
   feat/ui-formula           — DefaultLibrary、WorkspaceFormulas、FormulaEditor、Calculator、Cart 页
-  feat/ui-admin             — WorkspaceManagement、AuditLog（含导出 UI）、About 页
+  feat/ui-admin             — WorkspaceManagement, AuditLog (含导出 UI), LibraryTransfer, About 页
   feat/seed-and-polish      — seed 真实数据、README、CONTRIBUTING.md、最终联调
 
 不要在 main 直接提交（除了零号步骤的初始化 commit）。
@@ -574,40 +612,44 @@ L. CI / Release workflow
   latest.json notes, 老用户更新提示框看到首次安装步骤就尴尬了.
 
 ────────────────────────────────────────────────
-M. 启动门 / FirstRunSetup / BootScreen
+M. 启动门 / FirstRunSetup / BootScreen (单用户解锁模型)
 ────────────────────────────────────────────────
-- App.tsx 是 boot gate, 状态机 GateState: 'checking' | 'first-run' | 'boot' | 'login' | 'app' | 'error'.
-- bootApi.status() → BootStatusView { keystore_exists, db_initialized, user_count }
+- App.tsx 是 boot gate, 状态机 GateState: 'checking' | 'first-run' | 'boot' | 'app' | 'error'.
+  没有 'login' state (没有用户).
+- bootApi.status() → BootStatusView { keystore_exists, db_initialized }
   路由判断:
-    !keystore_exists → first-run (引导设启动口令 + 第一个 admin)
-    !db_initialized → boot (输启动口令解锁 DB)
-    user_count == 0 → first-run (兜底, 极少出现)
-    有 session → app, 没 session → login
-- BootScreen 只输启动口令解锁 SQLCipher; 解锁错口令 → 后端 SqliteConnection::open
-  捕 "file is encrypted or is not a database" → AppError::BootPassphraseIncorrect →
-  UI 显示 "启动口令不正确".
+    !keystore_exists → first-run (引导设解锁密码 ≥ 8 位 + 二次确认)
+    !db_initialized → boot (输解锁密码)
+    db_initialized → app
+- BootScreen 单输入框 + [解锁] 按钮; 后端 SqliteConnection::open 捕 "file is encrypted
+  or is not a database" → AppError::BootPassphraseIncorrect → UI 显示 "解锁密码不对,
+  请重试". 无锁定 / 无次数限制.
+- FirstRunSetup 流程: 设密码 + 再次输入确认 + 提示 "密码丢失后无法找回任何数据";
+  完成 → boot_app 直接进 app.
 
 ────────────────────────────────────────────────
 N. 其它前端 store / 文件结构变化
 ────────────────────────────────────────────────
 - src/store/:
-    session.ts   — { session: SessionView | null, setSession, setLocked, setActiveWorkspace, clear }
+    session.ts   — { active_workspace_id: number | null, locked: boolean,
+                     setActiveWorkspace, setLocked, clear }
+                   注意: 没有 user 字段 / username / role.
     workspaces.ts — { list, loaded, refresh, clear } (zustand 缓存全部工作区, WorkspacePicker
                     + WorkspaceFormulas 等多页面订阅; 任何会改工作区集合的页面操作完调 refresh)
     update.ts    — { pending, checking, hasChecked, error, runCheck } (上节 B)
-- src/api/ 按上下文一个文件: identity, workspace, formula, calculation, cart, audit,
-  backup, boot, types, invoke (后者封装 invoke + ApiError).
+- src/api/ 按上下文一个文件: boot, workspace, formula, calculation, cart, audit,
+  backup, types, invoke (后者封装 invoke + ApiError). **没有 identity.ts**.
 - src/components/:
     新增 ConfirmDialog.tsx — 统一确认弹窗, 取代 window.confirm; 危险操作 destructive 红按钮.
-    新增 Sidebar.tsx — 左侧 200px 导航; admin-only 项过滤; 没激活 workspace 时
-                       formula/calculator/cart 项 disabled 灰掉提示 "请先在顶栏选择工作区";
-                       订阅 useUpdateStore.pending, 在 "/about" 项右侧贴红点.
+    新增 Sidebar.tsx — 左侧 200px 导航; 没激活 workspace 时 formula/calculator/cart 项
+                       disabled 灰掉提示 "请先在顶栏选择工作区"; 订阅 useUpdateStore.pending,
+                       在 "/about" 项右侧贴红点.
     新增 WorkspacePicker.tsx (上节 C, 取代旧的 WorkspaceSwitcher.tsx).
     保留 RanpuLogo / TopBar / FormulaCard / FormulaEditor / IdleDetector / LockOverlay.
     **不要** 创建 CartDrawer.tsx, UpdateNotifier.tsx — 都不用.
-- src/pages/: 全部页面要齐: Login, FirstRunSetup, BootScreen, Dashboard, DefaultLibrary,
-  WorkspaceFormulas, Calculator, Cart, WorkspaceManagement, UserManagement, AuditLog,
-  LibraryTransfer (库互导), About, Settings.
+- src/pages/: BootScreen, FirstRunSetup, Dashboard, DefaultLibrary, WorkspaceFormulas,
+  Calculator, Cart, WorkspaceManagement, AuditLog, LibraryTransfer, About, Settings.
+  **没有 Login.tsx / UserManagement.tsx**.
 
 ────────────────────────────────────────────────
 O. 命名 / 文案口径
