@@ -78,7 +78,7 @@ export function AuditLogPage() {
 
       {!displayEnabled ? (
         <p className="text-sm text-muted-foreground">
-          审计日志包含敏感操作记录, 默认隐藏. 请到 "设置 → 管理模式 → 审计日志显示" 开启.
+          审计日志包含敏感操作记录，默认隐藏。请到「设置 → 管理模式 → 审计日志显示」开启。
         </p>
       ) : (
         <>

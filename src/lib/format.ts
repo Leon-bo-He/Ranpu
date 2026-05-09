@@ -50,7 +50,7 @@ export function formatKg(n: number | null | undefined): string {
 export function unitLabel(unit: 'pct_owf' | 'g_per_kg'): string {
   switch (unit) {
     case 'pct_owf':
-      return '% (owf)';
+      return '%（owf）';
     case 'g_per_kg':
       return 'g/kg';
   }

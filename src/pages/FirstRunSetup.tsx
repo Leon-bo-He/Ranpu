@@ -55,7 +55,7 @@ export function FirstRunSetup() {
         </div>
 
         <p className="text-sm text-muted-foreground">
-          为这台电脑设置一个「启动口令」, 用于解锁本机数据。请牢记, 丢失后无法找回。
+          为这台电脑设置一个「启动口令」，用于解锁本机数据。请牢记，丢失后无法找回。
         </p>
 
         <div className="grid gap-1">

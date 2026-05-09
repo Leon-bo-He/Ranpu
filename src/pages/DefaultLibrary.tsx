@@ -264,7 +264,7 @@ export function DefaultLibraryPage() {
                 <Copy className="mr-1 h-4 w-4" />
                 {batchBusy
                   ? '正在复制…'
-                  : `批量复制到工作区${selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}`}
+                  : `批量复制到工作区${selectedIds.size > 0 ? `（${selectedIds.size}）` : ''}`}
               </Button>
             </>
           )}

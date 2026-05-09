@@ -225,9 +225,9 @@ export function WorkspaceFormulasPage() {
         <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <Lock className="mt-0.5 h-4 w-4" />
           <p>
-            「{activeWorkspace?.name}」 是系统内置工作区, 配方与
+            「{activeWorkspace?.name}」是系统内置工作区，配方与
             <strong className="mx-1">默认配方库</strong>
-            自动同步, 无法在此处直接新建 / 编辑 / 删除。如需修改, 请到默认配方库页面操作。
+            自动同步，无法在此处直接新建 / 编辑 / 删除。如需修改，请到默认配方库页面操作。
           </p>
         </div>
       )}

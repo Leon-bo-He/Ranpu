@@ -89,7 +89,7 @@ export function AboutPage() {
           </div>
           <p>
             染谱是一个面向印染车间的离线配方管理 + 染料计算软件，运行在 Windows 桌面，
-            数据本地加密存储 (SQLCipher + DPAPI)。
+            数据本地加密存储（SQLCipher + DPAPI）。
           </p>
           <p>
             架构采用 DDD + Hexagonal/Ports-and-Adapters；前端 React + Tailwind +
@@ -107,7 +107,7 @@ export function AboutPage() {
           <span>
             当前 {version} → 新版本 {pending?.version}
             <br />
-            点击"立即更新"会下载并安装，然后自动重启应用
+            点击「立即更新」会下载并安装，然后自动重启应用
           </span>
         }
         confirmLabel="立即更新"

@@ -50,8 +50,8 @@ export function EditModeToggle({
       </div>
       <p className="text-xs leading-5 text-muted-foreground">
         开启后才能进行写操作
-        {whenOffCanStill && <>; 关闭时只可以{whenOffCanStill}</>}.
-        开启后 30 分钟内无操作会自动关闭.
+        {whenOffCanStill && <>；关闭时只可以{whenOffCanStill}</>}。
+        开启后 30 分钟内无操作会自动关闭。
       </p>
     </div>
   );

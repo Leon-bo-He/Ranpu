@@ -61,14 +61,14 @@ export function CloseConfirmGuard() {
         >
           <div className="flex flex-col space-y-1.5">
             <DialogPrimitive.Title className="text-lg font-semibold leading-none tracking-tight">
-              确认关闭染谱?
+              确认关闭染谱？
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="text-sm text-muted-foreground">
-              关闭后会退出当前会话, 下次打开需要重新输入启动口令解锁数据库.
+              关闭后会退出当前会话，下次打开需要重新输入启动口令解锁数据库。
             </DialogPrimitive.Description>
           </div>
           {error && (
-            <p className="text-sm text-destructive">关闭失败: {error}</p>
+            <p className="text-sm text-destructive">关闭失败：{error}</p>
           )}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>

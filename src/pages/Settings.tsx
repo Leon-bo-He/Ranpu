@@ -84,8 +84,8 @@ export function SettingsPage() {
             onDisable={disableAudit}
           />
           <p className="text-xs text-muted-foreground">
-            "工作区管理" 与 "审计日志显示" 关闭时, 对应入口在侧栏隐藏.
-            重新开启即可看见.
+            「工作区管理」与「审计日志显示」关闭时，对应入口在侧栏隐藏。
+            重新开启即可看见。
           </p>
         </CardContent>
       </Card>
@@ -147,7 +147,7 @@ export function SettingsPage() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            用于缸号自动生成. 范围 1-99.
+            用于缸号自动生成。范围 1-99。
           </p>
         </CardContent>
       </Card>
@@ -156,7 +156,7 @@ export function SettingsPage() {
         open={askResetVat}
         onClose={() => setAskResetVat(false)}
         title="重置当日批号？"
-        description="缸号计数器将清零, 下次 '生成缸号' 从 1-1 开始. 已打印的批次单不受影响."
+        description="缸号计数器将清零，下次「生成缸号」从 1-1 开始。已打印的批次单不受影响。"
         confirmLabel="重置"
         destructive
         onConfirm={() => {

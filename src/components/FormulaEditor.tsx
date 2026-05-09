@@ -131,7 +131,7 @@ export function FormulaEditor({
             {scope}配方
           </DialogTitle>
           <DialogDescription>
-            内部色号必填且唯一. 色系可从已用过的下拉里选, 也可直接输入新的.
+            内部色号必填且唯一。色系可从已用过的下拉里选，也可直接输入新的。
           </DialogDescription>
         </DialogHeader>
 
@@ -200,7 +200,7 @@ export function FormulaEditor({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pct_owf">% (owf)</SelectItem>
+                        <SelectItem value="pct_owf">%（owf）</SelectItem>
                         <SelectItem value="g_per_kg">g/kg</SelectItem>
                       </SelectContent>
                     </Select>
