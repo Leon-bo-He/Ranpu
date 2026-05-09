@@ -35,7 +35,11 @@ import {
 } from '@/store/batchSheetInfo';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 import { useSettingsStore } from '@/store/settings';
-import { useVatSequenceStore } from '@/store/vatSequence';
+import {
+  maxVatSlot,
+  parseVatSlot,
+  useVatSequenceStore,
+} from '@/store/vatSequence';
 
 export function CartPage() {
   const session = useSessionStore((s) => s.session);
@@ -187,14 +191,14 @@ export function CartPage() {
     setBatchSheetInfo(activeWorkspaceId, { customer, perFormula: map });
   };
 
-  // "生成缸号": 从全局 vat 序列里取连续 N 个槽位, 按 lines 顺序填到每行
-  // 的缸号字段. 跨日自动重置, 缸号到 vatCount 自动进入下一批 (例: 4 缸厂
-  // 4-2 之后是 1-3). 现有手填值会被覆盖, 用户事后可单独改某行.
+  // "生成缸号": 预览全局 vat 序列里接下来的 N 个槽位, 按 lines 顺序填到
+  // 每行的缸号字段. 注意 peek 不推进全局计数器 — 只有用户真的点 "打印"
+  // 才会 commit (见 onPrintPreview). 这样未打印的预览不会浪费缸号, 重
+  // 复点 "生成缸号" 也会得到相同的号. 跨日自动从 1-1 重置, 缸号到 vatCount
+  // 自动进入下一批 (例: 4 缸厂 4-2 之后是 1-3). 现有手填值会被覆盖.
   const onGenerateVats = () => {
     if (lines.length === 0) return;
-    const slots = useVatSequenceStore
-      .getState()
-      .reserve(lines.length, vatCount);
+    const slots = useVatSequenceStore.getState().peek(lines.length, vatCount);
     const next = promptPerFormula.map((m, i) => {
       const slot = slots[i];
       if (!slot) return m;
@@ -243,6 +247,17 @@ export function CartPage() {
   const onPrintPreview = () => {
     const ifWin = previewIframeRef.current?.contentWindow;
     if (!ifWin) return;
+
+    // 真正打印时才把全局 vat 计数器推到当前批次单里出现的最大缸号. 解析
+    // 所有可识别 "X-Y" 缸号, 取 (batch, vat) 字典序最大那个 commit. 用户
+    // 手填的非标准格式或空值会被忽略, 计数器只跟实际打出去的最大号走.
+    const printedSlots = promptPerFormula
+      .map((m) => parseVatSlot(m.vat))
+      .filter((s): s is NonNullable<typeof s> => s !== null);
+    const last = maxVatSlot(printedSlots);
+    if (last) {
+      useVatSequenceStore.getState().commit(last);
+    }
 
     // Chrome / WebView2 给 iframe 调 print() 时, "Save as PDF" 默认文件名
     // 取的是 *主窗口* document.title (= "染谱 Ranpu") 而不是 iframe 自己
