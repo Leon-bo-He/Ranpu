@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { useEditModeStore } from '@/store/editMode';
 import { useSettingsStore, type IdleTimeoutMinutes } from '@/store/settings';
+import { useVatSequenceStore } from '@/store/vatSequence';
 
 export function SettingsPage() {
   const idleMinutes = useSettingsStore((s) => s.idleTimeoutMinutes);
@@ -34,6 +37,9 @@ export function SettingsPage() {
       setVatInput(String(vatCount));
     }
   };
+
+  const [askResetVat, setAskResetVat] = useState(false);
+  const resetVatSequence = useVatSequenceStore((s) => s.reset);
 
   const formulaEdit = useEditModeStore((s) => s.formulaEditEnabled);
   const enableFormula = useEditModeStore((s) => s.enableFormulaEdit);
@@ -133,8 +139,29 @@ export function SettingsPage() {
           <p className="text-xs text-muted-foreground">
             用于缸号自动生成. 范围 1-99.
           </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-1 self-start"
+            onClick={() => setAskResetVat(true)}
+          >
+            重置当日批号
+          </Button>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={askResetVat}
+        onClose={() => setAskResetVat(false)}
+        title="重置当日批号？"
+        description="缸号计数器将清零, 下次 '生成缸号' 从 1-1 开始. 已打印的批次单不受影响."
+        confirmLabel="重置"
+        destructive
+        onConfirm={() => {
+          resetVatSequence();
+          setAskResetVat(false);
+        }}
+      />
     </div>
   );
 }

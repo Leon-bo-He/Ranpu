@@ -19,6 +19,8 @@ interface VatSequenceState {
   /// 把 slot 设为最新已发位置 (打印时调用, 推进全局计数器). 仅当 slot
   /// 严格大于当前状态 (或跨日) 时才更新, 避免手填小号导致计数器回退.
   commit: (slot: VatSlot) => void;
+  /// 清空计数器, 下次 peek 从 1-1 起. 已打印的批次单不受影响.
+  reset: () => void;
 }
 
 export const useVatSequenceStore = create<VatSequenceState>()(
@@ -57,6 +59,7 @@ export const useVatSequenceStore = create<VatSequenceState>()(
           set({ lastVat: slot.vat, lastBatch: slot.batch, lastDate: today });
         }
       },
+      reset: () => set({ lastVat: 0, lastBatch: 0, lastDate: '' }),
     }),
     { name: 'ranpu-vat-sequence' },
   ),
