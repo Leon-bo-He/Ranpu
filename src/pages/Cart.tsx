@@ -417,6 +417,7 @@ export function CartPage() {
       >
         <DialogContent className="flex h-[90vh] max-w-5xl flex-col gap-0 p-0">
           <DialogHeader className="shrink-0 flex-row items-center gap-4 border-b px-6 py-4 space-y-0">
+            <DialogTitle>批次单预览</DialogTitle>
             <div className="inline-flex rounded-md border bg-background">
               <button
                 type="button"
@@ -445,7 +446,6 @@ export function CartPage() {
                 九宫格
               </button>
             </div>
-            <DialogTitle>批次单预览</DialogTitle>
           </DialogHeader>
           {previewHtml && (
             <iframe
