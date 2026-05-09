@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -37,6 +38,7 @@ import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 import { useSettingsStore } from '@/store/settings';
 import {
   maxVatSlot,
+  nextSlotsFrom,
   parseVatSlot,
   useVatSequenceStore,
 } from '@/store/vatSequence';
@@ -65,6 +67,9 @@ export function CartPage() {
   // 预览框右上角切换, 切换时重新请求对应 HTML.
   const [previewLayout, setPreviewLayout] =
     useState<'standard' | 'grid'>('standard');
+  // 当 prompt 里已经有缸号时, "生成缸号" 弹个三选 dialog: 覆盖全部 / 接
+  // 续填空白 / 取消. 没填过则直接走覆盖逻辑.
+  const [genChoiceOpen, setGenChoiceOpen] = useState(false);
 
   const load = () => {
     if (!hasWs) {
@@ -191,13 +196,23 @@ export function CartPage() {
     setBatchSheetInfo(activeWorkspaceId, { customer, perFormula: map });
   };
 
-  // "生成缸号": 预览全局 vat 序列里接下来的 N 个槽位, 按 lines 顺序填到
-  // 每行的缸号字段. 注意 peek 不推进全局计数器 — 只有用户真的点 "打印"
-  // 才会 commit (见 onPrintPreview). 这样未打印的预览不会浪费缸号, 重
-  // 复点 "生成缸号" 也会得到相同的号. 跨日自动从 1-1 重置, 缸号到 vatCount
-  // 自动进入下一批 (例: 4 缸厂 4-2 之后是 1-3). 现有手填值会被覆盖.
+  // "生成缸号" 入口. 注意 peek 不推进全局计数器 — 只有用户真的点 "打印"
+  // 才 commit (见 onPrintPreview), 重复点这里也会拿到相同号. 跨日自动从
+  // 1-1 重置, 缸号到 vatCount 自动进入下一批 (例: 4 缸厂 4-2 之后是 1-3).
+  // 如果 prompt 里已经填了任何缸号, 弹三选 dialog 让用户决定覆盖还是接
+  // 续; 全部空白则直接走覆盖逻辑.
   const onGenerateVats = () => {
     if (lines.length === 0) return;
+    const hasFilled = promptPerFormula.some((m) => m.vat.trim() !== '');
+    if (hasFilled) {
+      setGenChoiceOpen(true);
+    } else {
+      doGenerateOverwrite();
+    }
+  };
+
+  // 全部覆盖: 从全局计数器 peek N 个连续槽位, 按行写入 (覆盖原值).
+  const doGenerateOverwrite = () => {
     const slots = useVatSequenceStore.getState().peek(lines.length, vatCount);
     const next = promptPerFormula.map((m, i) => {
       const slot = slots[i];
@@ -207,6 +222,45 @@ export function CartPage() {
     setPromptPerFormula(next);
     persistPromptInfo(promptCustomer, next);
   };
+
+  // 接续填写: 按当前 prompt 里能解析出的 (batch, vat) 字典序最大缸号
+  // 往后排, 只填空白行. 如果没法解析出任何合法缸号, 退化为从全局计数
+  // 器接 (相当于覆盖空白行).
+  const doGenerateContinue = () => {
+    const emptyIdx: number[] = [];
+    promptPerFormula.forEach((m, i) => {
+      if (!m.vat.trim()) emptyIdx.push(i);
+    });
+    if (emptyIdx.length === 0) return;
+    const filledMax = maxVatSlot(
+      promptPerFormula
+        .map((m) => parseVatSlot(m.vat))
+        .filter((s): s is NonNullable<typeof s> => s !== null),
+    );
+    const slots = filledMax
+      ? nextSlotsFrom(filledMax, emptyIdx.length, vatCount)
+      : useVatSequenceStore.getState().peek(emptyIdx.length, vatCount);
+    const next = promptPerFormula.map((m, i) => {
+      const slotIdx = emptyIdx.indexOf(i);
+      if (slotIdx === -1) return m;
+      const slot = slots[slotIdx];
+      if (!slot) return m;
+      return { ...m, vat: `${slot.vat}-${slot.batch}` };
+    });
+    setPromptPerFormula(next);
+    persistPromptInfo(promptCustomer, next);
+  };
+
+  // dialog 文案要展示当前最大已填缸号, 让用户能预判 "接续" 起点. 计算
+  // 在打开 dialog 时进行, 不读 store, 完全基于 prompt state.
+  const filledMaxLabel = (() => {
+    const max = maxVatSlot(
+      promptPerFormula
+        .map((m) => parseVatSlot(m.vat))
+        .filter((s): s is NonNullable<typeof s> => s !== null),
+    );
+    return max ? `${max.vat}-${max.batch}` : null;
+  })();
 
   const onCancelPrompt = () => {
     persistPromptInfo(promptCustomer, promptPerFormula);
@@ -494,6 +548,44 @@ export function CartPage() {
               取消
             </Button>
             <Button onClick={onConfirmPreview}>生成预览</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={genChoiceOpen}
+        onOpenChange={(o) => !o && setGenChoiceOpen(false)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>缸号已有内容</DialogTitle>
+            <DialogDescription>
+              {filledMaxLabel
+                ? `当前批次单已填了缸号 (最大 ${filledMaxLabel}). 选择覆盖全部, 或在 ${filledMaxLabel} 后接续填空白行.`
+                : '当前批次单已填了缸号. 选择覆盖全部, 或保留已填项只补空白行.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setGenChoiceOpen(false)}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setGenChoiceOpen(false);
+                doGenerateOverwrite();
+              }}
+            >
+              覆盖全部
+            </Button>
+            <Button
+              onClick={() => {
+                setGenChoiceOpen(false);
+                doGenerateContinue();
+              }}
+            >
+              接续填写
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

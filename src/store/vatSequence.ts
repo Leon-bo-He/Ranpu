@@ -85,6 +85,30 @@ export function parseVatSlot(s: string): VatSlot | null {
   return { vat, batch };
 }
 
+/// 从给定 (vat, batch) 出发, 不读全局计数器, 直接算接下来 count 个槽位.
+/// 用于 "接续填写": 按批次单里已有的最大号往后排. from 必须是合法槽位
+/// (vat>=1, batch>=1).
+export function nextSlotsFrom(
+  from: VatSlot,
+  count: number,
+  vatCount: number,
+): VatSlot[] {
+  if (count <= 0) return [];
+  const safeVatCount = Math.max(1, Math.floor(vatCount));
+  let vat = from.vat;
+  let batch = from.batch;
+  const out: VatSlot[] = [];
+  for (let i = 0; i < count; i++) {
+    vat += 1;
+    if (vat > safeVatCount) {
+      vat = 1;
+      batch += 1;
+    }
+    out.push({ vat, batch });
+  }
+  return out;
+}
+
 /// 一组缸号里 (batch, vat) 字典序最大的那个. 用于打印时确定该把全局计
 /// 数器推进到哪. 不能解析 / 空数组返回 null.
 export function maxVatSlot(slots: VatSlot[]): VatSlot | null {
