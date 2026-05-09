@@ -120,33 +120,35 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent className="grid gap-2 max-w-md">
           <Label htmlFor="vat-count">本厂染缸总数</Label>
-          <Input
-            id="vat-count"
-            type="number"
-            min={1}
-            max={99}
-            inputMode="numeric"
-            value={vatInput}
-            onChange={(e) => setVatInput(e.target.value)}
-            onBlur={commitVat}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="vat-count"
+              type="number"
+              min={1}
+              max={99}
+              inputMode="numeric"
+              value={vatInput}
+              onChange={(e) => setVatInput(e.target.value)}
+              onBlur={commitVat}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              className="w-32"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAskResetVat(true)}
+            >
+              重置当日批号
+            </Button>
+          </div>
           <p className="text-xs text-muted-foreground">
             用于缸号自动生成. 范围 1-99.
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-1 self-start"
-            onClick={() => setAskResetVat(true)}
-          >
-            重置当日批号
-          </Button>
         </CardContent>
       </Card>
 
