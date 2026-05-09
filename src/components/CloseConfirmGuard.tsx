@@ -1,21 +1,33 @@
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import type { UnlistenFn } from '@tauri-apps/api/event';
-import { useEffect, useState } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useEffect, useRef, useState } from 'react';
 
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Button } from '@/components/ui/button';
 
-/// 拦截主窗口关闭按钮 (X), 弹一个确认对话框. 用户确认后才真正销毁窗口,
-/// 取消则什么都不做. Tauri 2 的 onCloseRequested 给的 event 上调
-/// preventDefault() 就阻断默认关闭. confirm 之后用 window.destroy()
-/// 直接销毁 (不再走 close 流, 否则又会触发 onCloseRequested 再次弹框).
+/// 拦截主窗口关闭按钮 (X), 弹一个确认对话框. 用户确认后才真正关闭窗口.
+///
+/// 实现细节:
+/// - 用 close() 而不是 destroy(): destroy 不在默认 capability 里, 默认权限拒,
+///   表现为点了 "关闭" 没反应. close() 是默认开的.
+/// - close() 会再次触发 onCloseRequested, 用 bypassRef 在二次进入时不
+///   preventDefault, 让本次走默认关闭. 否则死循环弹框.
+/// - 自渲染 Radix DialogPrimitive (而不是项目里的 shadcn Dialog), 给 overlay +
+///   content 都硬编 z-[1100], 保证盖在 LockOverlay (z-1000) 之上 — 锁定状态
+///   下点 X 也能看到 / 操作确认窗口.
 export function CloseConfirmGuard() {
   const [open, setOpen] = useState(false);
+  const bypassRef = useRef(false);
 
   useEffect(() => {
     let unlisten: UnlistenFn | undefined;
     const win = getCurrentWindow();
     win
       .onCloseRequested((event) => {
+        if (bypassRef.current) {
+          // 第二次进入: 用户已确认, 让本次默认关闭走完.
+          return;
+        }
         event.preventDefault();
         setOpen(true);
       })
@@ -31,18 +43,41 @@ export function CloseConfirmGuard() {
   }, []);
 
   const onConfirm = async () => {
-    await getCurrentWindow().destroy();
+    bypassRef.current = true;
+    try {
+      await getCurrentWindow().close();
+    } catch {
+      // close() 一般不会拒, 兜底回退到 destroy.
+      try {
+        await getCurrentWindow().destroy();
+      } catch {
+        bypassRef.current = false;
+        setOpen(false);
+      }
+    }
   };
 
   return (
-    <ConfirmDialog
-      open={open}
-      onClose={() => setOpen(false)}
-      title="确认关闭染谱?"
-      description="关闭后会退出当前会话, 下次打开需要重新输入启动口令解锁数据库."
-      confirmLabel="关闭"
-      cancelLabel="取消"
-      onConfirm={onConfirm}
-    />
+    <DialogPrimitive.Root open={open} onOpenChange={(o) => !o && setOpen(false)}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[1100] bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-[1100] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+          <div className="flex flex-col space-y-1.5">
+            <DialogPrimitive.Title className="text-lg font-semibold leading-none tracking-tight">
+              确认关闭染谱?
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="text-sm text-muted-foreground">
+              关闭后会退出当前会话, 下次打开需要重新输入启动口令解锁数据库.
+            </DialogPrimitive.Description>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={onConfirm}>关闭</Button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
