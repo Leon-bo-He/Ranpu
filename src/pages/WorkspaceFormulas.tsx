@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatAmount } from '@/lib/format';
 import { useEditModeStore } from '@/store/editMode';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
@@ -158,7 +159,7 @@ export function WorkspaceFormulasPage() {
       } else {
         await cartApi.add('workspace', cartTarget.id, kg);
         setCartMsg(
-          `已加入批次清单：${cartTarget.internal_color_code} · ${kg.toFixed(2)} kg`,
+          `已加入批次清单：${cartTarget.internal_color_code} · ${formatAmount(kg)} kg`,
         );
         setCartTarget(null);
       }
@@ -179,16 +180,12 @@ export function WorkspaceFormulasPage() {
         const sum = Math.min(existingKg + addKg, 99999.99);
         await cartApi.updateKg('workspace', formula.id, sum);
         setCartMsg(
-          `已累加到批次清单：${formula.internal_color_code} · ${existingKg.toFixed(
-            2,
-          )} + ${addKg.toFixed(2)} = ${sum.toFixed(2)} kg`,
+          `已累加到批次清单：${formula.internal_color_code} · ${formatAmount(existingKg)} + ${formatAmount(addKg)} = ${formatAmount(sum)} kg`,
         );
       } else {
         await cartApi.add('workspace', formula.id, addKg);
         setCartMsg(
-          `已覆盖批次清单 kg：${formula.internal_color_code} · ${existingKg.toFixed(
-            2,
-          )} → ${addKg.toFixed(2)} kg`,
+          `已覆盖批次清单 kg：${formula.internal_color_code} · ${formatAmount(existingKg)} → ${formatAmount(addKg)} kg`,
         );
       }
       setConflict(null);
@@ -372,9 +369,9 @@ export function WorkspaceFormulasPage() {
                     {conflict.formula.internal_color_code}
                   </span>{' '}
                   当前批次清单记录{' '}
-                  <span className="font-mono">{conflict.existingKg.toFixed(2)}</span>{' '}
+                  <span className="font-mono">{formatAmount(conflict.existingKg)}</span>{' '}
                   kg，本次想加的是{' '}
-                  <span className="font-mono">{conflict.addKg.toFixed(2)}</span> kg。
+                  <span className="font-mono">{formatAmount(conflict.addKg)}</span> kg。
                 </>
               )}
             </DialogDescription>
@@ -385,16 +382,15 @@ export function WorkspaceFormulasPage() {
               <li>
                 · 累加：把这次的 kg 加到批次清单现有 kg 上（
                 {conflict
-                  ? `${conflict.existingKg.toFixed(2)} + ${conflict.addKg.toFixed(2)} = ${Math.min(
-                      conflict.existingKg + conflict.addKg,
-                      99999.99,
-                    ).toFixed(2)} kg`
+                  ? `${formatAmount(conflict.existingKg)} + ${formatAmount(conflict.addKg)} = ${formatAmount(
+                      Math.min(conflict.existingKg + conflict.addKg, 99999.99),
+                    )} kg`
                   : ''}
                 ）
               </li>
               <li>
                 · 覆盖：用本次的 kg 直接替换掉批次清单里的 kg（
-                {conflict ? `${conflict.addKg.toFixed(2)} kg` : ''}）
+                {conflict ? `${formatAmount(conflict.addKg)} kg` : ''}）
               </li>
             </ul>
           </div>
