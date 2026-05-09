@@ -26,11 +26,14 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/lib/format';
+import { useEditModeStore } from '@/store/editMode';
 import { useWorkspacesStore } from '@/store/workspaces';
 
 export function WorkspaceManagementPage() {
   const list = useWorkspacesStore((s) => s.list);
   const refresh = useWorkspacesStore((s) => s.refresh);
+  const editEnabled = useEditModeStore((s) => s.workspaceEditEnabled);
+  const touchEdit = useEditModeStore((s) => s.touchWorkspaceActivity);
   const [editing, setEditing] = useState<WorkspaceView | 'new' | null>(null);
   const [pendingDelete, setPendingDelete] = useState<WorkspaceView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +48,7 @@ export function WorkspaceManagementPage() {
     if (!pendingDelete) return;
     try {
       await workspaceApi.remove(pendingDelete.id);
+      touchEdit();
       setPendingDelete(null);
       await refresh();
     } catch (e) {
@@ -57,9 +61,11 @@ export function WorkspaceManagementPage() {
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h2 className="font-serif text-xl tracking-[2px]">工作区管理</h2>
-        <Button onClick={() => setEditing('new')}>
-          <Plus className="mr-1 h-4 w-4" /> 新建工作区
-        </Button>
+        {editEnabled && (
+          <Button onClick={() => setEditing('new')}>
+            <Plus className="mr-1 h-4 w-4" /> 新建工作区
+          </Button>
+        )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -91,7 +97,7 @@ export function WorkspaceManagementPage() {
                 <TableCell>{w.description ?? '—'}</TableCell>
                 <TableCell>{formatDateTime(w.created_at)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {!isSystem && (
+                  {!isSystem && editEnabled && (
                     <>
                       <Button size="sm" variant="ghost" onClick={() => setEditing(w)}>
                         <Pencil className="mr-1 h-4 w-4" /> 编辑
@@ -112,6 +118,7 @@ export function WorkspaceManagementPage() {
         target={editing}
         onClose={() => setEditing(null)}
         onSaved={() => {
+          touchEdit();
           setEditing(null);
           refresh();
         }}

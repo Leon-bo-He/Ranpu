@@ -32,8 +32,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/format';
+import { useEditModeStore } from '@/store/editMode';
 
 export function AuditLogPage() {
+  const displayEnabled = useEditModeStore((s) => s.auditDisplayEnabled);
+  const touchDisplay = useEditModeStore((s) => s.touchAuditActivity);
+
   const [events, setEvents] = useState<AuditEventView[]>([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -48,78 +52,92 @@ export function AuditLogPage() {
         to: to ? new Date(to).toISOString() : undefined,
         limit: 50,
       })
-      .then(setEvents)
+      .then((rows) => {
+        setEvents(rows);
+        touchDisplay();
+      })
       .catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
   };
 
   useEffect(() => {
-    load();
+    if (displayEnabled) load();
+    else setEvents([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [displayEnabled]);
 
   return (
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h2 className="font-serif text-xl tracking-[2px]">审计日志</h2>
-        <Button onClick={() => setExportOpen(true)}>
-          <Upload className="mr-1 h-4 w-4" /> 导出
-        </Button>
+        {displayEnabled && (
+          <Button onClick={() => setExportOpen(true)}>
+            <Upload className="mr-1 h-4 w-4" /> 导出
+          </Button>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1">
-          <Label className="text-xs">起始日期</Label>
-          <Input
-            type="date"
-            className="w-40"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-          />
-        </div>
-        <div className="grid gap-1">
-          <Label className="text-xs">截止日期</Label>
-          <Input
-            type="date"
-            className="w-40"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-          />
-        </div>
-        <Button variant="outline" onClick={load}>
-          筛选
-        </Button>
-      </div>
+      {!displayEnabled ? (
+        <p className="text-sm text-muted-foreground">
+          审计日志包含敏感操作记录, 默认隐藏. 请到 "设置 → 管理模式 → 审计日志显示" 开启.
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="grid gap-1">
+              <Label className="text-xs">起始日期</Label>
+              <Input
+                type="date"
+                className="w-40"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label className="text-xs">截止日期</Label>
+              <Input
+                type="date"
+                className="w-40"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </div>
+            <Button variant="outline" onClick={load}>
+              筛选
+            </Button>
+          </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>时间</TableHead>
-            <TableHead>工作区</TableHead>
-            <TableHead>动作</TableHead>
-            <TableHead>对象</TableHead>
-            <TableHead>详情</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {events.map((e) => (
-            <TableRow key={e.id}>
-              <TableCell className="whitespace-nowrap">
-                {formatDateTime(e.occurred_at)}
-              </TableCell>
-              <TableCell>{e.workspace_context_id ?? '—'}</TableCell>
-              <TableCell className="font-mono text-xs">{e.action}</TableCell>
-              <TableCell className="max-w-[180px] truncate">
-                {e.target ?? '—'}
-              </TableCell>
-              <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">
-                {e.details ?? '—'}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>时间</TableHead>
+                <TableHead>工作区</TableHead>
+                <TableHead>动作</TableHead>
+                <TableHead>对象</TableHead>
+                <TableHead>详情</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {events.map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell className="whitespace-nowrap">
+                    {formatDateTime(e.occurred_at)}
+                  </TableCell>
+                  <TableCell>{e.workspace_context_id ?? '—'}</TableCell>
+                  <TableCell className="font-mono text-xs">{e.action}</TableCell>
+                  <TableCell className="max-w-[180px] truncate">
+                    {e.target ?? '—'}
+                  </TableCell>
+                  <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">
+                    {e.details ?? '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </>
+      )}
 
       <ExportDialog
         open={exportOpen}

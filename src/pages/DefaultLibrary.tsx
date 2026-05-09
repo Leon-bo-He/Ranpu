@@ -25,11 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useEditModeStore } from '@/store/editMode';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
 export function DefaultLibraryPage() {
   const session = useSessionStore((s) => s.session);
   const hasWs = hasActiveWorkspace(session);
+  const editEnabled = useEditModeStore((s) => s.formulaEditEnabled);
+  const touchEdit = useEditModeStore((s) => s.touchFormulaActivity);
 
   const [keyword, setKeyword] = useState('');
   // 防抖关键词: 输入停 300ms 后才触发查询.
@@ -40,7 +43,9 @@ export function DefaultLibraryPage() {
   const [editing, setEditing] = useState<FormulaView | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectionEnabled = hasWs;
+  // 批量选 + 复制到工作区 都是写操作 (会在目标工作区生成新配方),
+  // 所以同时受 配方管理 toggle 限制 — 没开就不显示这一组按钮.
+  const selectionEnabled = hasWs && editEnabled;
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchSummary, setBatchSummary] = useState<BatchCopySummaryView | null>(null);
@@ -100,6 +105,7 @@ export function DefaultLibraryPage() {
     if (!pendingDelete) return;
     try {
       await formulaApi.deleteDefault(pendingDelete.id);
+      touchEdit();
       setPendingDelete(null);
       load();
     } catch (e) {
@@ -110,6 +116,7 @@ export function DefaultLibraryPage() {
 
   const onSave = async (payload: Parameters<typeof formulaApi.upsertDefault>[0]) => {
     await formulaApi.upsertDefault(payload);
+    touchEdit();
     setEditorOpen(false);
     load();
   };
@@ -181,14 +188,16 @@ export function DefaultLibraryPage() {
               </Button>
             </>
           )}
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setEditorOpen(true);
-            }}
-          >
-            <Plus className="mr-1 h-4 w-4" /> 新建配方
-          </Button>
+          {editEnabled && (
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setEditorOpen(true);
+              }}
+            >
+              <Plus className="mr-1 h-4 w-4" /> 新建配方
+            </Button>
+          )}
         </div>
       </div>
 
@@ -231,14 +240,18 @@ export function DefaultLibraryPage() {
               key={f.id}
               formula={f}
               source="default"
-              canManage
+              canManage={editEnabled}
               hasActiveWorkspace={hasWs}
               onCopyToWorkspace={onCopyToWorkspace}
-              onEdit={(f) => {
-                setEditing(f);
-                setEditorOpen(true);
-              }}
-              onDelete={askDelete}
+              onEdit={
+                editEnabled
+                  ? (f) => {
+                      setEditing(f);
+                      setEditorOpen(true);
+                    }
+                  : undefined
+              }
+              onDelete={editEnabled ? askDelete : undefined}
               selected={selectionEnabled ? selectedIds.has(f.id) : undefined}
               onToggleSelected={selectionEnabled ? onToggleSelected : undefined}
             />

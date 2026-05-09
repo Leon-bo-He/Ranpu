@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useEditModeStore } from '@/store/editMode';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
 export function WorkspaceFormulasPage() {
@@ -38,8 +39,11 @@ export function WorkspaceFormulasPage() {
   const [pendingDelete, setPendingDelete] = useState<FormulaView | null>(null);
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView | null>(null);
   const [colorFamilies, setColorFamilies] = useState<string[]>([]);
+  const editModeOn = useEditModeStore((s) => s.formulaEditEnabled);
+  const touchEdit = useEditModeStore((s) => s.touchFormulaActivity);
   const isSystemMirror = activeWorkspace?.kind === 'system_mirror';
-  const canEdit = !isSystemMirror;
+  // canEdit = (1) 不是 system_mirror 工作区 + (2) 配方管理开关已开启.
+  const canEdit = !isSystemMirror && editModeOn;
 
   // 加入批次清单流程: 打开 dialog → 输入 kg → 处理冲突 (累加 / 覆盖).
   const [cartTarget, setCartTarget] = useState<FormulaView | null>(null);
@@ -112,6 +116,7 @@ export function WorkspaceFormulasPage() {
     if (!pendingDelete) return;
     try {
       await formulaApi.deleteWorkspace(pendingDelete.id);
+      touchEdit();
       setPendingDelete(null);
       load();
     } catch (e) {
@@ -122,6 +127,7 @@ export function WorkspaceFormulasPage() {
 
   const onSave = async (payload: Parameters<typeof formulaApi.upsertWorkspace>[0]) => {
     await formulaApi.upsertWorkspace(payload);
+    touchEdit();
     setEditorOpen(false);
     load();
   };
