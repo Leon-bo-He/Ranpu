@@ -558,11 +558,11 @@ export function CartPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>缸号已有内容</DialogTitle>
+            <DialogTitle>如何生成缸号?</DialogTitle>
             <DialogDescription>
               {filledMaxLabel
-                ? `当前批次单已填了缸号 (最大 ${filledMaxLabel}). 选择覆盖全部, 或在 ${filledMaxLabel} 后接续填空白行.`
-                : '当前批次单已填了缸号. 选择覆盖全部, 或保留已填项只补空白行.'}
+                ? `批次单当前已填到 ${filledMaxLabel}. 「全部重新生成」会丢弃所有已填缸号, 从头重新排; 「只填空白」保留已填行, 把空白行接在 ${filledMaxLabel} 后.`
+                : '批次单已填了缸号. 「全部重新生成」会丢弃所有已填缸号, 从头重新排; 「只填空白」保留已填行, 只补空白行.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -576,7 +576,7 @@ export function CartPage() {
                 doGenerateOverwrite();
               }}
             >
-              覆盖全部
+              全部重新生成
             </Button>
             <Button
               onClick={() => {
@@ -584,7 +584,7 @@ export function CartPage() {
                 doGenerateContinue();
               }}
             >
-              接续填写
+              只填空白
             </Button>
           </DialogFooter>
         </DialogContent>
