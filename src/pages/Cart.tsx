@@ -70,6 +70,11 @@ export function CartPage() {
   // 当 prompt 里已经有缸号时, "生成缸号" 弹个三选 dialog: 覆盖全部 / 接
   // 续填空白 / 取消. 没填过则直接走覆盖逻辑.
   const [genChoiceOpen, setGenChoiceOpen] = useState(false);
+  // dialog 描述里 "全部重新生成" 起点 = 系统存的最近一次发出号. 这里用
+  // hook 订阅 store, reset / commit 后描述能跟着刷新.
+  const savedLastVat = useVatSequenceStore((s) => s.lastVat);
+  const savedLastBatch = useVatSequenceStore((s) => s.lastBatch);
+  const savedLastDate = useVatSequenceStore((s) => s.lastDate);
 
   const load = () => {
     if (!hasWs) {
@@ -266,6 +271,16 @@ export function CartPage() {
         .filter((s): s is NonNullable<typeof s> => s !== null),
     );
     return max ? `${max.vat}-${max.batch}` : null;
+  })();
+
+  // 跨日 peek 会重置回 1-1, 这里同步隐藏旧值, 改显 "从 1-1 起", 跟实际
+  // 行为对齐.
+  const overwriteFromSegment = (() => {
+    if (savedLastVat <= 0 || savedLastBatch <= 0) return '从 1-1 起';
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (savedLastDate !== today) return '从 1-1 起';
+    return `从 ${savedLastVat}-${savedLastBatch} 之后`;
   })();
 
   const onCancelPrompt = () => {
@@ -569,7 +584,7 @@ export function CartPage() {
                 <>
                   当前批次单已填到 {filledMaxLabel}.
                   <br />
-                  「全部重新生成」会从系统最后一次发出的缸号之后给每一行重新编号 (已填值将被覆盖);
+                  「全部重新生成」会{overwriteFromSegment}给每一行重新编号 (已填值将被覆盖);
                   <br />
                   「只填空白」则保留已填行, 把空白行接在 {filledMaxLabel} 之后.
                 </>
@@ -577,7 +592,7 @@ export function CartPage() {
                 <>
                   批次单已填了缸号.
                   <br />
-                  「全部重新生成」会从系统最后一次发出的缸号之后给每一行重新编号;
+                  「全部重新生成」会{overwriteFromSegment}给每一行重新编号;
                   <br />
                   「只填空白」则保留已填行, 只补空白行.
                 </>
