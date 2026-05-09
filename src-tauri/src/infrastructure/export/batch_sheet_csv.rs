@@ -190,11 +190,17 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
             format_amount(r.target_kg.value()),
         ));
         html.push('\n');
-        // 缸号 / 纱支 写在 h2 下面一行 (而非顶部 meta), 因为这两项每个配方
-        // 各自不同, 对应不同的染色锅 / 纱卷规格.
-        if meta.vat_number.is_some() || meta.yarn_count.is_some() {
+        // 色系 / 缸号 / 纱支 写在 h2 下面一行 (而非顶部 meta), 因为这几项
+        // 每个配方各自不同 — 色系跟着配方走, 缸号 / 纱支跟着染色锅 / 纱卷走.
+        if meta.color_family.is_some() || meta.vat_number.is_some() || meta.yarn_count.is_some() {
             html.push_str(r#"    <div class="formula-meta">"#);
             html.push('\n');
+            if let Some(family) = meta.color_family {
+                html.push_str(&format!(
+                    "      <span class=\"label\">色系:</span><span class=\"value\">{}</span>\n",
+                    html_escape(family),
+                ));
+            }
             if let Some(vat) = meta.vat_number {
                 html.push_str(&format!(
                     "      <span class=\"label\">缸号:</span><span class=\"value\">{}</span>\n",

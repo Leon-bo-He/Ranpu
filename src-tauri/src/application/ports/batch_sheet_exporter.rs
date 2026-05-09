@@ -35,6 +35,8 @@ pub struct BatchSheetContext<'a> {
 /// 单条配方的额外元信息 — 渲染到该配方块的标题下方.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FormulaMeta<'a> {
+    /// 配方的色系 (从 cart line / formula 取, 不需要用户填).
+    pub color_family: Option<&'a str>,
     pub vat_number: Option<&'a str>,
     pub yarn_count: Option<&'a str>,
 }
