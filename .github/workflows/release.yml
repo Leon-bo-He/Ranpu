@@ -184,9 +184,12 @@ jobs:
             "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases/${REL_ID}/attach_files"
 
       # tauri-plugin-updater 需要一个稳定 URL 拉 latest.json (不能挂 tag 上,
-      # 客户端无从知道 "最新 tag 是哪个"). 把它 PUT 到 release-meta 分支根目录
-      # 即可通过 https://gitee.com/{owner}/{repo}/raw/release-meta/latest.json 拉.
-      # 用 contents API 直接 upsert, 不用 git clone, 不用配 SSH key.
+      # 客户端无从知道 "最新 tag 是哪个"). 把它放到 release-meta 分支根目录,
+      # updater 通过 https://gitee.com/{owner}/{repo}/raw/release-meta/latest.json 拉.
+      #
+      # 之前用 Gitee Contents API 走 GET → POST/PUT 的 upsert 路线, 但 Gitee 在
+      # 文件不存在时会返回 branch 对象而不是标准 404, 让 jq 解析炸掉. 直接 git
+      # clone + push 反而最稳, 用 token-in-URL, GitHub Actions 会自动 mask 日志.
       - name: Upsert latest.json on release-meta branch (Gitee)
         shell: bash
         env:
@@ -194,49 +197,29 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          BRANCH=release-meta
-          API="https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}"
+          REPO_URL="https://oauth2:${GITEE_TOKEN}@gitee.com/${GITEE_OWNER}/${GITEE_REPO}.git"
+          LATEST_JSON="$PWD/latest.json"
+          TMPDIR=$(mktemp -d)
 
-          # 没有分支就基于 main 建一个; 已存在就略过.
-          BR_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${API}/branches/${BRANCH}?access_token=${GITEE_TOKEN}")
-          if [ "$BR_CHECK" != "200" ]; then
-            curl -fsSL -X POST \
-              -H "Content-Type: application/json" \
-              -d "$(jq -n --arg tok "$GITEE_TOKEN" --arg br "$BRANCH" \
-                       '{access_token: $tok, refs: "main", branch_name: $br}')" \
-              "${API}/branches" || echo "branch create may have failed (might already exist)"
-          fi
-
-          CONTENT_B64=$(base64 -w 0 latest.json 2>/dev/null || base64 latest.json | tr -d '\n')
-
-          # 文件已存在要带 sha 走 PUT, 不存在走 POST.
-          EXISTING=$(curl -s "${API}/contents/latest.json?ref=${BRANCH}&access_token=${GITEE_TOKEN}")
-          SHA=$(echo "$EXISTING" | jq -r '.sha // empty')
-
-          if [ -n "$SHA" ]; then
-            jq -n \
-              --arg tok "$GITEE_TOKEN" \
-              --arg msg "release: ${TAG}" \
-              --arg content "$CONTENT_B64" \
-              --arg branch "$BRANCH" \
-              --arg sha "$SHA" \
-              '{access_token: $tok, message: $msg, content: $content, branch: $branch, sha: $sha}' \
-              > /tmp/file.json
-            curl -fsSL -X PUT \
-              -H "Content-Type: application/json" \
-              -d @/tmp/file.json \
-              "${API}/contents/latest.json"
+          # 浅克隆 main 当 fallback 起点; 再试 fetch release-meta. 没有就以 main
+          # 为起点新建.
+          git clone --depth 1 "$REPO_URL" "$TMPDIR"
+          if git -C "$TMPDIR" fetch --depth 1 origin release-meta:release-meta 2>/dev/null; then
+            git -C "$TMPDIR" checkout release-meta
           else
-            jq -n \
-              --arg tok "$GITEE_TOKEN" \
-              --arg msg "release: ${TAG}" \
-              --arg content "$CONTENT_B64" \
-              --arg branch "$BRANCH" \
-              '{access_token: $tok, message: $msg, content: $content, branch: $branch}' \
-              > /tmp/file.json
-            curl -fsSL -X POST \
-              -H "Content-Type: application/json" \
-              -d @/tmp/file.json \
-              "${API}/contents/latest.json"
+            git -C "$TMPDIR" checkout -b release-meta
           fi
+
+          cp "$LATEST_JSON" "$TMPDIR/latest.json"
+          git -C "$TMPDIR" add latest.json
+
+          if git -C "$TMPDIR" diff --cached --quiet; then
+            echo "release-meta latest.json unchanged, skipping push"
+            exit 0
+          fi
+
+          git -C "$TMPDIR" \
+            -c user.email=ci@ranpu \
+            -c user.name="Ranpu CI" \
+            commit -m "release: ${TAG}"
+          git -C "$TMPDIR" push origin release-meta
