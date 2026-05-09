@@ -103,6 +103,13 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     let mut html = String::new();
     html.push_str("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n");
     html.push_str("<meta charset=\"UTF-8\">\n");
+    // Release 构建下父文档 CSP 严格 (style-src 'self' 'unsafe-inline'), 但
+    // iframe srcdoc 文档继承时某些 WebView2 版本会把 'unsafe-inline' 丢掉,
+    // 导致 <style> 块和 style="" 都被拦. Dev 构建用 devCsp 比较宽松所以
+    // 看起来好的. 这里给 srcdoc 文档自己设一条本地 CSP, 不再依赖继承.
+    html.push_str(
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:\">\n",
+    );
     html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
     html.push_str(
         r#"<style>
