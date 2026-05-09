@@ -9,14 +9,14 @@ use crate::application::ports::errors::RepositoryError;
 use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
-use crate::domain::shared::id::{FormulaId, FormulaItemId, UserId};
+use crate::domain::shared::id::{FormulaId, FormulaItemId};
 use crate::infrastructure::persistence::sqlcipher::connection::SqliteConnection;
 use crate::infrastructure::persistence::sqlcipher::row_mapping::{
     corrupt, parse_customer, parse_dt, parse_internal, parse_kg_opt, parse_ratio_opt, parse_unit,
     rfc3339,
 };
 
-const COLS: &str = "id, internal_color_code, customer_color_code, color_name, description, base_weight_kg, liquor_ratio, notes, created_by_user_id, created_at, updated_at";
+const COLS: &str = "id, internal_color_code, customer_color_code, color_name, description, base_weight_kg, liquor_ratio, notes, created_at, updated_at";
 
 pub struct SqliteDefaultFormulaRepository {
     db: Arc<SqliteConnection>,
@@ -37,7 +37,6 @@ struct FormulaRow {
     base_weight_kg: Option<f64>,
     liquor_ratio: Option<f64>,
     notes: Option<String>,
-    created_by_user_id: Option<i64>,
     created_at: String,
     updated_at: String,
 }
@@ -53,9 +52,8 @@ impl FormulaRow {
             base_weight_kg: r.get(5)?,
             liquor_ratio: r.get(6)?,
             notes: r.get(7)?,
-            created_by_user_id: r.get(8)?,
-            created_at: r.get(9)?,
-            updated_at: r.get(10)?,
+            created_at: r.get(8)?,
+            updated_at: r.get(9)?,
         })
     }
 }
@@ -132,7 +130,6 @@ fn assemble_default(
         ratio,
         formula_row.notes,
         items_dom,
-        formula_row.created_by_user_id.map(UserId::new),
         created_at,
         updated_at,
     )
@@ -258,8 +255,8 @@ impl DefaultFormulaRepository for SqliteDefaultFormulaRepository {
                     tx.execute(
                         "INSERT INTO default_formulas (internal_color_code, customer_color_code,
                             color_name, description, base_weight_kg, liquor_ratio, notes,
-                            created_by_user_id, created_at, updated_at)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                            created_at, updated_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                         params![
                             <DefaultFormula as crate::domain::calculation::dye_calculator::CalculableFormula>::internal_color_code(formula).as_str(),
                             formula.customer_color_code().map(|c| c.as_str()),
@@ -268,7 +265,6 @@ impl DefaultFormulaRepository for SqliteDefaultFormulaRepository {
                             formula.base_weight_kg().map(|k| k.value()),
                             <DefaultFormula as crate::domain::calculation::dye_calculator::CalculableFormula>::liquor_ratio(formula).map(|r| r.value()),
                             formula.notes(),
-                            formula.created_by_user_id().map(|i| i.value()),
                             rfc3339(formula.created_at()),
                             rfc3339(formula.updated_at()),
                         ],
@@ -386,7 +382,6 @@ mod tests {
                     .unwrap(),
                 FormulaItem::new("Salt", None, 30.0, Unit::GramsPerL, 2).unwrap(),
             ],
-            None,
             t(),
         )
         .unwrap()

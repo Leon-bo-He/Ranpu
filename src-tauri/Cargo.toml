@@ -42,7 +42,6 @@ rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl",
 parking_lot = "0.12"
 
 # 加密（feat/infra-crypto）
-argon2 = "0.5"
 aes-gcm = "0.10"
 pbkdf2 = "0.12"
 hmac = "0.12"

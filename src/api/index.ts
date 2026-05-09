@@ -1,7 +1,6 @@
 export * from './invoke';
 export * from './types';
 export { bootApi } from './boot';
-export { identityApi } from './identity';
 export { workspaceApi } from './workspace';
 export { formulaApi } from './formula';
 export { calculationApi } from './calculation';

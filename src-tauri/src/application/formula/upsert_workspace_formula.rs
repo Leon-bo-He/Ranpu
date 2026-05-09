@@ -1,7 +1,7 @@
 use crate::application::errors::AppResult;
 use crate::application::formula::parse::parse_upsert;
 use crate::application::formula::service::{FormulaService, FormulaUpsertInput};
-use crate::application::session_guard::{ensure_active_workspace, ensure_admin};
+use crate::application::session_guard::ensure_active_workspace;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::formula::workspace_formula::WorkspaceFormula;
 use crate::domain::shared::id::FormulaId;
@@ -11,7 +11,6 @@ impl FormulaService {
         &self,
         input: FormulaUpsertInput,
     ) -> AppResult<FormulaId> {
-        let snap = ensure_admin(&*self.session_store)?;
         let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         self.reject_if_system_mirror(workspace_id)?;
         let now = self.clock.now();
@@ -49,7 +48,6 @@ impl FormulaService {
         };
         let id = self.workspace_repo.upsert(&formula)?;
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             Some(workspace_id),
             Action::WorkspaceFormulaUpserted,
             Some(internal_code_str),

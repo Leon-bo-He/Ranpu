@@ -9,15 +9,12 @@ import { Label } from '@/components/ui/label';
 import { RanpuLogo } from '@/components/RanpuLogo';
 import { useSessionStore } from '@/store/session';
 
-const MIN_PASSWORD_LEN = 8;
+const MIN_PASSPHRASE_LEN = 8;
 
 export function FirstRunSetup() {
   const setSession = useSessionStore((s) => s.setSession);
   const [bootPassphrase, setBootPassphrase] = useState('');
   const [bootPassphrase2, setBootPassphrase2] = useState('');
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('');
-  const [password2, setPassword2] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,21 +25,13 @@ export function FirstRunSetup() {
       setError('两次输入的启动口令不一致');
       return;
     }
-    if (password !== password2) {
-      setError('两次输入的密码不一致');
-      return;
-    }
-    if (password.length < MIN_PASSWORD_LEN) {
-      setError(`密码至少 ${MIN_PASSWORD_LEN} 位`);
-      return;
-    }
-    if (bootPassphrase.length < MIN_PASSWORD_LEN) {
-      setError(`启动口令至少 ${MIN_PASSWORD_LEN} 位`);
+    if (bootPassphrase.length < MIN_PASSPHRASE_LEN) {
+      setError(`启动口令至少 ${MIN_PASSPHRASE_LEN} 位`);
       return;
     }
     setBusy(true);
     try {
-      const session = await bootApi.setupFirstRun(bootPassphrase, username, password);
+      const session = await bootApi.setupFirstRun(bootPassphrase);
       setSession(session);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
@@ -66,8 +55,7 @@ export function FirstRunSetup() {
         </div>
 
         <p className="text-sm text-muted-foreground">
-          为这台电脑设置一个「启动口令」(用于解锁本机数据), 再创建第一个管理员账号。
-          启动口令与登录密码独立, 请分别牢记。
+          为这台电脑设置一个「启动口令」, 用于解锁本机数据。请牢记, 丢失后无法找回。
         </p>
 
         <div className="grid gap-1">
@@ -77,6 +65,7 @@ export function FirstRunSetup() {
             value={bootPassphrase}
             onChange={(e) => setBootPassphrase(e.target.value)}
             disabled={busy}
+            autoComplete="new-password"
           />
         </div>
         <div className="grid gap-1">
@@ -85,37 +74,6 @@ export function FirstRunSetup() {
             type="password"
             value={bootPassphrase2}
             onChange={(e) => setBootPassphrase2(e.target.value)}
-            disabled={busy}
-          />
-        </div>
-
-        <div className="my-2 border-t" />
-
-        <div className="grid gap-1">
-          <Label>管理员用户名</Label>
-          <Input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            disabled={busy}
-            autoComplete="username"
-          />
-        </div>
-        <div className="grid gap-1">
-          <Label>管理员密码</Label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={busy}
-            autoComplete="new-password"
-          />
-        </div>
-        <div className="grid gap-1">
-          <Label>再次输入密码</Label>
-          <Input
-            type="password"
-            value={password2}
-            onChange={(e) => setPassword2(e.target.value)}
             disabled={busy}
             autoComplete="new-password"
           />
@@ -129,7 +87,7 @@ export function FirstRunSetup() {
               正在创建…
             </>
           ) : (
-            '完成设置并登录'
+            '完成设置并进入'
           )}
         </Button>
       </form>

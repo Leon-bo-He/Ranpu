@@ -5,13 +5,13 @@ use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::shared::id::WorkspaceId;
 
 impl WorkspaceService {
-    /// 任何登录用户都能切换 workspace（共享车间工作站模型）。
+    /// 单用户解锁模型: 解锁后即可切换 workspace.
     /// 传入 None 取消激活；传入 Some 时必须是已存在的 workspace。
     pub fn switch_active_workspace(
         &self,
         workspace_id: Option<WorkspaceId>,
     ) -> AppResult<()> {
-        let snap = ensure_active(&*self.session_store)?;
+        let _ = ensure_active(&*self.session_store)?;
         if let Some(id) = workspace_id {
             if self.workspace_repo.find_by_id(id)?.is_none() {
                 return Err(AppError::Internal(format!(
@@ -23,7 +23,6 @@ impl WorkspaceService {
         self.session_store
             .mutate(&mut |s| s.switch_workspace(workspace_id));
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             workspace_id,
             Action::WorkspaceSwitched,
             workspace_id.map(|id| id.to_string()),

@@ -7,7 +7,7 @@ use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
 use crate::domain::formula::liquor_ratio::LiquorRatio;
 use crate::domain::shared::errors::{DomainError, DomainResult};
-use crate::domain::shared::id::{FormulaId, UserId};
+use crate::domain::shared::id::FormulaId;
 
 /// 默认配方库的聚合根。
 ///
@@ -26,7 +26,6 @@ pub struct DefaultFormula {
     liquor_ratio: Option<LiquorRatio>,
     notes: Option<String>,
     items: Vec<FormulaItem>,
-    created_by_user_id: Option<UserId>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -42,7 +41,6 @@ impl DefaultFormula {
         liquor_ratio: Option<LiquorRatio>,
         notes: Option<String>,
         items: Vec<FormulaItem>,
-        created_by_user_id: Option<UserId>,
         created_at: DateTime<Utc>,
     ) -> DomainResult<Self> {
         let color_name = normalize_color_name(color_name)?;
@@ -59,7 +57,6 @@ impl DefaultFormula {
             liquor_ratio,
             notes,
             items,
-            created_by_user_id,
             created_at,
             updated_at: created_at,
         })
@@ -75,7 +72,6 @@ impl DefaultFormula {
         liquor_ratio: Option<LiquorRatio>,
         notes: Option<String>,
         items: Vec<FormulaItem>,
-        created_by_user_id: Option<UserId>,
         created_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> DomainResult<Self> {
@@ -90,7 +86,6 @@ impl DefaultFormula {
             liquor_ratio,
             notes,
             items,
-            created_by_user_id,
             created_at,
             updated_at,
         })
@@ -113,9 +108,6 @@ impl DefaultFormula {
     }
     pub fn notes(&self) -> Option<&str> {
         self.notes.as_deref()
-    }
-    pub fn created_by_user_id(&self) -> Option<UserId> {
-        self.created_by_user_id
     }
     pub fn created_at(&self) -> DateTime<Utc> {
         self.created_at
@@ -259,7 +251,6 @@ mod tests {
             None,
             None,
             vec![pct_item()],
-            None,
             t(),
         )
         .unwrap();
@@ -278,7 +269,6 @@ mod tests {
             None,
             None,
             vec![],
-            None,
             t(),
         )
         .unwrap_err();
@@ -296,7 +286,6 @@ mod tests {
             None,
             None,
             vec![gpl_item()],
-            None,
             t(),
         )
         .unwrap_err();
@@ -314,7 +303,6 @@ mod tests {
             Some(LiquorRatio::new(8.0).unwrap()),
             None,
             vec![pct_item(), gpl_item()],
-            None,
             t(),
         );
         assert!(f.is_ok());
@@ -331,7 +319,6 @@ mod tests {
             None,
             None,
             vec![pct_item()],
-            None,
             t(),
         )
         .unwrap();
@@ -353,7 +340,6 @@ mod tests {
             Some(LiquorRatio::new(8.0).unwrap()),
             None,
             vec![gpl_item()],
-            None,
             t(),
         )
         .unwrap();
@@ -372,7 +358,6 @@ mod tests {
             None,
             None,
             vec![pct_item()],
-            None,
             t(),
         )
         .unwrap();

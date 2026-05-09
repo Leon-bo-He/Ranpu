@@ -8,21 +8,18 @@ import {
   PackageOpen,
   Settings as Cog,
   ShoppingCart,
-  Users as UsersIcon,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { hasActiveWorkspace, isAdmin, useSessionStore } from '@/store/session';
+import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 import { useUpdateStore } from '@/store/update';
 
 interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
-  /** 需要管理员角色才显示。 */
-  adminOnly?: boolean;
   /** 没激活 workspace 时禁用（仍显示，灰掉 + tooltip 提示）。 */
   needsActiveWorkspace?: boolean;
 }
@@ -48,10 +45,9 @@ const NAV_ITEMS: NavItem[] = [
     icon: ShoppingCart,
     needsActiveWorkspace: true,
   },
-  { to: '/workspaces', label: '工作区管理', icon: Layers, adminOnly: true },
-  { to: '/users', label: '用户管理', icon: UsersIcon, adminOnly: true },
-  { to: '/audit', label: '审计日志', icon: ClipboardList, adminOnly: true },
-  { to: '/library-transfer', label: '配方互导', icon: PackageOpen, adminOnly: true },
+  { to: '/workspaces', label: '工作区管理', icon: Layers },
+  { to: '/audit', label: '审计日志', icon: ClipboardList },
+  { to: '/library-transfer', label: '配方互导', icon: PackageOpen },
   { to: '/settings', label: '设置', icon: Cog },
   { to: '/about', label: '关于', icon: Info },
 ];
@@ -61,15 +57,12 @@ export function Sidebar() {
   // 全局更新状态: 有 pending 就在 "关于" 项右边贴个红点提示新版本.
   const hasUpdate = useUpdateStore((s) => s.pending !== null);
   if (!session) return null;
-  const admin = isAdmin(session);
   const hasWs = hasActiveWorkspace(session);
-
-  const visible = NAV_ITEMS.filter((item) => !item.adminOnly || admin);
 
   return (
     <aside className="flex w-[200px] shrink-0 select-none flex-col border-r bg-card/30">
       <nav className="flex flex-1 flex-col gap-0.5 p-3">
-        {visible.map((item) => {
+        {NAV_ITEMS.map((item) => {
           const disabled = item.needsActiveWorkspace === true && !hasWs;
           const Icon = item.icon;
           if (disabled) {

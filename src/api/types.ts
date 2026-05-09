@@ -4,23 +4,9 @@
  */
 
 export interface SessionView {
-  user_id: number;
-  username: string;
-  role: 'admin' | 'user';
   active_workspace_id: number | null;
   locked: boolean;
   last_activity_at: string;
-}
-
-export interface UserView {
-  id: number;
-  username: string;
-  role: 'admin' | 'user';
-  is_active: boolean;
-  failed_attempts: number;
-  locked_until: string | null;
-  created_at: string;
-  last_login: string | null;
 }
 
 export type WorkspaceKind = 'normal' | 'system_mirror';
@@ -161,7 +147,6 @@ export interface CartLineView {
 export interface AuditEventView {
   id: number;
   event_uuid: string;
-  user_id: number | null;
   workspace_context_id: number | null;
   action: string;
   target: string | null;
@@ -169,15 +154,9 @@ export interface AuditEventView {
   occurred_at: string;
 }
 
-export interface UnlockOutcomeView {
-  kind: 'unlocked' | 'still_locked' | 'force_logged_out';
-  remaining: number | null;
-}
-
 export interface BootStatusView {
   keystore_exists: boolean;
   db_initialized: boolean;
-  user_count: number;
 }
 
 export type Unit = 'pct_owf' | 'g_per_kg' | 'g_per_L';

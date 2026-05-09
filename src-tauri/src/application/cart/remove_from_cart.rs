@@ -15,15 +15,14 @@ pub struct RemoveFromCartInput {
 
 impl CartService {
     pub fn remove_from_cart(&self, input: RemoveFromCartInput) -> AppResult<bool> {
-        let (snap, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         let source_kind = SourceKind::from_str(&input.source_kind)?;
 
-        let mut cart = self.cart_repo.load(snap.user_id(), workspace_id)?;
+        let mut cart = self.cart_repo.load(workspace_id)?;
         let removed = cart.remove(source_kind, input.source_formula_id);
         if removed {
             self.cart_repo.save(&cart)?;
             let event = AuditEvent::new(
-                Some(snap.user_id()),
                 Some(workspace_id),
                 Action::CartItemRemoved,
                 Some(format!(

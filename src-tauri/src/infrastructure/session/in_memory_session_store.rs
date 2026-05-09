@@ -1,7 +1,7 @@
 use parking_lot::Mutex;
 
 use crate::application::ports::session_store::SessionStore;
-use crate::domain::identity::session::Session;
+use crate::domain::session::Session;
 
 /// 进程内单实例的当前会话存储。
 pub struct InMemorySessionStore {
@@ -50,23 +50,15 @@ impl SessionStore for InMemorySessionStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::identity::password::Username;
-    use crate::domain::identity::role::Role;
-    use crate::domain::shared::id::UserId;
     use chrono::{TimeZone, Utc};
 
     #[test]
     fn set_then_current_returns_clone() {
         let store = InMemorySessionStore::new();
-        let session = Session::new(
-            UserId::new(1),
-            Role::User,
-            Username::new("alice").unwrap(),
-            Utc.timestamp_opt(0, 0).unwrap(),
-        );
+        let session = Session::new(Utc.timestamp_opt(0, 0).unwrap());
         store.set(session);
         let s = store.current().unwrap();
-        assert_eq!(s.user_id(), UserId::new(1));
+        assert!(!s.is_locked());
     }
 
     #[test]
@@ -81,12 +73,7 @@ mod tests {
     #[test]
     fn mutate_runs_closure_when_present() {
         let store = InMemorySessionStore::new();
-        store.set(Session::new(
-            UserId::new(1),
-            Role::User,
-            Username::new("alice").unwrap(),
-            Utc.timestamp_opt(0, 0).unwrap(),
-        ));
+        store.set(Session::new(Utc.timestamp_opt(0, 0).unwrap()));
         let modified = store.mutate(&mut |s| s.lock());
         assert!(modified);
         assert!(store.current().unwrap().is_locked());

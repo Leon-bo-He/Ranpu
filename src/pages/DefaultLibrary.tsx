@@ -25,11 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { hasActiveWorkspace, isAdmin, useSessionStore } from '@/store/session';
+import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
 export function DefaultLibraryPage() {
   const session = useSessionStore((s) => s.session);
-  const admin = isAdmin(session);
   const hasWs = hasActiveWorkspace(session);
 
   const [keyword, setKeyword] = useState('');
@@ -41,7 +40,7 @@ export function DefaultLibraryPage() {
   const [editing, setEditing] = useState<FormulaView | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectionEnabled = admin && hasWs;
+  const selectionEnabled = hasWs;
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchSummary, setBatchSummary] = useState<BatchCopySummaryView | null>(null);
@@ -172,16 +171,14 @@ export function DefaultLibraryPage() {
               </Button>
             </>
           )}
-          {admin && (
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setEditorOpen(true);
-              }}
-            >
-              <Plus className="mr-1 h-4 w-4" /> 新建配方
-            </Button>
-          )}
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setEditorOpen(true);
+            }}
+          >
+            <Plus className="mr-1 h-4 w-4" /> 新建配方
+          </Button>
         </div>
       </div>
 
@@ -202,7 +199,7 @@ export function DefaultLibraryPage() {
           已选 <Badge variant="default">{selectedIds.size}</Badge> 条配方
         </p>
       )}
-      {admin && !hasWs && (
+      {!hasWs && (
         <p className="text-xs text-muted-foreground">
           想批量复制配方？请先在顶栏选择目标工作区。
         </p>
@@ -224,18 +221,14 @@ export function DefaultLibraryPage() {
               key={f.id}
               formula={f}
               source="default"
-              canManage={admin}
+              canManage
               hasActiveWorkspace={hasWs}
               onCopyToWorkspace={onCopyToWorkspace}
-              onEdit={
-                admin
-                  ? (f) => {
-                      setEditing(f);
-                      setEditorOpen(true);
-                    }
-                  : undefined
-              }
-              onDelete={admin ? askDelete : undefined}
+              onEdit={(f) => {
+                setEditing(f);
+                setEditorOpen(true);
+              }}
+              onDelete={askDelete}
               selected={selectionEnabled ? selectedIds.has(f.id) : undefined}
               onToggleSelected={selectionEnabled ? onToggleSelected : undefined}
             />

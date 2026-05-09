@@ -7,12 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RanpuLogo } from '@/components/RanpuLogo';
+import { useSessionStore } from '@/store/session';
 
-interface BootScreenProps {
-  onBooted: (userCount: number) => void;
-}
-
-export function BootScreen({ onBooted }: BootScreenProps) {
+export function BootScreen() {
+  const setSession = useSessionStore((s) => s.setSession);
   const [passphrase, setPassphrase] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,8 +20,8 @@ export function BootScreen({ onBooted }: BootScreenProps) {
     setBusy(true);
     setError(null);
     try {
-      const status = await bootApi.bootApp(passphrase);
-      onBooted(status.user_count);
+      const session = await bootApi.bootApp(passphrase);
+      setSession(session);
     } catch (err) {
       if (err instanceof ApiError && err.code === 'boot_passphrase_incorrect') {
         setError('启动口令不正确');

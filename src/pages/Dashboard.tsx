@@ -7,7 +7,6 @@ import {
   PackageOpen,
   Settings as Cog,
   ShoppingCart,
-  Users as UsersIcon,
 } from 'lucide-react';
 
 import {
@@ -16,12 +15,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { hasActiveWorkspace, isAdmin, useSessionStore } from '@/store/session';
+import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
 export function DashboardPage() {
   const session = useSessionStore((s) => s.session);
   if (!session) return null;
-  const admin = isAdmin(session);
   const hasWs = hasActiveWorkspace(session);
 
   return (
@@ -37,7 +35,7 @@ export function DashboardPage() {
         <NavCard
           to="/default-library"
           title="默认配方库"
-          desc="全公司共享的染纱配方模板。admin 维护，所有人可查、可加密导出。"
+          desc="全公司共享的染纱配方模板。可查、可加密导出。"
           icon={<BookOpen className="h-5 w-5" />}
         />
         <NavCard
@@ -58,42 +56,28 @@ export function DashboardPage() {
           desc="本缸要染的多条配方汇总，一键导出批次单 (CSV / 可打印 HTML) 交操作工。"
           icon={<ShoppingCart className="h-5 w-5" />}
         />
-        {admin && (
-          <NavCard
-            to="/workspaces"
-            title="工作区管理"
-            desc="按客户或项目划分工作区。配方与批次清单按工作区隔离。"
-            icon={<Layers className="h-5 w-5" />}
-          />
-        )}
-        {admin && (
-          <NavCard
-            to="/users"
-            title="用户管理"
-            desc="新建 / 停用 / 启用登录账号，分配管理员或普通用户角色。"
-            icon={<UsersIcon className="h-5 w-5" />}
-          />
-        )}
-        {admin && (
-          <NavCard
-            to="/audit"
-            title="审计日志"
-            desc="查询全部用户操作记录。支持按日期 / 用户 / 动作筛选，加密 .ranpu 或明文 CSV 导出。"
-            icon={<ClipboardList className="h-5 w-5" />}
-          />
-        )}
-        {admin && (
-          <NavCard
-            to="/library-transfer"
-            title="配方互导"
-            desc="把默认库 + 任意工作区一次性加密导出为 .ranpu，或在另一台机器导入；工作区按名称匹配 (新建 / 合并 / 跳过)。"
-            icon={<PackageOpen className="h-5 w-5" />}
-          />
-        )}
+        <NavCard
+          to="/workspaces"
+          title="工作区管理"
+          desc="按客户或项目划分工作区。配方与批次清单按工作区隔离。"
+          icon={<Layers className="h-5 w-5" />}
+        />
+        <NavCard
+          to="/audit"
+          title="审计日志"
+          desc="查询本机操作记录。支持按日期 / 动作筛选，加密 .ranpu 或明文 CSV 导出。"
+          icon={<ClipboardList className="h-5 w-5" />}
+        />
+        <NavCard
+          to="/library-transfer"
+          title="配方互导"
+          desc="把默认库 + 任意工作区一次性加密导出为 .ranpu，或在另一台机器导入；工作区按名称匹配 (新建 / 合并 / 跳过)。"
+          icon={<PackageOpen className="h-5 w-5" />}
+        />
         <NavCard
           to="/settings"
           title="设置"
-          desc="自动锁屏时长 (5/10/30/60 分钟) + 修改自己的登录密码。"
+          desc="自动锁屏时长 (5/10/30/60 分钟)。"
           icon={<Cog className="h-5 w-5" />}
         />
       </div>

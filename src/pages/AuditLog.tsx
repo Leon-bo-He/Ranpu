@@ -32,10 +32,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/format';
-import { useSessionStore } from '@/store/session';
 
 export function AuditLogPage() {
-  const session = useSessionStore((s) => s.session);
   const [events, setEvents] = useState<AuditEventView[]>([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -58,12 +56,6 @@ export function AuditLogPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  if (session?.role !== 'admin') {
-    return (
-      <p className="p-6 text-sm text-muted-foreground">只有管理员能查看审计日志。</p>
-    );
-  }
 
   return (
     <div className="space-y-4 p-6">
@@ -104,7 +96,6 @@ export function AuditLogPage() {
         <TableHeader>
           <TableRow>
             <TableHead>时间</TableHead>
-            <TableHead>用户</TableHead>
             <TableHead>工作区</TableHead>
             <TableHead>动作</TableHead>
             <TableHead>对象</TableHead>
@@ -117,7 +108,6 @@ export function AuditLogPage() {
               <TableCell className="whitespace-nowrap">
                 {formatDateTime(e.occurred_at)}
               </TableCell>
-              <TableCell>{e.user_id ?? '—'}</TableCell>
               <TableCell>{e.workspace_context_id ?? '—'}</TableCell>
               <TableCell className="font-mono text-xs">{e.action}</TableCell>
               <TableCell className="max-w-[180px] truncate">
@@ -269,7 +259,7 @@ function ExportDialog({
         title="确认明文导出审计日志？"
         description={
           <>
-            日志包含敏感操作记录（用户、动作、时间），明文 CSV{' '}
+            日志包含敏感操作记录（动作、时间、对象），明文 CSV{' '}
             <strong>不会被加密</strong>，任何拿到文件的人都能直接读取。如需对外分发，
             建议改用 「加密 .ranpu」 格式。
           </>

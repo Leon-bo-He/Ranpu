@@ -1,7 +1,7 @@
 use crate::application::errors::{AppError, AppResult};
 use crate::application::formula::service::FormulaService;
 use crate::application::ports::errors::RepositoryError;
-use crate::application::session_guard::{ensure_active_workspace, ensure_admin};
+use crate::application::session_guard::ensure_active_workspace;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::shared::id::FormulaId;
 
@@ -10,7 +10,6 @@ impl FormulaService {
         &self,
         default_formula_id: FormulaId,
     ) -> AppResult<FormulaId> {
-        let snap = ensure_admin(&*self.session_store)?;
         let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         self.reject_if_system_mirror(workspace_id)?;
         let default = self
@@ -29,7 +28,6 @@ impl FormulaService {
         };
 
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             Some(workspace_id),
             Action::DefaultFormulaCopiedToWorkspace,
             Some(default_formula_id.to_string()),

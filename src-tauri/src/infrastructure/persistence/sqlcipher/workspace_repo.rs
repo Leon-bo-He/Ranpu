@@ -5,12 +5,12 @@ use rusqlite::{params, Row};
 
 use crate::application::ports::errors::RepositoryError;
 use crate::application::ports::workspace_repository::WorkspaceRepository;
-use crate::domain::shared::id::{UserId, WorkspaceId};
+use crate::domain::shared::id::WorkspaceId;
 use crate::domain::workspace::workspace::{Workspace, WorkspaceKind, WorkspaceName};
 use crate::infrastructure::persistence::sqlcipher::connection::SqliteConnection;
 use crate::infrastructure::persistence::sqlcipher::row_mapping::{corrupt, parse_dt, rfc3339};
 
-const SELECT_COLS: &str = "id, name, description, created_by_user_id, created_at, kind";
+const SELECT_COLS: &str = "id, name, description, created_at, kind";
 
 pub struct SqliteWorkspaceRepository {
     db: Arc<SqliteConnection>,
@@ -26,7 +26,6 @@ struct RawRow {
     id: i64,
     name: String,
     description: Option<String>,
-    created_by_user_id: Option<i64>,
     created_at: String,
     kind: String,
 }
@@ -37,9 +36,8 @@ impl RawRow {
             id: r.get(0)?,
             name: r.get(1)?,
             description: r.get(2)?,
-            created_by_user_id: r.get(3)?,
-            created_at: r.get(4)?,
-            kind: r.get(5)?,
+            created_at: r.get(3)?,
+            kind: r.get(4)?,
         })
     }
 
@@ -52,7 +50,6 @@ impl RawRow {
             WorkspaceId::new(self.id),
             name,
             self.description,
-            self.created_by_user_id.map(UserId::new),
             created_at,
             kind,
         ))
@@ -118,11 +115,10 @@ impl WorkspaceRepository for SqliteWorkspaceRepository {
     fn insert(&self, workspace: &Workspace) -> Result<WorkspaceId, RepositoryError> {
         self.db.with_tx(|tx| {
             tx.execute(
-                "INSERT INTO workspaces (name, description, created_by_user_id, created_at, kind) VALUES (?1, ?2, ?3, ?4, ?5)",
+                "INSERT INTO workspaces (name, description, created_at, kind) VALUES (?1, ?2, ?3, ?4)",
                 params![
                     workspace.name().as_str(),
                     workspace.description(),
-                    workspace.created_by_user_id().map(|i| i.value()),
                     rfc3339(workspace.created_at()),
                     workspace.kind().as_db_str(),
                 ],
@@ -179,7 +175,6 @@ mod tests {
         let w = Workspace::new(
             WorkspaceName::new("客户A").unwrap(),
             Some("第一个客户".into()),
-            None,
             now,
         )
         .unwrap();
@@ -197,7 +192,6 @@ mod tests {
         let w = Workspace::new_with_kind(
             WorkspaceName::new("通用").unwrap(),
             None,
-            None,
             now,
             WorkspaceKind::SystemMirror,
         )
@@ -211,9 +205,9 @@ mod tests {
     fn duplicate_name_conflict() {
         let repo = SqliteWorkspaceRepository::new(db());
         let now = Utc.timestamp_opt(0, 0).unwrap();
-        let a = Workspace::new(WorkspaceName::new("X").unwrap(), None, None, now).unwrap();
+        let a = Workspace::new(WorkspaceName::new("X").unwrap(), None, now).unwrap();
         repo.insert(&a).unwrap();
-        let b = Workspace::new(WorkspaceName::new("X").unwrap(), None, None, now).unwrap();
+        let b = Workspace::new(WorkspaceName::new("X").unwrap(), None, now).unwrap();
         assert!(matches!(repo.insert(&b), Err(RepositoryError::Conflict(_))));
     }
 }

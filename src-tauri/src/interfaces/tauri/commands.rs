@@ -1,4 +1,7 @@
 //! Tauri 命令层。每个 #[tauri::command] 严格按 PROMPT 第 149 行 ≤ 30 行。
+//!
+//! 单用户解锁模型: 没有 cmd_login / cmd_logout / cmd_change_password /
+//! cmd_create_user / cmd_*_user 这些 — 没有用户体系自然就没有这些命令.
 
 use std::str::FromStr;
 
@@ -10,28 +13,26 @@ use crate::application::calculation::{CalculateDyeAmountsInput, SearchByCustomer
 use crate::application::cart::{
     AddToCartInput, ExportCartInput, RemoveFromCartInput, UpdateCartItemKgInput,
 };
+use crate::application::errors::AppError;
 use crate::application::formula::{
     BatchCopyDefaultInput, ExportArchiveInput, FormulaItemInput, FormulaUpsertInput,
     ImportArchiveInput, ListDefaultFormulasInput, ListWorkspaceFormulasInput,
     PreviewArchiveInput, WorkspaceImportPlan,
-};
-use crate::application::identity::{
-    AuthenticateUserInput, ChangeUserPasswordInput, CreateUserInput, UnlockOutcome,
-    UnlockSessionInput,
 };
 use crate::application::ports::batch_sheet_exporter::BatchSheetFormat;
 use crate::application::workspace::{
     CreateWorkspaceInput, RenameWorkspaceInput, UpdateWorkspaceDescriptionInput,
 };
 use crate::domain::audit::audit_event::Action;
-use crate::domain::shared::id::{FormulaId, UserId, WorkspaceId};
+use crate::domain::session::Session;
+use crate::domain::shared::id::{FormulaId, WorkspaceId};
 use crate::interfaces::tauri::boot::{boot, keystore_exists};
 use crate::interfaces::tauri::dto::*;
 use crate::interfaces::tauri::error_mapping::{CmdResult, UiError};
 use crate::interfaces::tauri::lock_guard::services_or_err;
 use crate::interfaces::tauri::state::AppState;
 
-// ---------- Boot / 首次启动 ----------
+// ---------- Boot / 首次启动 / 锁屏-解锁 ----------
 
 #[tauri::command]
 pub fn cmd_boot_status(state: State<AppState>) -> BootStatusView {
@@ -39,147 +40,104 @@ pub fn cmd_boot_status(state: State<AppState>) -> BootStatusView {
     BootStatusView {
         keystore_exists: keystore_exists(&state.paths),
         db_initialized: booted,
-        user_count: state
-            .services()
-            .map(|s| s.identity.list_users().map(|v| v.len() as u64).unwrap_or(0))
-            .unwrap_or(0),
     }
 }
 
 #[tauri::command]
-pub fn cmd_boot_app(state: State<AppState>, cmd: BootAppCmd) -> CmdResult<BootStatusView> {
+pub fn cmd_boot_app(state: State<AppState>, cmd: BootAppCmd) -> CmdResult<SessionView> {
     let result = boot(&state.paths, &cmd.boot_passphrase).map_err(UiError::from)?;
-    let user_count = result.user_count;
-    state.install(result.services);
-    Ok(BootStatusView {
-        keystore_exists: true,
-        db_initialized: true,
-        user_count,
-    })
+    install_services_and_session(&state, result.services, &cmd.boot_passphrase)
 }
 
 #[tauri::command]
 pub fn cmd_setup_first_run(
     state: State<AppState>,
-    cmd: CreateFirstAdminCmd,
+    cmd: BootAppCmd,
 ) -> CmdResult<SessionView> {
+    // 单用户解锁模型: setup 与 boot 完全一样 — 第一次输入的口令就是
+    // 后续的启动口令; SQLCipher 用它派生 DB key, keystore 在首次启动时
+    // 自动写盘. 没有 admin / username / password 这一套.
     let result = boot(&state.paths, &cmd.boot_passphrase).map_err(UiError::from)?;
-    state.install(result.services);
-    let services = services_or_err(&state)?;
-    services
-        .identity
-        .create_first_admin(CreateUserInput {
-            username: cmd.username.clone(),
-            password: cmd.password.clone(),
-            role: crate::domain::identity::role::Role::Admin,
-        })
-        .map_err(UiError::from)?;
-    let session = services
-        .identity
-        .authenticate_user(AuthenticateUserInput {
-            username: cmd.username,
-            password: cmd.password,
-        })
-        .map_err(UiError::from)?;
-    Ok(SessionView::from(&session))
+    install_services_and_session(&state, result.services, &cmd.boot_passphrase)
 }
 
-// ---------- Identity ----------
-
-#[tauri::command]
-pub fn cmd_login(state: State<AppState>, cmd: LoginCmd) -> CmdResult<SessionView> {
-    let services = services_or_err(&state)?;
-    let session = services
-        .identity
-        .authenticate_user(AuthenticateUserInput {
-            username: cmd.username,
-            password: cmd.password,
-        })
-        .map_err(UiError::from)?;
+fn install_services_and_session(
+    state: &State<AppState>,
+    services: crate::interfaces::tauri::state::Services,
+    boot_passphrase: &str,
+) -> CmdResult<SessionView> {
+    let session_store = services.session_store.clone();
+    state.install(services);
+    *state.unlock_passphrase.lock() = Some(boot_passphrase.to_owned());
+    let session = Session::new(chrono::Utc::now());
+    session_store.set(session.clone());
     Ok(SessionView::from(&session))
-}
-
-#[tauri::command]
-pub fn cmd_logout(state: State<AppState>) -> CmdResult<()> {
-    services_or_err(&state)?.identity.logout().map_err(UiError::from)
 }
 
 #[tauri::command]
 pub fn cmd_lock_session(state: State<AppState>) -> CmdResult<()> {
-    services_or_err(&state)?
-        .identity
-        .lock_session()
-        .map_err(UiError::from)
+    let services = services_or_err(&state)?;
+    let now = chrono::Utc::now();
+    let mutated = services
+        .session_store
+        .mutate(&mut |s| {
+            s.lock();
+            s.record_activity(now);
+        });
+    if !mutated {
+        return Err(UiError::from(AppError::NotAuthenticated));
+    }
+    // 写一笔锁屏审计 (非致命: 失败也不影响锁屏).
+    let event = crate::domain::audit::audit_event::AuditEvent::new(
+        services
+            .session_store
+            .current()
+            .and_then(|s| s.active_workspace_id()),
+        Action::SessionLocked,
+        None,
+        None,
+        now,
+    );
+    let _ = services
+        .audit
+        .write_event(&event); // 见下方 helper
+    Ok(())
 }
 
 #[tauri::command]
 pub fn cmd_unlock_session(
     state: State<AppState>,
     cmd: UnlockSessionCmd,
-) -> CmdResult<UnlockOutcomeView> {
-    let outcome = services_or_err(&state)?
-        .identity
-        .unlock_session(UnlockSessionInput { password: cmd.password })
-        .map_err(UiError::from)?;
-    Ok(match outcome {
-        UnlockOutcome::Unlocked => UnlockOutcomeView { kind: "unlocked".into(), remaining: None },
-        UnlockOutcome::StillLocked { remaining } => {
-            UnlockOutcomeView { kind: "still_locked".into(), remaining: Some(remaining) }
-        }
-        UnlockOutcome::ForceLoggedOut => {
-            UnlockOutcomeView { kind: "force_logged_out".into(), remaining: None }
-        }
-    })
-}
-
-#[tauri::command]
-pub fn cmd_change_password(state: State<AppState>, cmd: ChangePasswordCmd) -> CmdResult<()> {
-    services_or_err(&state)?
-        .identity
-        .change_user_password(ChangeUserPasswordInput {
-            old_password: cmd.old_password,
-            new_password: cmd.new_password,
-        })
-        .map_err(UiError::from)
-}
-
-#[tauri::command]
-pub fn cmd_create_user(state: State<AppState>, cmd: CreateUserCmd) -> CmdResult<i64> {
-    let role = parse_role(&cmd.role).map_err(|m| UiError {
-        code: "domain",
-        message: m,
-    })?;
-    let id = services_or_err(&state)?
-        .identity
-        .create_user(CreateUserInput {
-            username: cmd.username,
-            password: cmd.password,
-            role,
-        })
-        .map_err(UiError::from)?;
-    Ok(id.value())
-}
-
-#[tauri::command]
-pub fn cmd_deactivate_user(state: State<AppState>, user_id: i64) -> CmdResult<()> {
-    services_or_err(&state)?
-        .identity
-        .deactivate_user(UserId::new(user_id))
-        .map_err(UiError::from)
-}
-
-#[tauri::command]
-pub fn cmd_activate_user(state: State<AppState>, user_id: i64) -> CmdResult<()> {
-    services_or_err(&state)?
-        .identity
-        .activate_user(UserId::new(user_id))
-        .map_err(UiError::from)
-}
-
-#[tauri::command]
-pub fn cmd_list_users(state: State<AppState>) -> CmdResult<Vec<UserView>> {
-    let users = services_or_err(&state)?.identity.list_users().map_err(UiError::from)?;
-    Ok(users.iter().map(UserView::from).collect())
+) -> CmdResult<SessionView> {
+    let services = services_or_err(&state)?;
+    let stored = state.unlock_passphrase.lock().clone();
+    let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
+    if cmd.passphrase != expected {
+        return Err(UiError::from(AppError::BootPassphraseIncorrect));
+    }
+    let now = chrono::Utc::now();
+    let mutated = services
+        .session_store
+        .mutate(&mut |s| s.unlock(now));
+    if !mutated {
+        return Err(UiError::from(AppError::NotAuthenticated));
+    }
+    let event = crate::domain::audit::audit_event::AuditEvent::new(
+        services
+            .session_store
+            .current()
+            .and_then(|s| s.active_workspace_id()),
+        Action::SessionUnlocked,
+        None,
+        None,
+        now,
+    );
+    let _ = services.audit.write_event(&event);
+    let session = services
+        .session_store
+        .current()
+        .ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
+    Ok(SessionView::from(&session))
 }
 
 // ---------- Workspace ----------
@@ -592,7 +550,6 @@ pub fn cmd_list_audit(
         .list_audit_events(ListAuditEventsInput {
             from: cmd.from,
             to: cmd.to,
-            user_ids: cmd.user_ids.map(|v| v.into_iter().map(UserId::new).collect()),
             actions,
             limit: cmd.limit,
             offset: cmd.offset,
@@ -619,7 +576,6 @@ pub fn cmd_export_audit(state: State<AppState>, cmd: ExportAuditCmd) -> CmdResul
         .export_audit_log(ExportAuditLogInput {
             from: cmd.from,
             to: cmd.to,
-            user_ids: cmd.user_ids.map(|v| v.into_iter().map(UserId::new).collect()),
             actions,
             format,
             passphrase: cmd.passphrase,

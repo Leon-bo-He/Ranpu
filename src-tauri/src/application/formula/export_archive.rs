@@ -1,7 +1,4 @@
 //! 聚合配方库归档导出: 默认库 + 任意工作区一次打包成单个 .ranpu 文件.
-//!
-//! 仅 admin 可用. 工作区在归档里以 name 作为主键, 导入时按 name 在
-//! 目标库匹配 (找不到 → 新建, 找到 → 由用户选 merge / skip).
 
 use std::path::PathBuf;
 
@@ -13,7 +10,7 @@ use crate::application::formula::wire::{
 };
 use crate::application::ports::default_formula_repository::DefaultFormulaQuery;
 use crate::application::ports::workspace_formula_repository::WorkspaceFormulaQuery;
-use crate::application::session_guard::ensure_admin;
+use crate::application::session_guard::ensure_active;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
 use crate::domain::shared::id::WorkspaceId;
 
@@ -39,7 +36,7 @@ impl FormulaService {
         &self,
         input: ExportArchiveInput,
     ) -> AppResult<ExportArchiveSummary> {
-        let snap = ensure_admin(&*self.session_store)?;
+        let _ = ensure_active(&*self.session_store)?;
         if input.passphrase.chars().count() < 8 {
             return Err(AppError::Internal("加密导出口令至少 8 位".into()));
         }
@@ -99,7 +96,6 @@ impl FormulaService {
             .map_err(|e| AppError::Crypto(e.to_string()))?;
 
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             None,
             Action::LibraryArchiveExported,
             Some(input.out_path.to_string_lossy().into_owned()),

@@ -1,4 +1,4 @@
-use crate::domain::identity::session::Session;
+use crate::domain::session::Session;
 
 /// 内存中的当前会话存储（PROMPT 第 87 行：锁屏不通过后端持久化）。
 pub trait SessionStore: Send + Sync {

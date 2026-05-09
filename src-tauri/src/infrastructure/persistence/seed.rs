@@ -68,7 +68,6 @@ pub fn ensure_system_mirror(
                 WorkspaceName::new(SYSTEM_MIRROR_WORKSPACE_NAME)
                     .map_err(|e| RepositoryError::Backend(e.to_string()))?,
                 Some("系统内置工作区, 配方与默认配方库自动同步, 无法直接编辑.".into()),
-                None,
                 now,
                 WorkspaceKind::SystemMirror,
             )
@@ -186,7 +185,6 @@ fn seed_workspaces(
         let workspace = Workspace::new(
             WorkspaceName::new(name).map_err(|e| RepositoryError::Backend(e.to_string()))?,
             None,
-            None, // 系统种子，无创建者；DB 列允许 NULL。
             now,
         )
         .map_err(|e| RepositoryError::Backend(e.to_string()))?;
@@ -229,7 +227,6 @@ fn navy_n_2024(now: DateTime<Utc>) -> DefaultFormula {
             FormulaItem::new("元明粉", None, 60.0, Unit::GramsPerL, 2).unwrap(),
             FormulaItem::new("纯碱", None, 20.0, Unit::GramsPerL, 3).unwrap(),
         ],
-        None,
         now,
     )
     .unwrap()
@@ -257,7 +254,6 @@ fn rose_r_105(now: DateTime<Utc>) -> DefaultFormula {
             .unwrap(),
             FormulaItem::new("元明粉", None, 50.0, Unit::GramsPerL, 2).unwrap(),
         ],
-        None,
         now,
     )
     .unwrap()
@@ -299,7 +295,6 @@ fn forest_g_330(now: DateTime<Utc>) -> DefaultFormula {
             .unwrap(),
             FormulaItem::new("元明粉", None, 55.0, Unit::GramsPerL, 3).unwrap(),
         ],
-        None,
         now,
     )
     .unwrap()
@@ -333,7 +328,6 @@ fn sunset_o_710(now: DateTime<Utc>) -> DefaultFormula {
             .unwrap(),
             FormulaItem::new("元明粉", None, 40.0, Unit::GramsPerKg, 2).unwrap(),
         ],
-        None,
         now,
     )
     .unwrap()
@@ -366,7 +360,6 @@ fn ivory_w_002(now: DateTime<Utc>) -> DefaultFormula {
             )
             .unwrap(),
         ],
-        None,
         now,
     )
     .unwrap()

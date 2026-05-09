@@ -1,7 +1,7 @@
 //! 跨上下文共享的领域错误。
 //!
-//! identity 上下文有自己的 `IdentityError`（位于 `domain/identity/errors.rs`），
-//! 其它上下文的领域校验错误统一归到 `DomainError`。
+//! 单用户解锁模型: 没有 identity 上下文, 也就没有 IdentityError;
+//! 全部领域校验错误统一归到 `DomainError`。
 
 use thiserror::Error;
 

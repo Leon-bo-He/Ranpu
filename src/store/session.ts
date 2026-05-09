@@ -24,6 +24,5 @@ export const useSessionStore = create<SessionState>((set) => ({
   clear: () => set({ session: null }),
 }));
 
-export const isAdmin = (s: SessionView | null) => s?.role === 'admin';
 export const hasActiveWorkspace = (s: SessionView | null) =>
   s !== null && s.active_workspace_id !== null;

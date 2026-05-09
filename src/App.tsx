@@ -17,9 +17,7 @@ import { DashboardPage } from '@/pages/Dashboard';
 import { DefaultLibraryPage } from '@/pages/DefaultLibrary';
 import { FirstRunSetup } from '@/pages/FirstRunSetup';
 import { LibraryTransferPage } from '@/pages/LibraryTransfer';
-import { LoginPage } from '@/pages/Login';
 import { SettingsPage } from '@/pages/Settings';
-import { UserManagementPage } from '@/pages/UserManagement';
 import { WorkspaceFormulasPage } from '@/pages/WorkspaceFormulas';
 import { WorkspaceManagementPage } from '@/pages/WorkspaceManagement';
 import { useSessionStore } from '@/store/session';
@@ -29,7 +27,6 @@ type GateState =
   | { kind: 'checking' }
   | { kind: 'first-run' }
   | { kind: 'boot' }
-  | { kind: 'login' }
   | { kind: 'app' }
   | { kind: 'error'; message: string };
 
@@ -55,11 +52,10 @@ function App() {
           setGate({ kind: 'first-run' });
         } else if (!s.db_initialized) {
           setGate({ kind: 'boot' });
-        } else if (s.user_count === 0) {
-          // 极少出现：keystore 存在但 DB 没用户。引导走 FirstRunSetup。
-          setGate({ kind: 'first-run' });
         } else {
-          setGate(session ? { kind: 'app' } : { kind: 'login' });
+          // keystore 已存在, DB 已初始化 → 进 boot 流程让用户输入启动口令
+          // 拿到 SessionView 后由 setSession 推到 'app'.
+          setGate(session ? { kind: 'app' } : { kind: 'boot' });
         }
       })
       .catch((e: unknown) => {
@@ -73,16 +69,16 @@ function App() {
   }, []);
 
   // 当 session 变化时同步 gate
-  // 拿到 session（登录 / FirstRunSetup 完成）→ 进 app；
-  // session 被清空（logout / 强制登出）→ 回 login；
+  // 拿到 session（boot / FirstRunSetup 完成）→ 进 app；
+  // session 被清空（锁定后强制清掉的极少数情况）→ 回 boot；
   // 'checking' / 'error' 是初始 / 出错状态，不被 session 变化影响。
   useEffect(() => {
     setGate((g) => {
       if (g.kind === 'checking' || g.kind === 'error') return g;
       if (session) return { kind: 'app' };
-      // session 没拿到但还在 first-run / boot 等启动阶段：保持原样
-      if (g.kind === 'first-run' || g.kind === 'boot') return g;
-      return { kind: 'login' };
+      // session 没拿到但还在 first-run 阶段：保持原样
+      if (g.kind === 'first-run') return g;
+      return { kind: 'boot' };
     });
   }, [session]);
 
@@ -101,18 +97,8 @@ function App() {
   if (gate.kind === 'first-run') {
     return <FirstRunSetup />;
   }
-  if (gate.kind === 'boot') {
-    return (
-      <BootScreen
-        onBooted={(userCount) => {
-          if (userCount === 0) setGate({ kind: 'first-run' });
-          else setGate({ kind: 'login' });
-        }}
-      />
-    );
-  }
-  if (gate.kind === 'login' || !session) {
-    return <LoginPage />;
+  if (gate.kind === 'boot' || !session) {
+    return <BootScreen />;
   }
 
   // App 主体: TopBar 横通栏 + 下方左 Sidebar 200px + 右侧路由内容
@@ -131,7 +117,6 @@ function App() {
               <Route path="/calculator" element={<CalculatorPage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/workspaces" element={<WorkspaceManagementPage />} />
-              <Route path="/users" element={<UserManagementPage />} />
               <Route path="/audit" element={<AuditLogPage />} />
               <Route path="/library-transfer" element={<LibraryTransferPage />} />
               <Route path="/about" element={<AboutPage />} />

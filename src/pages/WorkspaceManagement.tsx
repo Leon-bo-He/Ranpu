@@ -26,11 +26,9 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/lib/format';
-import { useSessionStore } from '@/store/session';
 import { useWorkspacesStore } from '@/store/workspaces';
 
 export function WorkspaceManagementPage() {
-  const session = useSessionStore((s) => s.session);
   const list = useWorkspacesStore((s) => s.list);
   const refresh = useWorkspacesStore((s) => s.refresh);
   const [editing, setEditing] = useState<WorkspaceView | 'new' | null>(null);
@@ -40,12 +38,6 @@ export function WorkspaceManagementPage() {
   useEffect(() => {
     refresh().catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
   }, [refresh]);
-
-  if (session?.role !== 'admin') {
-    return (
-      <p className="p-6 text-sm text-muted-foreground">只有管理员能管理工作区。</p>
-    );
-  }
 
   const askDelete = (w: WorkspaceView) => setPendingDelete(w);
 

@@ -18,7 +18,7 @@ impl CalculationService {
         &self,
         input: CalculateDyeAmountsInput,
     ) -> AppResult<CalculationResult> {
-        let (snap, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         let code = InternalColorCode::new(input.internal_color_code)?;
         let target = Kilograms::new(input.target_kg)?;
         let resolved = self.resolve_by_internal_code(workspace_id, &code)?;
@@ -33,7 +33,6 @@ impl CalculationService {
         )?;
         result.formula_id = formula_id;
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             Some(workspace_id),
             Action::CalculationPerformed,
             Some(code.into_string()),

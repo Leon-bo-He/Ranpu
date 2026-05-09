@@ -9,9 +9,7 @@ pub mod default_formula_repository;
 pub mod encrypted_exporter;
 pub mod errors;
 pub mod key_store;
-pub mod password_hasher;
 pub mod session_store;
-pub mod user_repository;
 pub mod workspace_formula_repository;
 pub mod workspace_repository;
 
@@ -28,8 +26,6 @@ pub use default_formula_repository::{DefaultFormulaQuery, DefaultFormulaReposito
 pub use encrypted_exporter::{EncryptedExporter, EncryptedImporter, ExportError};
 pub use errors::RepositoryError;
 pub use key_store::{KeyStore, KeyStoreError};
-pub use password_hasher::{PasswordHasher, PasswordHasherError};
 pub use session_store::SessionStore;
-pub use user_repository::UserRepository;
 pub use workspace_formula_repository::{WorkspaceFormulaQuery, WorkspaceFormulaRepository};
 pub use workspace_repository::WorkspaceRepository;

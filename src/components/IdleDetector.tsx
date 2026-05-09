@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { identityApi } from '@/api/identity';
+import { bootApi } from '@/api/boot';
 import { useSessionStore } from '@/store/session';
 import { useSettingsStore } from '@/store/settings';
 
@@ -36,7 +36,7 @@ export function IdleDetector() {
     const idleMs = idleMinutes * 60 * 1000;
     const timer = window.setInterval(() => {
       if (Date.now() - lastActivity.current >= idleMs) {
-        identityApi
+        bootApi
           .lockSession()
           .then(() => setLocked(true))
           .catch(() => {

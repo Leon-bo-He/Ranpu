@@ -1,6 +1,6 @@
 use crate::application::errors::AppResult;
 use crate::application::formula::service::FormulaService;
-use crate::application::session_guard::{ensure_active_workspace, ensure_admin};
+use crate::application::session_guard::ensure_active_workspace;
 use crate::domain::shared::id::FormulaId;
 
 #[derive(Debug, Clone)]
@@ -32,8 +32,7 @@ impl FormulaService {
         &self,
         input: BatchCopyDefaultInput,
     ) -> AppResult<BatchCopySummary> {
-        // 上来快速失败：没登录 / 不是 admin / 没激活 workspace / 系统镜像 都不需要进循环。
-        let _ = ensure_admin(&*self.session_store)?;
+        // 上来快速失败：未解锁 / 未激活 workspace / 系统镜像 都不需要进循环。
         let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         self.reject_if_system_mirror(workspace_id)?;
 

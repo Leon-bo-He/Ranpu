@@ -8,7 +8,7 @@ impl CartService {
     /// 不落盘, 不写审计 (纯渲染, 用户的"打印"动作我们看不到, 没法
     /// 客观记录, 不如不假装记录).
     pub fn preview_cart_as_batch_sheet_html(&self) -> AppResult<String> {
-        let (_snap, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         let lines = self.list_cart_with_calculations()?;
 
         // 复用 export 流程的过滤策略: 只渲染能算出结果的行, 失败行

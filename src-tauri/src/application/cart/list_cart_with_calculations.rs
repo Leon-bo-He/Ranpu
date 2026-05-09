@@ -21,8 +21,8 @@ pub struct CartLine {
 
 impl CartService {
     pub fn list_cart_with_calculations(&self) -> AppResult<Vec<CartLine>> {
-        let (snap, workspace_id) = ensure_active_workspace(&*self.session_store)?;
-        let cart = self.cart_repo.load(snap.user_id(), workspace_id)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        let cart = self.cart_repo.load(workspace_id)?;
         let mut out = Vec::with_capacity(cart.items().len());
 
         for item in cart.items() {

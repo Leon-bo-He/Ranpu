@@ -5,12 +5,17 @@ export const bootApi = {
   status: () => invoke<BootStatusView>('cmd_boot_status'),
 
   bootApp: (bootPassphrase: string) =>
-    invoke<BootStatusView>('cmd_boot_app', {
+    invoke<SessionView>('cmd_boot_app', {
       cmd: { boot_passphrase: bootPassphrase },
     }),
 
-  setupFirstRun: (bootPassphrase: string, username: string, password: string) =>
+  setupFirstRun: (bootPassphrase: string) =>
     invoke<SessionView>('cmd_setup_first_run', {
-      cmd: { boot_passphrase: bootPassphrase, username, password },
+      cmd: { boot_passphrase: bootPassphrase },
     }),
+
+  lockSession: () => invoke<void>('cmd_lock_session'),
+
+  unlockSession: (passphrase: string) =>
+    invoke<SessionView>('cmd_unlock_session', { cmd: { passphrase } }),
 };

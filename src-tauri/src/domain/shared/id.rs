@@ -1,7 +1,9 @@
 //! 强类型 ID 包装。
 //!
 //! 所有 ID 都是 i64（对应 SQLite 的 INTEGER PK），用 newtype 包一层避免
-//! 跨上下文混用：UserId、WorkspaceId、FormulaId 等彼此不可隐式转换。
+//! 跨上下文混用：WorkspaceId、FormulaId 等彼此不可隐式转换。
+//!
+//! 单用户解锁模型: 没有 UserId — 没有用户实体.
 
 use std::fmt;
 
@@ -42,7 +44,6 @@ macro_rules! id_type {
     };
 }
 
-id_type!(UserId);
 id_type!(WorkspaceId);
 id_type!(FormulaId);
 id_type!(FormulaItemId);
@@ -55,12 +56,11 @@ mod tests {
 
     #[test]
     fn ids_are_distinct_types() {
-        let u = UserId::new(1);
         let w = WorkspaceId::new(1);
-        // 编译期检查：UserId 与 WorkspaceId 不能混用，下行若解注释会编译失败：
-        // let _: UserId = w;
-        assert_eq!(u.value(), 1);
+        let f = FormulaId::new(1);
+        // 编译期检查：WorkspaceId 与 FormulaId 不能混用.
         assert_eq!(w.value(), 1);
+        assert_eq!(f.value(), 1);
     }
 
     #[test]

@@ -5,15 +5,14 @@ use crate::domain::audit::audit_event::{Action, AuditEvent};
 
 impl CartService {
     pub fn clear_cart(&self) -> AppResult<()> {
-        let (snap, workspace_id) = ensure_active_workspace(&*self.session_store)?;
-        let mut cart = self.cart_repo.load(snap.user_id(), workspace_id)?;
+        let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
+        let mut cart = self.cart_repo.load(workspace_id)?;
         if cart.is_empty() {
             return Ok(());
         }
         cart.clear();
         self.cart_repo.save(&cart)?;
         let event = AuditEvent::new(
-            Some(snap.user_id()),
             Some(workspace_id),
             Action::CartCleared,
             None,
