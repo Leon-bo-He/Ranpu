@@ -183,6 +183,44 @@ npm run tauri build
 npm run tauri -- icon src-tauri/icons/source-logo.svg
 ```
 
+### 自动发布流水线（GitHub Actions → Gitee Release）
+
+代码托管走双推（GitHub + Gitee），Release 只发到 Gitee — 国内用户拉更新不再走 GitHub。
+
+**首次配置（一次性）：**
+
+1. 在 Gitee 建好 `Leon-bo-He/Ranpu` 公开仓库，把当前代码推上去：
+
+   ```bash
+   git remote set-url --add --push origin https://github.com/Leon-bo-He/Ranpu.git
+   git remote set-url --add --push origin https://gitee.com/Leon-bo-He/Ranpu.git
+   git push origin main
+   ```
+
+   之后 `git push` 会同时推 GitHub 和 Gitee，`git fetch` 仍走 GitHub。
+
+2. 在 [Gitee 个人令牌页](https://gitee.com/profile/personal_access_tokens) 生成一个 token，至少勾上 `projects` 权限。
+
+3. 把 token 加到 GitHub repo secret，名字 `GITEE_TOKEN`：
+   `Settings → Secrets and variables → Actions → New repository secret`。
+
+4. 顺便确认 `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` 两个 secret 还在（updater 签名需要，老用户的客户端用 `tauri.conf.json` 里的 `pubkey` 校验，**不能换**）。
+
+**发版：**
+
+```bash
+npm version patch   # 或 minor / major
+git push origin main
+git push origin v<新版本号>
+```
+
+tag 一推，GitHub Actions 跑 `.github/workflows/release.yml`：
+
+1. Windows runner 上 `npm run tauri build --target x86_64-pc-windows-msvc` → 产出 `*-setup.exe` + `*-setup.exe.sig`。
+2. 调 Gitee Open API 创建 Release，挂 `.exe` + `.sig`。
+3. 用 build notes 拼一份 `latest.json`，挂到 Release，并把同一份内容 upsert 到 `release-meta` 分支根目录。
+4. 客户端 tauri-plugin-updater 拉 `https://gitee.com/Leon-bo-He/Ranpu/raw/release-meta/latest.json` 自动检测。
+
 ---
 
 ## 首次启动流程
