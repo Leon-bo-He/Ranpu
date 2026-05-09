@@ -1,6 +1,7 @@
 import { CheckSquare, Copy, Loader2, Plus, Search, Square } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { cartApi } from '@/api/cart';
 import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import type { BatchCopySummaryView, FormulaView } from '@/api/types';
@@ -12,11 +13,13 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -25,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { formatAmount } from '@/lib/format';
 import { useEditModeStore } from '@/store/editMode';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
@@ -50,6 +54,82 @@ export function DefaultLibraryPage() {
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchSummary, setBatchSummary] = useState<BatchCopySummaryView | null>(null);
   const [colorFamilies, setColorFamilies] = useState<string[]>([]);
+
+  // 加入批次清单流程: 跟 WorkspaceFormulas 一致的弹窗 → kg 输入 → 冲突 (累加 / 覆盖).
+  // 默认配方加车走 source_kind='default', 仍记到当前工作区的 cart 下.
+  const [cartTarget, setCartTarget] = useState<FormulaView | null>(null);
+  const [cartKg, setCartKg] = useState('10');
+  const [cartBusy, setCartBusy] = useState(false);
+  const [cartErr, setCartErr] = useState<string | null>(null);
+  const [cartMsg, setCartMsg] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{
+    formula: FormulaView;
+    addKg: number;
+    existingKg: number;
+  } | null>(null);
+
+  const onOpenAddToCart = (formula: FormulaView) => {
+    setCartTarget(formula);
+    setCartKg('10');
+    setCartErr(null);
+  };
+
+  const onConfirmAddToCart = async () => {
+    if (!cartTarget) return;
+    const kg = Number(cartKg);
+    if (!Number.isFinite(kg) || kg <= 0 || kg > 99999.99) {
+      setCartErr('目标 kg 需在 0.01 – 99999.99 之间');
+      return;
+    }
+    setCartBusy(true);
+    setCartErr(null);
+    try {
+      const cart = await cartApi.list();
+      const existing = cart.find(
+        (l) => l.source_kind === 'default' && l.source_formula_id === cartTarget.id,
+      );
+      if (existing) {
+        setConflict({ formula: cartTarget, addKg: kg, existingKg: existing.target_kg });
+        setCartTarget(null);
+      } else {
+        await cartApi.add('default', cartTarget.id, kg);
+        setCartMsg(
+          `已加入批次清单：${cartTarget.internal_color_code} · ${formatAmount(kg)} kg`,
+        );
+        setCartTarget(null);
+      }
+    } catch (e) {
+      setCartErr(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setCartBusy(false);
+    }
+  };
+
+  const resolveConflict = async (action: 'accumulate' | 'replace') => {
+    if (!conflict) return;
+    const { formula, addKg, existingKg } = conflict;
+    setCartBusy(true);
+    setCartErr(null);
+    try {
+      if (action === 'accumulate') {
+        const sum = Math.min(existingKg + addKg, 99999.99);
+        await cartApi.updateKg('default', formula.id, sum);
+        setCartMsg(
+          `已累加到批次清单：${formula.internal_color_code} · ${formatAmount(existingKg)} + ${formatAmount(addKg)} = ${formatAmount(sum)} kg`,
+        );
+      } else {
+        await cartApi.add('default', formula.id, addKg);
+        setCartMsg(
+          `已覆盖批次清单 kg：${formula.internal_color_code} · ${formatAmount(existingKg)} → ${formatAmount(addKg)} kg`,
+        );
+      }
+      setConflict(null);
+    } catch (e) {
+      setCartErr(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setCartBusy(false);
+    }
+  };
 
   // 编辑器打开时, 拉一份已用过的色系喂进 dropdown.
   useEffect(() => {
@@ -252,6 +332,9 @@ export function DefaultLibraryPage() {
                   : undefined
               }
               onDelete={editEnabled ? askDelete : undefined}
+              // 加入批次清单 不受 配方管理 toggle 限制 (跟工作区配方页一致),
+              // 但批次清单按工作区维护, 没激活 workspace 就不显示按钮.
+              onAddToCart={hasWs ? onOpenAddToCart : undefined}
               selected={selectionEnabled ? selectedIds.has(f.id) : undefined}
               onToggleSelected={selectionEnabled ? onToggleSelected : undefined}
             />
@@ -323,6 +406,135 @@ export function DefaultLibraryPage() {
         destructive
         onConfirm={confirmDelete}
       />
+
+      <Dialog
+        open={cartTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setCartTarget(null);
+            setCartErr(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>加入批次清单</DialogTitle>
+            <DialogDescription>
+              {cartTarget && (
+                <>
+                  <span className="font-mono">{cartTarget.internal_color_code}</span>
+                  {cartTarget.color_family && <> · {cartTarget.color_family}</>}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Label>目标 kg</Label>
+            <Input
+              type="number"
+              min={0.01}
+              max={99999.99}
+              step={0.01}
+              value={cartKg}
+              onChange={(e) => setCartKg(e.target.value)}
+              disabled={cartBusy}
+              autoFocus
+            />
+          </div>
+          {cartErr && <p className="text-sm text-destructive">{cartErr}</p>}
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setCartTarget(null)}
+              disabled={cartBusy}
+            >
+              取消
+            </Button>
+            <Button onClick={onConfirmAddToCart} disabled={cartBusy || !cartKg}>
+              {cartBusy ? '加入中…' : '加入批次清单'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={conflict !== null}
+        onOpenChange={(o) => !o && setConflict(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>批次清单里已有这条配方</DialogTitle>
+            <DialogDescription>
+              {conflict && (
+                <>
+                  <span className="font-mono">
+                    {conflict.formula.internal_color_code}
+                  </span>{' '}
+                  当前批次清单记录{' '}
+                  <span className="font-mono">{formatAmount(conflict.existingKg)}</span>{' '}
+                  kg，本次想加的是{' '}
+                  <span className="font-mono">{formatAmount(conflict.addKg)}</span> kg。
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border bg-muted/30 p-3 text-sm">
+            选择处理方式：
+            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+              <li>
+                · 累加：把这次的 kg 加到批次清单现有 kg 上（
+                {conflict
+                  ? `${formatAmount(conflict.existingKg)} + ${formatAmount(conflict.addKg)} = ${formatAmount(
+                      Math.min(conflict.existingKg + conflict.addKg, 99999.99),
+                    )} kg`
+                  : ''}
+                ）
+              </li>
+              <li>
+                · 覆盖：用本次的 kg 直接替换掉批次清单里的 kg（
+                {conflict ? `${formatAmount(conflict.addKg)} kg` : ''}）
+              </li>
+            </ul>
+          </div>
+          {cartErr && <p className="text-sm text-destructive">{cartErr}</p>}
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setConflict(null)}>
+              取消
+            </Button>
+            <Button
+              variant="outline"
+              disabled={cartBusy}
+              onClick={() => resolveConflict('replace')}
+            >
+              {cartBusy ? '处理中…' : '覆盖'}
+            </Button>
+            <Button
+              disabled={cartBusy}
+              onClick={() => resolveConflict('accumulate')}
+            >
+              {cartBusy ? '处理中…' : '累加'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {cartMsg && (
+        <div
+          aria-live="polite"
+          className="fixed bottom-6 right-6 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm text-emerald-900 shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <span>{cartMsg}</span>
+            <button
+              className="text-emerald-900/60 hover:text-emerald-900"
+              onClick={() => setCartMsg(null)}
+              aria-label="关闭"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

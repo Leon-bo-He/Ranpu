@@ -11,7 +11,8 @@ use crate::application::audit::{AuditExportFormat, ExportAuditLogInput, ListAudi
 use crate::application::backup::{ExportBackupInput, ImportBackupInput};
 use crate::application::calculation::{CalculateDyeAmountsInput, SearchByCustomerCodeInput};
 use crate::application::cart::{
-    AddToCartInput, ExportCartInput, RemoveFromCartInput, UpdateCartItemKgInput,
+    AddToCartInput, ExportCartInput, PreviewBatchSheetInput, PreviewFormulaMetaInput,
+    RemoveFromCartInput, UpdateCartItemKgInput,
 };
 use crate::application::errors::AppError;
 use crate::application::formula::{
@@ -506,10 +507,25 @@ pub fn cmd_export_cart(state: State<AppState>, cmd: ExportCartCmd) -> CmdResult<
 }
 
 #[tauri::command]
-pub fn cmd_preview_cart_as_batch_sheet_html(state: State<AppState>) -> CmdResult<String> {
+pub fn cmd_preview_cart_as_batch_sheet_html(
+    state: State<AppState>,
+    cmd: Option<PreviewCartCmd>,
+) -> CmdResult<String> {
+    let c = cmd.unwrap_or_default();
+    let per_formula = c
+        .per_formula
+        .into_iter()
+        .map(|m| PreviewFormulaMetaInput {
+            vat_number: m.vat_number,
+            yarn_count: m.yarn_count,
+        })
+        .collect();
     services_or_err(&state)?
         .cart
-        .preview_cart_as_batch_sheet_html()
+        .preview_cart_as_batch_sheet_html(PreviewBatchSheetInput {
+            customer: c.customer,
+            per_formula,
+        })
         .map_err(UiError::from)
 }
 

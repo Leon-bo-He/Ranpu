@@ -540,6 +540,21 @@ pub struct ExportCartCmd {
     pub out_path: String,
 }
 
+#[derive(Debug, Default, Deserialize)]
+pub struct PreviewCartCmd {
+    pub customer: Option<String>,
+    /// 与 list_cart 返回的购物车顺序对齐的元信息. 长度可短于 cart, 缺位按
+    /// {None, None} 兜底; 长了多余忽略.
+    #[serde(default)]
+    pub per_formula: Vec<PreviewFormulaMetaCmd>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct PreviewFormulaMetaCmd {
+    pub vat_number: Option<String>,
+    pub yarn_count: Option<String>,
+}
+
 // ---------- Backup ----------
 
 #[derive(Debug, Deserialize)]

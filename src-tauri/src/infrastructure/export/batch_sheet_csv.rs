@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use chrono::Utc;
+use chrono::Local;
 
 use crate::application::ports::batch_sheet_exporter::{
     BatchSheetContext, BatchSheetError, BatchSheetExporter, BatchSheetFormat,
@@ -89,8 +89,9 @@ fn format_amount(v: f64) -> String {
 }
 
 fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
-    // 算一次 date, 上面 <title> 和下面 "导出时间" 行共用.
-    let now = Utc::now();
+    // 算一次 local 时间, 上面 <title> 和下面 "导出时间" 行共用.
+    // 用 Local 而非 Utc — 车间用户看到的是机器本地时间, 不需要在脑袋里转换时区.
+    let now = Local::now();
     let date = now.format("%Y-%m-%d").to_string();
     // 文档 title 决定 WebView2 "Save as PDF" 时的默认文件名: 客户名-批次单-日期.
     // 工作区名先过 sanitize_for_filename 去掉 Windows 禁字符.
@@ -129,12 +130,11 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     padding-bottom: 4px;
   }
   .formula h2 .target { color: #555; font-weight: normal; margin-left: 8px; }
-  .formula h2 .source {
-    float: right;
-    font-size: 12px;
-    color: #888;
-    font-weight: normal;
-  }
+  /* 单个配方的缸号 / 纱支 紧贴 h2 下面一行, 12px 灰字 — 跟 meta 头部
+     视觉一致, 但偏小避免抢主色号风头. */
+  .formula-meta { color: #666; font-size: 12px; margin: 4px 0 8px; }
+  .formula-meta .label { color: #888; margin-right: 4px; }
+  .formula-meta .value { color: #1f1f1f; font-weight: 500; margin-right: 16px; }
   /* 所有批次表统一列宽: col 宽度走 inline style (而不是 col.col-X 选择器) —
      某些 WebView2 版本在 col 类型选择器后会把后续规则一起丢, 表现为
      表格 border / th 背景全失效. inline style 是兜底办法, 不依赖 CSS 解析器. */
@@ -150,7 +150,6 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
   th { background: #f3f3f3; }
   th.num { text-align: right; }
   td.num { text-align: right; font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
-  td.unit { color: #888; font-size: 12px; }
   @media print {
     /* 强制保留背景色 (th 灰底 / 表格分隔线), 等价于用户勾上
        "Background graphics". 放在 @media print 里, 避免老版本 WebView2
@@ -172,41 +171,64 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     );
     if let Some(name) = context.workspace_name {
         html.push_str(&format!(
-            "    <div class=\"row\"><span class=\"label\">当前客户:</span><span class=\"value\">{}</span></div>\n",
+            "    <div class=\"row\"><span class=\"label\">客户:</span><span class=\"value\">{}</span></div>\n",
             html_escape(name),
         ));
     }
     html.push_str("    <div class=\"row\"><span class=\"label\">导出时间:</span><span class=\"value\">");
-    html.push_str(&now.format("%Y-%m-%d %H:%M UTC").to_string());
+    html.push_str(&now.format("%Y-%m-%d %H:%M").to_string());
     html.push_str("</span></div>\n");
     html.push_str("  </div>\n");
 
-    for r in results {
+    for (idx, r) in results.iter().enumerate() {
+        let meta = context.per_formula.get(idx).copied().unwrap_or_default();
         html.push_str(r#"  <div class="formula">"#);
         html.push('\n');
         html.push_str(&format!(
-            r#"    <h2>{} <span class="target">目标 {} kg</span><span class="source">{}</span></h2>"#,
+            r#"    <h2>{} <span class="target">目标 {} kg</span></h2>"#,
             html_escape(r.internal_color_code.as_str()),
             format_amount(r.target_kg.value()),
-            html_escape(r.source.display_label()),
         ));
         html.push('\n');
+        // 色系 / 缸号 / 纱支 写在 h2 下面一行 (而非顶部 meta), 因为这几项
+        // 每个配方各自不同 — 色系跟着配方走, 缸号 / 纱支跟着染色锅 / 纱卷走.
+        if meta.color_family.is_some() || meta.vat_number.is_some() || meta.yarn_count.is_some() {
+            html.push_str(r#"    <div class="formula-meta">"#);
+            html.push('\n');
+            if let Some(family) = meta.color_family {
+                html.push_str(&format!(
+                    "      <span class=\"label\">色系:</span><span class=\"value\">{}</span>\n",
+                    html_escape(family),
+                ));
+            }
+            if let Some(vat) = meta.vat_number {
+                html.push_str(&format!(
+                    "      <span class=\"label\">缸号:</span><span class=\"value\">{}</span>\n",
+                    html_escape(vat),
+                ));
+            }
+            if let Some(yarn) = meta.yarn_count {
+                html.push_str(&format!(
+                    "      <span class=\"label\">纱支:</span><span class=\"value\">{}</span>\n",
+                    html_escape(yarn),
+                ));
+            }
+            html.push_str("    </div>\n");
+        }
         html.push_str("    <table>\n");
         html.push_str("      <colgroup>\n");
-        html.push_str("        <col style=\"width:50%\" />\n");
-        html.push_str("        <col style=\"width:18%\" />\n");
-        html.push_str("        <col style=\"width:18%\" />\n");
-        html.push_str("        <col style=\"width:14%\" />\n");
+        html.push_str("        <col style=\"width:55%\" />\n");
+        html.push_str("        <col style=\"width:22%\" />\n");
+        html.push_str("        <col style=\"width:23%\" />\n");
         html.push_str("      </colgroup>\n");
-        html.push_str("      <thead><tr><th>染料</th><th>编号</th><th class=\"num\">克数</th><th>原始单位</th></tr></thead>\n");
+        html.push_str("      <thead><tr><th>染料</th><th>编号</th><th class=\"num\">克数</th></tr></thead>\n");
         html.push_str("      <tbody>\n");
         for l in &r.lines {
             html.push_str(&format!(
-                "        <tr><td>{}</td><td>{}</td><td class=\"num\">{}</td><td class=\"unit\">{}</td></tr>\n",
+                "        <tr><td>{}</td><td>{}</td><td class=\"num\">{}</td></tr>\n",
                 html_escape(&l.dye_name),
                 html_escape(l.dye_code.as_deref().unwrap_or("—")),
                 format_amount(l.grams.value()),
-                l.unit_used.display_label(),
             ));
         }
         html.push_str("      </tbody>\n");

@@ -119,13 +119,13 @@ export function FormulaCard({
             )}
           </div>
         )}
-        {/* 第二排: 复制到当前工作区 (仅 default + admin) */}
-        {source === 'default' && canManage && (
+        {/* 第二排: 复制到当前工作区 — 仅 default 卡 + 配方管理 toggle 开启 +
+            有激活工作区. 没工作区时直接不渲染 (而不是 disabled), 跟 "加入批次
+            清单" 按钮的策略一致. */}
+        {source === 'default' && canManage && hasActiveWorkspace && (
           <Button
             size="sm"
             variant="outline"
-            disabled={!hasActiveWorkspace}
-            title={hasActiveWorkspace ? '' : '请先选择工作区'}
             onClick={() => onCopyToWorkspace?.(formula)}
           >
             <Copy className="mr-1 h-4 w-4" /> 复制到当前工作区

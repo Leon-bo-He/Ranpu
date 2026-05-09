@@ -29,6 +29,7 @@ impl CartService {
             .map(|w| w.name().as_str().to_owned());
         let context = BatchSheetContext {
             workspace_name: workspace_name.as_deref(),
+            ..Default::default()
         };
 
         self.batch_sheet_exporter
