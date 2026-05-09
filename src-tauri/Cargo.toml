@@ -1,6 +1,6 @@
 [package]
 name = "ranpu"
-version = "1.0.12"
+version = "1.0.13"
 description = "染谱 Ranpu — 离线染纱配色软件"
 authors = ["Bo He"]
 edition = "2021"
