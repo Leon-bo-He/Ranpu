@@ -319,12 +319,19 @@ WorkspacePicker.tsx, workspaces.ts (zustand store).
   颜色俗称做副标题.
 - 搜索框统一支持模糊匹配「内部色号 / 客户色号 / 颜色俗称」三字段, 300ms 防抖
   自动触发, 不需要点搜索按钮.
-- FormulaLibrary 页: 列出全部配方; 顶部 "新建配方" 按钮; 每条卡片有 "加入批次清单"
-  / "编辑" / "删除" 按钮 (任何登录用户都能用, 没有权限门).
+- FormulaLibrary 页: 列出全部配方; 顶部一个 "配方管理" toggle (默认关) + 解释小字
+  (见 post-MVP 节 M). toggle 关闭时每条卡片只露 [加入批次清单]; toggle 开启时
+  顶部出现 [新建配方] 按钮, 每条卡片同时露 [编辑] / [删除]. 30 分钟无写操作
+  自动关闭 toggle.
 - Calculator 页: 色号输入 (内部色号或客户色号都能查) + kg 输入 → 表格显示染料
-  名称 / 染料编号 / 克数. 不再有"来自工作区/默认库"角标 (只有一个库).
+  名称 / 染料编号 / 克数. 不再有"来自工作区/默认库"角标 (只有一个库). 此页不受
+  "配方管理" toggle 影响, 任何时候都能算.
 - Cart 页: 表格列出所有批次清单条目 (色号 / 客户色号 / 目标 kg / 染料明细总克数),
   支持修改 kg 后重算 / 一键清空 / 导出 CSV / 应用内 "预览 / 打印" (Dialog + iframe).
+  此页不受 "配方管理" toggle 影响.
+- AuditLog 页: 顶部一个 "审计日志显示" toggle (默认关) + 解释小字 (见 post-MVP
+  节 M). 关闭时表格区域是占位提示, 不调 list 接口; 开启时正常加载最新 50 条.
+  导出按钮独立, 不受 toggle 影响.
 - 锁屏遮罩: 全屏 var(--color-background-primary) 半透明遮罩 + 居中 logo + 密码框 +
   「解锁」按钮 + 错误提示 (没有"剩余次数"提示, 单用户模型可以无限重试).
 - 所有日期显示格式: YYYY-MM-DD HH:mm (24 小时制); 不要 ISO 8601 带 T 和 Z 的.
@@ -580,9 +587,12 @@ J. 启动门 / FirstRunSetup / BootScreen (单用户解锁模型)
 K. 前端 store / 文件结构
 ────────────────────────────────────────────────
 - src/store/:
-    session.ts — { locked: boolean, setLocked, clear }
-                 注意: 没有 user / workspace 字段, session 只有锁屏状态.
-    update.ts  — { pending, checking, hasChecked, error, runCheck } (上节 B)
+    session.ts    — { locked: boolean, setLocked, clear }
+                    注意: 没有 user / workspace 字段, session 只有锁屏状态.
+    update.ts     — { pending, checking, hasChecked, error, runCheck } (上节 B)
+    management.ts — { formulaManaged, auditLogVisible, setFormulaManaged,
+                      setAuditLogVisible, bumpFormulaActivity, bumpAuditActivity }
+                    (上节 M, 30 分钟自动关闭计时器)
 - src/api/ 按上下文一个文件: boot, formula, calculation, cart, audit, backup,
   types, invoke (后者封装 invoke + ApiError). **没有 identity.ts / workspace.ts**.
 - src/components/:
@@ -606,7 +616,60 @@ L. 命名 / 文案口径
 - 日期格式 YYYY-MM-DD HH:mm (24 小时), 不要 ISO 8601 带 T/Z 的.
 
 ────────────────────────────────────────────────
-M. 不要做的事 (经验教训)
+M. "敏感操作"开关 — 管理配方 / 审计日志显示
+────────────────────────────────────────────────
+两个独立的 toggle, 默认关闭, 开启后 30 分钟无对应操作自动关闭. 防误操作 +
+减少无意触碰. 这是 UX 屏障, 不是权限边界 (单用户系统, 反正能进系统的人就是
+能做所有事的人; 加这层只是降误手概率).
+
+1) 配方管理模式 (formulaManaged, 默认 false)
+   - 位置: FormulaLibrary 页顶部, 横排:
+       <Switch> 配方管理: 关闭 / 开启
+       下面一行 muted 小字 (text-xs text-muted-foreground):
+       "开启后才能创建 / 删除 / 编辑配方. 30 分钟无操作自动关闭.
+        关闭时仍可以计算配方或加入批次清单."
+   - 关闭时: 配方卡片上的 [编辑] / [删除] 按钮 + 顶部的 [新建配方] 按钮全部
+     隐藏 (display: none, 不是 disabled — disabled 还会让用户尝试点); 只露
+     [加入批次清单].
+   - 开启时: [新建] / [编辑] / [删除] 全部显示.
+   - 自动关闭: 任意配方写操作完成 (cmd_upsert_formula / cmd_delete_formula 成功
+     回包) → 重置 30 分钟计时器; 切换 toggle 到 true → 启动计时器; 计时到
+     OR 用户手动 toggle 到 false → 清掉计时器.
+   - 后端命令本身一律放开, 不依赖前端 toggle 状态 (单用户模型没必要做服务端
+     权限检查; 这是纯 UX). 即便用户用 DevTools 直接 invoke cmd 也能成功 —
+     不是安全设计.
+
+2) 审计日志显示 (auditLogVisible, 默认 false)
+   - 位置: AuditLog 页顶部, 类似的 toggle:
+       <Switch> 审计日志显示: 关闭 / 开启
+       下面 muted 小字:
+       "默认不显示历史记录. 开启后才加载 (最新 50 条). 30 分钟无操作自动关闭.
+        导出审计日志不受此开关影响, 仍可正常使用."
+   - 关闭时: 不调 cmd_list_audit, 表格区域显示提示 "审计日志默认隐藏, 点上面
+     按钮开启后查看".
+   - 开启时: 正常调 list, 限 50 条 (上节 D).
+   - 自动关闭: 切到 true → 启动 30 分钟计时; 任意"刷新 / 改筛选条件"等会
+     重置计时; 计时到自动 toggle 回 false; 导出按钮不重置计时.
+   - 导出对话框 (导出 .ranpu / CSV) 可以独立打开, 不受 visible 开关影响.
+
+实现细节:
+- src/store/management.ts (zustand):
+    interface ManagementState {
+      formulaManaged: boolean;
+      auditLogVisible: boolean;
+      setFormulaManaged(on: boolean): void;
+      setAuditLogVisible(on: boolean): void;
+      bumpFormulaActivity(): void;        // 任何配方写操作完调一次, 重置计时
+      bumpAuditActivity(): void;          // 审计日志页活动时调
+    }
+- 内部用 setTimeout(30 * 60 * 1000) 计时, 用 ref 持引用方便 clearTimeout.
+- 不持久化到磁盘 — 每次启动默认 false. 锁屏不影响开关状态 (内存里仍在),
+  但建议锁屏触发时主动 setFormulaManaged(false) + setAuditLogVisible(false)
+  让重新解锁的人也得手动开启.
+- shadcn/ui 的 <Switch> 组件 (需 npx shadcn add switch 加进 src/components/ui/).
+
+────────────────────────────────────────────────
+N. 不要做的事 (经验教训)
 ────────────────────────────────────────────────
 - 不要把 `print-color-adjust: exact` 放在 body 块里 — 会让 ARM WebView2 老版本
   解析失败连带跳后续规则.
