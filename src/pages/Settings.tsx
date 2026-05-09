@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
+
 import { EditModeToggle } from '@/components/EditModeToggle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -14,6 +17,23 @@ import { useSettingsStore, type IdleTimeoutMinutes } from '@/store/settings';
 export function SettingsPage() {
   const idleMinutes = useSettingsStore((s) => s.idleTimeoutMinutes);
   const setIdleMinutes = useSettingsStore((s) => s.setIdleTimeoutMinutes);
+
+  const vatCount = useSettingsStore((s) => s.vatCount);
+  const setVatCount = useSettingsStore((s) => s.setVatCount);
+  // 输入中可能出现空串 / 不合法中间状态, 用本地 state 暂存,
+  // 失焦或回车时再过 store 的 1-99 钳位.
+  const [vatInput, setVatInput] = useState(String(vatCount));
+  useEffect(() => {
+    setVatInput(String(vatCount));
+  }, [vatCount]);
+  const commitVat = () => {
+    const n = Number(vatInput);
+    if (Number.isFinite(n) && n > 0) {
+      setVatCount(n);
+    } else {
+      setVatInput(String(vatCount));
+    }
+  };
 
   const formulaEdit = useEditModeStore((s) => s.formulaEditEnabled);
   const enableFormula = useEditModeStore((s) => s.enableFormulaEdit);
@@ -85,6 +105,34 @@ export function SettingsPage() {
               <SelectItem value="60">60 分钟</SelectItem>
             </SelectContent>
           </Select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>染缸数量</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 max-w-md">
+          <Label htmlFor="vat-count">本厂染缸总数</Label>
+          <Input
+            id="vat-count"
+            type="number"
+            min={1}
+            max={99}
+            inputMode="numeric"
+            value={vatInput}
+            onChange={(e) => setVatInput(e.target.value)}
+            onBlur={commitVat}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            后期 "单日染缸批次重置" 用这个数加批次序号自动生成缸号 (例 8 缸厂第一批 1-1…1-8, 第二批 2-1…2-8). 范围 1-99.
+          </p>
         </CardContent>
       </Card>
     </div>
