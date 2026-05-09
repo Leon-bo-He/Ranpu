@@ -416,15 +416,14 @@ export function CartPage() {
         onOpenChange={(o) => !o && setPreviewHtml(null)}
       >
         <DialogContent className="flex h-[90vh] max-w-5xl flex-col gap-0 p-0">
-          <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-b px-6 py-4 space-y-0">
-            <DialogTitle>批次单预览</DialogTitle>
+          <DialogHeader className="shrink-0 flex-row items-center gap-4 border-b px-6 py-4 space-y-0">
             <div className="inline-flex rounded-md border bg-background">
               <button
                 type="button"
                 disabled={previewBusy}
                 onClick={() => previewLayout !== 'standard' && fetchPreview('standard')}
                 className={cn(
-                  'rounded-l-md px-3 py-1 text-xs transition-colors',
+                  'rounded-l-md px-5 py-2 text-sm font-medium transition-colors',
                   previewLayout === 'standard'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-foreground hover:bg-accent',
@@ -437,7 +436,7 @@ export function CartPage() {
                 disabled={previewBusy}
                 onClick={() => previewLayout !== 'grid' && fetchPreview('grid')}
                 className={cn(
-                  'rounded-r-md border-l px-3 py-1 text-xs transition-colors',
+                  'rounded-r-md border-l px-5 py-2 text-sm font-medium transition-colors',
                   previewLayout === 'grid'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-foreground hover:bg-accent',
@@ -446,6 +445,7 @@ export function CartPage() {
                 九宫格
               </button>
             </div>
+            <DialogTitle>批次单预览</DialogTitle>
           </DialogHeader>
           {previewHtml && (
             <iframe
