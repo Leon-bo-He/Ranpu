@@ -131,7 +131,7 @@ export function SettingsPage() {
             }}
           />
           <p className="text-xs text-muted-foreground">
-            后期 "单日染缸批次重置" 用这个数加批次序号自动生成缸号 (例 8 缸厂第一批 1-1…1-8, 第二批 2-1…2-8). 范围 1-99.
+            用于缸号自动生成. 范围 1-99.
           </p>
         </CardContent>
       </Card>
