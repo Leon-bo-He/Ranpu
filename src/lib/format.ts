@@ -1,5 +1,5 @@
 /**
- * 染谱通用日期/数字格式化（PROMPT 第 299-300 行）。
+ * 染谱通用日期/数字格式化。
  */
 
 /**
@@ -18,19 +18,33 @@ export function formatDateTime(input: string | Date | null | undefined): string 
 }
 
 /**
- * 数字保留 2 位小数（用于 kg、g 显示）。
+ * 数字最多保留 N 位小数, 末尾零自动去掉. 默认 4 位 — 染料用量 / 计算结果
+ * 经常出现 0.001 / 0.0001 这种, 只显示 2 位会被截成 0.00 看不出区别.
+ *
+ *   2          → "2"
+ *   2.5        → "2.5"
+ *   2.0        → "2"
+ *   0.001      → "0.001"
+ *   0.0001     → "0.0001"
+ *   0.00001    → "0"   (低于精度被四舍五入掉)
+ *   123.456789 → "123.4568"
  */
-export function formatTwoDecimal(n: number | null | undefined): string {
-  if (n === null || n === undefined || Number.isNaN(n)) return '';
-  return n.toFixed(2);
+export function formatAmount(
+  n: number | null | undefined,
+  maxDecimals = 4,
+): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '';
+  // toFixed → parseFloat → toString 这一手把 "12.3400" 变 "12.34", "12.0000"
+  // 变 "12", 比手写 regex 干净.
+  return parseFloat(n.toFixed(maxDecimals)).toString();
 }
 
 export function formatGrams(n: number | null | undefined): string {
-  return n === null || n === undefined ? '' : `${formatTwoDecimal(n)} g`;
+  return n === null || n === undefined ? '' : `${formatAmount(n)} g`;
 }
 
 export function formatKg(n: number | null | undefined): string {
-  return n === null || n === undefined ? '' : `${formatTwoDecimal(n)} kg`;
+  return n === null || n === undefined ? '' : `${formatAmount(n)} kg`;
 }
 
 export function unitLabel(unit: 'pct_owf' | 'g_per_kg'): string {

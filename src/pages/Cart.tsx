@@ -164,7 +164,11 @@ export function CartPage() {
       <div className="flex items-center justify-between">
         <h2 className="font-serif text-xl tracking-[2px]">批次清单</h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onExportCsv}>
+          <Button
+            variant="outline"
+            onClick={onExportCsv}
+            disabled={lines.length === 0}
+          >
             <Upload className="mr-1 h-4 w-4" /> 导出 CSV
           </Button>
           <Button

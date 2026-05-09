@@ -58,18 +58,34 @@ fn render_csv(results: &[CalculationResult]) -> String {
     for r in results {
         for line in &r.lines {
             buf.push_str(&format!(
-                "{},{:.2},{},{},{:.2},{},{}\n",
+                "{},{},{},{},{},{},{}\n",
                 csv_escape(r.internal_color_code.as_str()),
-                r.target_kg.value(),
+                format_amount(r.target_kg.value()),
                 csv_escape(&line.dye_name),
                 csv_escape(line.dye_code.as_deref().unwrap_or("")),
-                line.grams.value(),
+                format_amount(line.grams.value()),
                 line.unit_used.as_db_str(),
                 r.source.display_label(),
             ));
         }
     }
     buf
+}
+
+/// 数字最多保留 4 位小数, 末尾零自动去掉. 跟前端 lib/format.ts 的 formatAmount
+/// 行为对齐, 避免前端显示 0.001 而打印 / CSV 看到 0.00.
+///
+/// 实现: 先 format!("{:.4}") 截到 4 位, 再砍末尾连续的 '0' 和孤立的 '.'.
+fn format_amount(v: f64) -> String {
+    if !v.is_finite() {
+        return String::new();
+    }
+    let s = format!("{:.4}", v);
+    if s.contains('.') {
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    } else {
+        s
+    }
 }
 
 fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
@@ -172,9 +188,9 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         html.push_str(r#"  <div class="formula">"#);
         html.push('\n');
         html.push_str(&format!(
-            r#"    <h2>{} <span class="target">目标 {:.2} kg</span><span class="source">{}</span></h2>"#,
+            r#"    <h2>{} <span class="target">目标 {} kg</span><span class="source">{}</span></h2>"#,
             html_escape(r.internal_color_code.as_str()),
-            r.target_kg.value(),
+            format_amount(r.target_kg.value()),
             html_escape(r.source.display_label()),
         ));
         html.push('\n');
@@ -189,10 +205,10 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         html.push_str("      <tbody>\n");
         for l in &r.lines {
             html.push_str(&format!(
-                "        <tr><td>{}</td><td>{}</td><td class=\"num\">{:.2}</td><td class=\"unit\">{}</td></tr>\n",
+                "        <tr><td>{}</td><td>{}</td><td class=\"num\">{}</td><td class=\"unit\">{}</td></tr>\n",
                 html_escape(&l.dye_name),
                 html_escape(l.dye_code.as_deref().unwrap_or("—")),
-                l.grams.value(),
+                format_amount(l.grams.value()),
                 l.unit_used.display_label(),
             ));
         }

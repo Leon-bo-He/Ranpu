@@ -39,7 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatGrams, unitLabel } from '@/lib/format';
+import { formatAmount, formatGrams, unitLabel } from '@/lib/format';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
 type SearchMode = 'internal' | 'customer';
@@ -150,7 +150,7 @@ export function CalculatorPage() {
       }
       // 没冲突 → 直接加
       await cartApi.add(sourceKind, formulaId, addKg);
-      setCartMsg(`已加入批次清单：${internalCode} · ${addKg.toFixed(2)} kg`);
+      setCartMsg(`已加入批次清单：${internalCode} · ${formatAmount(addKg)} kg`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
     } finally {
@@ -169,17 +169,13 @@ export function CalculatorPage() {
         const sum = Math.min(existingKg + addKg, 99999.99);
         await cartApi.updateKg(sourceKind, formulaId, sum);
         setCartMsg(
-          `已累加到批次清单：${internalCode} · ${existingKg.toFixed(2)} + ${addKg.toFixed(
-            2,
-          )} = ${sum.toFixed(2)} kg`,
+          `已累加到批次清单：${internalCode} · ${formatAmount(existingKg)} + ${formatAmount(addKg)} = ${formatAmount(sum)} kg`,
         );
       } else {
         // 替换为新的 kg：直接复用 add（后端 add 即 add_or_update，命中 → 覆盖 kg）。
         await cartApi.add(sourceKind, formulaId, addKg);
         setCartMsg(
-          `已覆盖批次清单 kg：${internalCode} · ${existingKg.toFixed(2)} → ${addKg.toFixed(
-            2,
-          )} kg`,
+          `已覆盖批次清单 kg：${internalCode} · ${formatAmount(existingKg)} → ${formatAmount(addKg)} kg`,
         );
       }
       setConflict(null);
@@ -288,7 +284,7 @@ export function CalculatorPage() {
                   </Badge>
                 </CardTitle>
                 <CardDescription>
-                  目标 {result.target_kg.toFixed(2)} kg
+                  目标 {formatAmount(result.target_kg)} kg
                 </CardDescription>
               </div>
               <Button
@@ -358,9 +354,9 @@ export function CalculatorPage() {
                 <>
                   <span className="font-mono">{conflict.internalCode}</span>{' '}
                   当前批次清单记录{' '}
-                  <span className="font-mono">{conflict.existingKg.toFixed(2)}</span>{' '}
+                  <span className="font-mono">{formatAmount(conflict.existingKg)}</span>{' '}
                   kg，本次想加的是{' '}
-                  <span className="font-mono">{conflict.addKg.toFixed(2)}</span> kg。
+                  <span className="font-mono">{formatAmount(conflict.addKg)}</span> kg。
                 </>
               )}
             </DialogDescription>
@@ -371,16 +367,15 @@ export function CalculatorPage() {
               <li>
                 · 累加：把这次的 kg 加到批次清单现有 kg 上（
                 {conflict
-                  ? `${conflict.existingKg.toFixed(2)} + ${conflict.addKg.toFixed(2)} = ${Math.min(
-                      conflict.existingKg + conflict.addKg,
-                      99999.99,
-                    ).toFixed(2)} kg`
+                  ? `${formatAmount(conflict.existingKg)} + ${formatAmount(conflict.addKg)} = ${formatAmount(
+                      Math.min(conflict.existingKg + conflict.addKg, 99999.99),
+                    )} kg`
                   : ''}
                 ）
               </li>
               <li>
                 · 覆盖：用本次的 kg 直接替换掉批次清单里的 kg（
-                {conflict ? `${conflict.addKg.toFixed(2)} kg` : ''}）
+                {conflict ? `${formatAmount(conflict.addKg)} kg` : ''}）
               </li>
             </ul>
           </div>

@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { unitLabel } from '@/lib/format';
+import { formatAmount, unitLabel } from '@/lib/format';
 
 export interface FormulaCardActions {
   onCopyToWorkspace?: (formula: FormulaView) => void;
@@ -97,7 +97,7 @@ export function FormulaCard({
                 )}
               </span>
               <span className="whitespace-nowrap font-mono">
-                {it.amount.toFixed(2)} {unitLabel(it.unit)}
+                {formatAmount(it.amount)} {unitLabel(it.unit)}
               </span>
             </li>
           ))}
