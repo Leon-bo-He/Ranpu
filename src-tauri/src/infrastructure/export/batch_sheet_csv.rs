@@ -172,8 +172,20 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     );
     if let Some(name) = context.workspace_name {
         html.push_str(&format!(
-            "    <div class=\"row\"><span class=\"label\">当前客户:</span><span class=\"value\">{}</span></div>\n",
+            "    <div class=\"row\"><span class=\"label\">客户:</span><span class=\"value\">{}</span></div>\n",
             html_escape(name),
+        ));
+    }
+    if let Some(vat) = context.vat_number {
+        html.push_str(&format!(
+            "    <div class=\"row\"><span class=\"label\">缸号:</span><span class=\"value\">{}</span></div>\n",
+            html_escape(vat),
+        ));
+    }
+    if let Some(yarn) = context.yarn_count {
+        html.push_str(&format!(
+            "    <div class=\"row\"><span class=\"label\">纱支:</span><span class=\"value\">{}</span></div>\n",
+            html_escape(yarn),
         ));
     }
     html.push_str("    <div class=\"row\"><span class=\"label\">导出时间:</span><span class=\"value\">");

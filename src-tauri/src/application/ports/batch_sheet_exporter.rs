@@ -22,10 +22,15 @@ pub enum BatchSheetFormat {
 }
 
 /// 批次单上下文 (顶部标题区域引用).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct BatchSheetContext<'a> {
-    /// 当前工作区名称, 业务上等同于客户名 (HTML 头部「当前客户」字段).
+    /// 当前工作区名称, 业务上等同于客户名 (HTML 头部「客户」字段).
+    /// 用户在预览/打印对话框可以改写这个值 (默认填的是工作区名).
     pub workspace_name: Option<&'a str>,
+    /// 缸号 (例如 "5-2" = 第 5 缸第 2 批), HTML 头部「缸号」字段; None 则不显示.
+    pub vat_number: Option<&'a str>,
+    /// 纱支 (例如 "32S/2"), HTML 头部「纱支」字段; None 则不显示.
+    pub yarn_count: Option<&'a str>,
 }
 
 /// 把购物车的多条计算结果导出为「批次单」文件（PROMPT 第 297 行）。

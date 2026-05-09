@@ -540,6 +540,13 @@ pub struct ExportCartCmd {
     pub out_path: String,
 }
 
+#[derive(Debug, Default, Deserialize)]
+pub struct PreviewCartCmd {
+    pub customer: Option<String>,
+    pub vat_number: Option<String>,
+    pub yarn_count: Option<String>,
+}
+
 // ---------- Backup ----------
 
 #[derive(Debug, Deserialize)]

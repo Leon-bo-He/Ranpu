@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -39,6 +40,13 @@ export function CartPage() {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
   const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
+  // 预览前的元信息收集对话框: 客户 (默认当前工作区名) / 缸号 / 纱支.
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [promptCustomer, setPromptCustomer] = useState('');
+  const [promptVat, setPromptVat] = useState('');
+  const [promptYarn, setPromptYarn] = useState('');
+  // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
+  const [printCustomer, setPrintCustomer] = useState('');
 
   const load = () => {
     if (!hasWs) {
@@ -124,10 +132,28 @@ export function CartPage() {
     }
   };
 
-  const onPreview = async () => {
+  // 点 "预览/打印" 先开元信息对话框 (客户默认当前工作区名), 用户填完
+  // 再去后端拿渲染好的 HTML.
+  const onOpenPreviewPrompt = () => {
+    setPromptCustomer(workspaceName);
+    setPromptVat('');
+    setPromptYarn('');
+    setPromptOpen(true);
+  };
+
+  const onConfirmPreview = async () => {
+    const customer = promptCustomer.trim();
+    const vat = promptVat.trim();
+    const yarn = promptYarn.trim();
+    setPromptOpen(false);
+    setPrintCustomer(customer || workspaceName);
     setPreviewBusy(true);
     try {
-      const html = await cartApi.previewHtml();
+      const html = await cartApi.previewHtml({
+        customer: customer || null,
+        vatNumber: vat || null,
+        yarnCount: yarn || null,
+      });
       setPreviewHtml(html);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
@@ -144,8 +170,10 @@ export function CartPage() {
     // 取的是 *主窗口* document.title (= "染谱 Ranpu") 而不是 iframe 自己
     // 的 <title>. 临时把主窗口 title 改成我们要的, 打印结束再还原.
     const date = new Date().toISOString().slice(0, 10);
-    const printTitle = workspaceName
-      ? `${sanitizeForFilename(workspaceName)}-批次单-${date}`
+    // 优先用 prompt 里填的客户名做文件名, 没填则 fallback 到工作区名.
+    const customerForFilename = printCustomer || workspaceName;
+    const printTitle = customerForFilename
+      ? `${sanitizeForFilename(customerForFilename)}-批次单-${date}`
       : `批次单-${date}`;
     const originalTitle = document.title;
     document.title = printTitle;
@@ -173,7 +201,7 @@ export function CartPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={onPreview}
+            onClick={onOpenPreviewPrompt}
             disabled={previewBusy || lines.length === 0}
             title="弹出批次单预览, 点打印可调起系统打印对话框 (Windows 内置 Microsoft Print to PDF)"
           >
@@ -282,6 +310,50 @@ export function CartPage() {
         destructive
         onConfirm={confirmClear}
       />
+
+      <Dialog
+        open={promptOpen}
+        onOpenChange={(o) => !o && setPromptOpen(false)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>批次单信息</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid gap-1">
+              <Label>客户</Label>
+              <Input
+                value={promptCustomer}
+                onChange={(e) => setPromptCustomer(e.target.value)}
+                placeholder="默认当前工作区名"
+                autoFocus
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label>缸号 (例: 5-2)</Label>
+              <Input
+                value={promptVat}
+                onChange={(e) => setPromptVat(e.target.value)}
+                placeholder="缸号-批次"
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label>纱支</Label>
+              <Input
+                value={promptYarn}
+                onChange={(e) => setPromptYarn(e.target.value)}
+                placeholder="例: 32S/2"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setPromptOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={onConfirmPreview}>生成预览</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={previewHtml !== null}
