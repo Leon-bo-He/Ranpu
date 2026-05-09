@@ -6,11 +6,9 @@ use chrono::{DateTime, Utc};
 use rusqlite::Row;
 
 use crate::application::ports::errors::RepositoryError;
-use crate::domain::formula::amounts::Kilograms;
 use crate::domain::formula::customer_color_code::CustomerColorCode;
 use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
-use crate::domain::formula::liquor_ratio::LiquorRatio;
 use crate::domain::formula::unit::Unit;
 use crate::domain::shared::id::FormulaItemId;
 
@@ -25,20 +23,6 @@ pub fn parse_internal(s: String) -> Result<InternalColorCode, RepositoryError> {
 
 pub fn parse_customer(s: Option<String>) -> Result<Option<CustomerColorCode>, RepositoryError> {
     CustomerColorCode::maybe(s).map_err(|e| corrupt("customer_color_code", e))
-}
-
-pub fn parse_kg_opt(v: Option<f64>) -> Result<Option<Kilograms>, RepositoryError> {
-    match v {
-        None => Ok(None),
-        Some(x) => Kilograms::new(x).map(Some).map_err(|e| corrupt("base_weight_kg", e)),
-    }
-}
-
-pub fn parse_ratio_opt(v: Option<f64>) -> Result<Option<LiquorRatio>, RepositoryError> {
-    match v {
-        None => Ok(None),
-        Some(x) => LiquorRatio::new(x).map(Some).map_err(|e| corrupt("liquor_ratio", e)),
-    }
 }
 
 pub fn parse_unit(s: &str) -> Result<Unit, RepositoryError> {

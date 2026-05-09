@@ -18,12 +18,10 @@ use crate::application::formula::wire::{
 };
 use crate::application::session_guard::ensure_active;
 use crate::domain::audit::audit_event::{Action, AuditEvent};
-use crate::domain::formula::amounts::Kilograms;
 use crate::domain::formula::customer_color_code::CustomerColorCode;
 use crate::domain::formula::default_formula::DefaultFormula;
 use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
-use crate::domain::formula::liquor_ratio::LiquorRatio;
 use crate::domain::formula::unit::Unit;
 use crate::domain::formula::workspace_formula::WorkspaceFormula;
 use crate::domain::shared::id::WorkspaceId;
@@ -366,14 +364,6 @@ impl FormulaService {
             return Ok(false);
         }
         let customer = CustomerColorCode::maybe(wire.customer_color_code.clone())?;
-        let base_kg = match wire.base_weight_kg {
-            Some(v) => Some(Kilograms::new(v)?),
-            None => None,
-        };
-        let ratio = match wire.liquor_ratio {
-            Some(v) => Some(LiquorRatio::new(v)?),
-            None => None,
-        };
         let mut items = Vec::with_capacity(wire.items.len());
         for it in &wire.items {
             let unit = Unit::from_str(&it.unit)?;
@@ -388,10 +378,7 @@ impl FormulaService {
         let formula = DefaultFormula::new(
             internal,
             customer,
-            wire.color_name.clone(),
-            wire.description.clone(),
-            base_kg,
-            ratio,
+            wire.color_family.clone(),
             wire.notes.clone(),
             items,
             now,
@@ -415,14 +402,6 @@ impl FormulaService {
             return Ok(false);
         }
         let customer = CustomerColorCode::maybe(wire.customer_color_code.clone())?;
-        let base_kg = match wire.base_weight_kg {
-            Some(v) => Some(Kilograms::new(v)?),
-            None => None,
-        };
-        let ratio = match wire.liquor_ratio {
-            Some(v) => Some(LiquorRatio::new(v)?),
-            None => None,
-        };
         let mut items = Vec::with_capacity(wire.items.len());
         for it in &wire.items {
             let unit = Unit::from_str(&it.unit)?;
@@ -438,10 +417,7 @@ impl FormulaService {
             workspace_id,
             internal,
             customer,
-            wire.color_name.clone(),
-            wire.description.clone(),
-            base_kg,
-            ratio,
+            wire.color_family.clone(),
             wire.notes.clone(),
             items,
             None,

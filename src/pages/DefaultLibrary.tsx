@@ -44,6 +44,16 @@ export function DefaultLibraryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchSummary, setBatchSummary] = useState<BatchCopySummaryView | null>(null);
+  const [colorFamilies, setColorFamilies] = useState<string[]>([]);
+
+  // 编辑器打开时, 拉一份已用过的色系喂进 dropdown.
+  useEffect(() => {
+    if (!editorOpen) return;
+    formulaApi
+      .listDefaultColorFamilies()
+      .then(setColorFamilies)
+      .catch(() => setColorFamilies([]));
+  }, [editorOpen]);
 
   const load = (kw: string = debouncedKeyword) => {
     setLoading(true);
@@ -187,7 +197,7 @@ export function DefaultLibraryPage() {
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-8"
-            placeholder="搜索内部色号 / 客户色号 / 颜色俗称"
+            placeholder="搜索内部色号 / 客户色号 / 色系"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
           />
@@ -241,6 +251,7 @@ export function DefaultLibraryPage() {
         onClose={() => setEditorOpen(false)}
         initial={editing}
         scope="默认"
+        colorFamilies={colorFamilies}
         onSave={onSave}
       />
 
@@ -290,7 +301,7 @@ export function DefaultLibraryPage() {
             <>
               将永久删除默认库中的{' '}
               <span className="font-mono">{pendingDelete.internal_color_code}</span>
-              {pendingDelete.color_name && <> · {pendingDelete.color_name}</>}
+              {pendingDelete.color_family && <> · {pendingDelete.color_family}</>}
               {' '}及其所有染料明细，操作不可撤销。
             </>
           )

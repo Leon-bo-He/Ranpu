@@ -13,7 +13,7 @@ pub struct CartLine {
     pub item: CartItem,
     /// 显示给 UI 的内部色号（解析后的）。
     pub internal_color_code: Option<String>,
-    pub color_name: Option<String>,
+    pub color_family: Option<String>,
     pub customer_color_code: Option<String>,
     /// 计算结果。配方被删/不见了时是 NotFound，其它领域错按原文返回。
     pub calculation: Result<CalculationResult, String>,
@@ -56,7 +56,7 @@ impl CartService {
                                 .as_str()
                                 .to_owned(),
                         ),
-                        color_name: f.color_name().map(str::to_owned),
+                        color_family: f.color_family().map(str::to_owned),
                         customer_color_code: f
                             .customer_color_code()
                             .map(|c| c.as_str().to_owned()),
@@ -67,14 +67,14 @@ impl CartService {
                 Ok(None) => CartLine {
                     item,
                     internal_color_code: None,
-                    color_name: None,
+                    color_family: None,
                     customer_color_code: None,
                     calculation: Err(format!("{}", AppError::Repository(RepositoryError::NotFound))),
                 },
                 Err(e) => CartLine {
                     item,
                     internal_color_code: None,
-                    color_name: None,
+                    color_family: None,
                     customer_color_code: None,
                     calculation: Err(e.to_string()),
                 },
@@ -93,7 +93,7 @@ impl CartService {
                                 .as_str()
                                 .to_owned(),
                         ),
-                        color_name: f.color_name().map(str::to_owned),
+                        color_family: f.color_family().map(str::to_owned),
                         customer_color_code: f
                             .customer_color_code()
                             .map(|c| c.as_str().to_owned()),
@@ -104,14 +104,14 @@ impl CartService {
                 Ok(None) => CartLine {
                     item,
                     internal_color_code: None,
-                    color_name: None,
+                    color_family: None,
                     customer_color_code: None,
                     calculation: Err(format!("{}", AppError::Repository(RepositoryError::NotFound))),
                 },
                 Err(e) => CartLine {
                     item,
                     internal_color_code: None,
-                    color_name: None,
+                    color_family: None,
                     customer_color_code: None,
                     calculation: Err(e.to_string()),
                 },

@@ -128,7 +128,72 @@ fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
     // 老索引按 user_id 建的, 现在 user_id 没了, 索引也失效. 删掉重建.
     let _ = conn.execute_batch("DROP INDEX IF EXISTS idx_cart_user_workspace");
     let _ = conn.execute_batch("DROP INDEX IF EXISTS idx_audit_user_time");
+
+    // 配方字段精简: 砍 color_name / description / base_weight_kg / liquor_ratio,
+    // 加 color_family. SQLite ≥ 3.35 ALTER TABLE DROP COLUMN. items 表 unit
+    // 列的 CHECK 约束改了 (去掉 g_per_L), 但 SQLite CHECK 改约束要重建表;
+    // 不重建也行 — 现存行如果有 g_per_L 留着就好, 之后写入会触发新约束.
+    // 实际上 g_per_L 的行会在重建过程中变成不合法; 直接整表重建更稳.
+    for table in ["default_formulas", "workspace_formulas"] {
+        if column_exists(conn, table, "color_name")? {
+            conn.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN color_name"))?;
+        }
+        if column_exists(conn, table, "description")? {
+            conn.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN description"))?;
+        }
+        if column_exists(conn, table, "base_weight_kg")? {
+            conn.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN base_weight_kg"))?;
+        }
+        if column_exists(conn, table, "liquor_ratio")? {
+            conn.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN liquor_ratio"))?;
+        }
+        if !column_exists(conn, table, "color_family")? {
+            conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN color_family TEXT"))?;
+        }
+    }
+
+    // 老 items 表 unit CHECK 还允许 g_per_L. 数据里如果有 g_per_L 行先迁成 g_per_kg
+    // (语义上的近似 fallback, 总比直接报错强), 然后整表重建以同步新 CHECK.
+    for items_table in ["default_formula_items", "workspace_formula_items"] {
+        let needs_unit_rebuild = check_clause_has_g_per_l(conn, items_table)?;
+        if needs_unit_rebuild {
+            conn.execute_batch(&format!(
+                "UPDATE {items_table} SET unit = 'g_per_kg' WHERE unit = 'g_per_L';
+                 CREATE TABLE {items_table}_new (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    formula_id  INTEGER NOT NULL,
+                    dye_name    TEXT NOT NULL,
+                    dye_code    TEXT,
+                    percentage  REAL NOT NULL,
+                    unit        TEXT NOT NULL CHECK(unit IN ('pct_owf','g_per_kg')),
+                    sort_order  INTEGER NOT NULL DEFAULT 0
+                 );
+                 INSERT INTO {items_table}_new
+                    (id, formula_id, dye_name, dye_code, percentage, unit, sort_order)
+                 SELECT id, formula_id, dye_name, dye_code, percentage, unit, sort_order
+                 FROM {items_table};
+                 DROP TABLE {items_table};
+                 ALTER TABLE {items_table}_new RENAME TO {items_table};"
+            ))?;
+        }
+    }
+
     Ok(())
+}
+
+/// items 表 unit 列的 CHECK 约束是否还允许 g_per_L (老 schema). PRAGMA
+/// table_info 不暴露 CHECK 详情, 走 sqlite_master 抓建表语句字符串.
+fn check_clause_has_g_per_l(conn: &Connection, table: &str) -> rusqlite::Result<bool> {
+    let sql: Option<String> = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
+            [table],
+            |r| r.get(0),
+        )
+        .ok();
+    Ok(sql
+        .map(|s| s.contains("g_per_L"))
+        .unwrap_or(false))
 }
 
 fn column_exists(conn: &Connection, table: &str, column: &str) -> rusqlite::Result<bool> {

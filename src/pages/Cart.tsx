@@ -196,7 +196,7 @@ export function CartPage() {
             <TableRow>
               <TableHead>内部色号</TableHead>
               <TableHead>客户色号</TableHead>
-              <TableHead>颜色俗称</TableHead>
+              <TableHead>色系</TableHead>
               <TableHead>来源</TableHead>
               <TableHead>目标 kg</TableHead>
               <TableHead>染料明细 / 总克数</TableHead>
@@ -210,7 +210,7 @@ export function CartPage() {
                   {line.internal_color_code ?? '（已删除）'}
                 </TableCell>
                 <TableCell>{line.customer_color_code ?? '—'}</TableCell>
-                <TableCell>{line.color_name ?? '—'}</TableCell>
+                <TableCell>{line.color_family ?? '—'}</TableCell>
                 <TableCell>
                   <Badge
                     variant={line.source_kind === 'workspace' ? 'default' : 'secondary'}

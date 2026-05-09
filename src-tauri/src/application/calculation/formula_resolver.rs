@@ -39,7 +39,7 @@ pub struct CustomerCodeMatch {
     pub source: FormulaSource,
     pub formula_id: Option<FormulaId>,
     pub internal_color_code: InternalColorCode,
-    pub color_name: Option<String>,
+    pub color_family: Option<String>,
     pub customer_color_code: Option<String>,
 }
 
@@ -78,7 +78,7 @@ impl CalculationService {
                 source: FormulaSource::CurrentWorkspace,
                 formula_id: f.id(),
                 internal_color_code: <WorkspaceFormula as CalculableFormula>::internal_color_code(&f).clone(),
-                color_name: f.color_name().map(str::to_owned),
+                color_family: f.color_family().map(str::to_owned),
                 customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
             });
         }
@@ -87,7 +87,7 @@ impl CalculationService {
                 source: FormulaSource::DefaultFallback,
                 formula_id: f.id(),
                 internal_color_code: <DefaultFormula as CalculableFormula>::internal_color_code(&f).clone(),
-                color_name: f.color_name().map(str::to_owned),
+                color_family: f.color_family().map(str::to_owned),
                 customer_color_code: f.customer_color_code().map(|c| c.as_str().to_owned()),
             });
         }

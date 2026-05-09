@@ -12,11 +12,10 @@ use crate::domain::formula::internal_color_code::InternalColorCode;
 use crate::domain::shared::id::{FormulaId, FormulaItemId};
 use crate::infrastructure::persistence::sqlcipher::connection::SqliteConnection;
 use crate::infrastructure::persistence::sqlcipher::row_mapping::{
-    corrupt, parse_customer, parse_dt, parse_internal, parse_kg_opt, parse_ratio_opt, parse_unit,
-    rfc3339,
+    corrupt, parse_customer, parse_dt, parse_internal, parse_unit, rfc3339,
 };
 
-const COLS: &str = "id, internal_color_code, customer_color_code, color_name, description, base_weight_kg, liquor_ratio, notes, created_at, updated_at";
+const COLS: &str = "id, internal_color_code, customer_color_code, color_family, notes, created_at, updated_at";
 
 pub struct SqliteDefaultFormulaRepository {
     db: Arc<SqliteConnection>,
@@ -32,10 +31,7 @@ struct FormulaRow {
     id: i64,
     internal_color_code: String,
     customer_color_code: Option<String>,
-    color_name: Option<String>,
-    description: Option<String>,
-    base_weight_kg: Option<f64>,
-    liquor_ratio: Option<f64>,
+    color_family: Option<String>,
     notes: Option<String>,
     created_at: String,
     updated_at: String,
@@ -47,13 +43,10 @@ impl FormulaRow {
             id: r.get(0)?,
             internal_color_code: r.get(1)?,
             customer_color_code: r.get(2)?,
-            color_name: r.get(3)?,
-            description: r.get(4)?,
-            base_weight_kg: r.get(5)?,
-            liquor_ratio: r.get(6)?,
-            notes: r.get(7)?,
-            created_at: r.get(8)?,
-            updated_at: r.get(9)?,
+            color_family: r.get(3)?,
+            notes: r.get(4)?,
+            created_at: r.get(5)?,
+            updated_at: r.get(6)?,
         })
     }
 }
@@ -114,8 +107,6 @@ fn assemble_default(
 ) -> Result<DefaultFormula, RepositoryError> {
     let internal = parse_internal(formula_row.internal_color_code)?;
     let customer = parse_customer(formula_row.customer_color_code)?;
-    let base_kg = parse_kg_opt(formula_row.base_weight_kg)?;
-    let ratio = parse_ratio_opt(formula_row.liquor_ratio)?;
     let created_at = parse_dt(&formula_row.created_at)?;
     let updated_at = parse_dt(&formula_row.updated_at)?;
     let items_dom: Result<Vec<_>, _> = items.into_iter().map(ItemRow::into_domain).collect();
@@ -124,10 +115,7 @@ fn assemble_default(
         FormulaId::new(formula_row.id),
         internal,
         customer,
-        formula_row.color_name,
-        formula_row.description,
-        base_kg,
-        ratio,
+        formula_row.color_family,
         formula_row.notes,
         items_dom,
         created_at,
@@ -218,7 +206,7 @@ impl DefaultFormulaRepository for SqliteDefaultFormulaRepository {
                     sql.push_str(
                         " WHERE internal_color_code LIKE ?1
                               OR customer_color_code LIKE ?1
-                              OR color_name LIKE ?1",
+                              OR color_family LIKE ?1",
                     );
                     bound.push(rusqlite::types::Value::Text(format!("%{trimmed}%")));
                 }
@@ -248,22 +236,22 @@ impl DefaultFormulaRepository for SqliteDefaultFormulaRepository {
             .collect()
     }
 
+    fn list_color_families(&self) -> Result<Vec<String>, RepositoryError> {
+        list_color_families(&self.db, "default_formulas")
+    }
+
     fn upsert(&self, formula: &DefaultFormula) -> Result<FormulaId, RepositoryError> {
         self.db.with_tx(|tx| {
             let id = match formula.id() {
                 None => {
                     tx.execute(
                         "INSERT INTO default_formulas (internal_color_code, customer_color_code,
-                            color_name, description, base_weight_kg, liquor_ratio, notes,
-                            created_at, updated_at)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                            color_family, notes, created_at, updated_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                         params![
                             <DefaultFormula as crate::domain::calculation::dye_calculator::CalculableFormula>::internal_color_code(formula).as_str(),
                             formula.customer_color_code().map(|c| c.as_str()),
-                            formula.color_name(),
-                            formula.description(),
-                            formula.base_weight_kg().map(|k| k.value()),
-                            <DefaultFormula as crate::domain::calculation::dye_calculator::CalculableFormula>::liquor_ratio(formula).map(|r| r.value()),
+                            formula.color_family(),
                             formula.notes(),
                             rfc3339(formula.created_at()),
                             rfc3339(formula.updated_at()),
@@ -276,20 +264,14 @@ impl DefaultFormulaRepository for SqliteDefaultFormulaRepository {
                         "UPDATE default_formulas SET
                             internal_color_code = ?1,
                             customer_color_code = ?2,
-                            color_name = ?3,
-                            description = ?4,
-                            base_weight_kg = ?5,
-                            liquor_ratio = ?6,
-                            notes = ?7,
-                            updated_at = ?8
-                         WHERE id = ?9",
+                            color_family = ?3,
+                            notes = ?4,
+                            updated_at = ?5
+                         WHERE id = ?6",
                         params![
                             <DefaultFormula as crate::domain::calculation::dye_calculator::CalculableFormula>::internal_color_code(formula).as_str(),
                             formula.customer_color_code().map(|c| c.as_str()),
-                            formula.color_name(),
-                            formula.description(),
-                            formula.base_weight_kg().map(|k| k.value()),
-                            <DefaultFormula as crate::domain::calculation::dye_calculator::CalculableFormula>::liquor_ratio(formula).map(|r| r.value()),
+                            formula.color_family(),
                             formula.notes(),
                             rfc3339(formula.updated_at()),
                             existing_id.value(),
@@ -349,12 +331,29 @@ pub(crate) fn replace_items(
     Ok(())
 }
 
+/// 抽出色系下拉框需要的 distinct 列表; default 与 workspace 表 schema
+/// 一致 — 共用同一份实现, table 不同而已.
+pub(crate) fn list_color_families(
+    db: &SqliteConnection,
+    table: &str,
+) -> Result<Vec<String>, RepositoryError> {
+    db.with(|c| {
+        let mut stmt = c.prepare(&format!(
+            "SELECT DISTINCT color_family FROM {table}
+             WHERE color_family IS NOT NULL AND TRIM(color_family) != ''
+             ORDER BY color_family"
+        ))?;
+        let collected: rusqlite::Result<Vec<String>> = stmt
+            .query_map([], |r| r.get::<_, String>(0))?
+            .collect();
+        collected
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::formula::amounts::Kilograms;
     use crate::domain::formula::customer_color_code::CustomerColorCode;
-    use crate::domain::formula::liquor_ratio::LiquorRatio;
     use crate::domain::formula::unit::Unit;
     use chrono::{TimeZone, Utc};
 
@@ -370,17 +369,14 @@ mod tests {
         DefaultFormula::new(
             InternalColorCode::new("N-2024").unwrap(),
             Some(CustomerColorCode::new("CN-001").unwrap()),
-            Some("藏青".into()),
-            Some("一种偏蓝的藏青色".into()),
-            Some(Kilograms::new(50.0).unwrap()),
-            Some(LiquorRatio::new(8.0).unwrap()),
+            Some("蓝色系".into()),
             None,
             vec![
                 FormulaItem::new("Reactive Blue 19", Some("RB19".into()), 2.0, Unit::PctOwf, 0)
                     .unwrap(),
                 FormulaItem::new("Reactive Black 5", Some("RB5".into()), 1.5, Unit::PctOwf, 1)
                     .unwrap(),
-                FormulaItem::new("Salt", None, 30.0, Unit::GramsPerL, 2).unwrap(),
+                FormulaItem::new("Salt", None, 30.0, Unit::GramsPerKg, 2).unwrap(),
             ],
             t(),
         )
@@ -395,14 +391,14 @@ mod tests {
         let items = <DefaultFormula as crate::domain::calculation::dye_calculator::CalculableFormula>::items(&got);
         assert_eq!(items.len(), 3);
         assert_eq!(items[0].dye_name(), "Reactive Blue 19");
-        assert_eq!(items[2].unit(), Unit::GramsPerL);
+        assert_eq!(items[2].unit(), Unit::GramsPerKg);
     }
 
     #[test]
-    fn keyword_search_matches_internal_or_customer_or_name() {
+    fn keyword_search_matches_internal_or_customer_or_family() {
         let repo = SqliteDefaultFormulaRepository::new(db());
         repo.upsert(&sample()).unwrap();
-        for kw in ["N-2024", "CN-001", "藏青"] {
+        for kw in ["N-2024", "CN-001", "蓝色系"] {
             let result = repo
                 .list(DefaultFormulaQuery {
                     keyword: Some(kw),
@@ -439,5 +435,24 @@ mod tests {
         let dup = sample();
         let err = repo.upsert(&dup).unwrap_err();
         assert!(matches!(err, RepositoryError::Conflict(_)));
+    }
+
+    #[test]
+    fn list_color_families_returns_distinct_sorted() {
+        let repo = SqliteDefaultFormulaRepository::new(db());
+        repo.upsert(&sample()).unwrap();
+        // 加第二个 family
+        let second = DefaultFormula::new(
+            InternalColorCode::new("X-2").unwrap(),
+            None,
+            Some("红色系".into()),
+            None,
+            vec![FormulaItem::new("dye", None, 1.0, Unit::PctOwf, 0).unwrap()],
+            t(),
+        )
+        .unwrap();
+        repo.upsert(&second).unwrap();
+        let families = repo.list_color_families().unwrap();
+        assert_eq!(families, vec!["红色系".to_string(), "蓝色系".to_string()]);
     }
 }

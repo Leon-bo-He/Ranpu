@@ -1,12 +1,14 @@
 //! 染料投料计算的领域服务。
 //!
-//! `DyeCalculator` 是 trait（也是 PROMPT (b) 节确认过的接口），
-//! 默认实现 `StandardDyeCalculator` 按 PROMPT 第 119-122 行的三种公式计算。
+//! `DyeCalculator` 是 trait, 默认实现 `StandardDyeCalculator` 按两种公式算:
+//!   pct_owf  → grams = target_kg * 1000 * pct / 100
+//!   g_per_kg → grams = target_kg * amount
+//!
+//! 早期还有 g/L (需要 LiquorRatio), 1.0.7 起去掉.
 
 use crate::domain::formula::amounts::{Grams, Kilograms};
 use crate::domain::formula::formula_item::FormulaItem;
 use crate::domain::formula::internal_color_code::InternalColorCode;
-use crate::domain::formula::liquor_ratio::LiquorRatio;
 use crate::domain::formula::unit::Unit;
 use crate::domain::shared::errors::{DomainError, DomainResult};
 use crate::domain::shared::id::FormulaId;
@@ -14,7 +16,6 @@ use crate::domain::shared::id::FormulaId;
 /// 让 `DefaultFormula` / `WorkspaceFormula` 都能喂进 `DyeCalculator`。
 pub trait CalculableFormula {
     fn internal_color_code(&self) -> &InternalColorCode;
-    fn liquor_ratio(&self) -> Option<LiquorRatio>;
     fn items(&self) -> &[FormulaItem];
 }
 
@@ -86,15 +87,6 @@ impl DyeCalculator for StandardDyeCalculator {
             return Err(DomainError::FormulaMustHaveAtLeastOneItem);
         }
 
-        let needs_ratio = formula
-            .items()
-            .iter()
-            .any(|i| i.unit().requires_liquor_ratio());
-        let liquor_ratio = formula.liquor_ratio();
-        if needs_ratio && liquor_ratio.is_none() {
-            return Err(DomainError::LiquorRatioRequired);
-        }
-
         let mut lines = Vec::with_capacity(formula.items().len());
         for item in formula.items() {
             let grams_value = match item.unit() {
@@ -102,11 +94,6 @@ impl DyeCalculator for StandardDyeCalculator {
                 Unit::PctOwf => target_kg.value() * 10.0 * item.amount_value(),
                 // grams = target_kg * amount(g/kg)
                 Unit::GramsPerKg => target_kg.value() * item.amount_value(),
-                // grams = target_kg * liquor_ratio * amount(g/L)
-                Unit::GramsPerL => {
-                    let ratio = liquor_ratio.expect("checked above").value();
-                    target_kg.value() * ratio * item.amount_value()
-                }
             };
             lines.push(CalculationLine {
                 dye_name: item.dye_name().to_owned(),
@@ -133,7 +120,6 @@ mod tests {
     /// 内联的轻量级 fixture，不依赖 DefaultFormula / WorkspaceFormula 聚合。
     struct FixtureFormula {
         code: InternalColorCode,
-        ratio: Option<LiquorRatio>,
         items: Vec<FormulaItem>,
     }
 
@@ -141,18 +127,14 @@ mod tests {
         fn internal_color_code(&self) -> &InternalColorCode {
             &self.code
         }
-        fn liquor_ratio(&self) -> Option<LiquorRatio> {
-            self.ratio
-        }
         fn items(&self) -> &[FormulaItem] {
             &self.items
         }
     }
 
-    fn fixture(items: Vec<FormulaItem>, ratio: Option<LiquorRatio>) -> FixtureFormula {
+    fn fixture(items: Vec<FormulaItem>) -> FixtureFormula {
         FixtureFormula {
             code: InternalColorCode::new("X").unwrap(),
-            ratio,
             items,
         }
     }
@@ -164,7 +146,7 @@ mod tests {
     #[test]
     fn pct_owf_ten_kg_at_two_pct_yields_two_hundred_grams() {
         // 10 kg * 1000 * 2 / 100 = 200 g
-        let f = fixture(vec![item(2.0, Unit::PctOwf)], None);
+        let f = fixture(vec![item(2.0, Unit::PctOwf)]);
         let result = StandardDyeCalculator::new()
             .calculate(&f, Kilograms::new(10.0).unwrap(), FormulaSource::CurrentWorkspace)
             .unwrap();
@@ -176,7 +158,7 @@ mod tests {
     #[test]
     fn pct_owf_boundary_smallest_kg_smallest_pct() {
         // 0.01 kg * 1000 * 0.001 / 100 = 0.0001 g
-        let f = fixture(vec![item(0.001, Unit::PctOwf)], None);
+        let f = fixture(vec![item(0.001, Unit::PctOwf)]);
         let result = StandardDyeCalculator::new()
             .calculate(&f, Kilograms::new(0.01).unwrap(), FormulaSource::DefaultFallback)
             .unwrap();
@@ -187,7 +169,7 @@ mod tests {
     #[test]
     fn g_per_kg_directly_multiplies_target_kg() {
         // 50 kg * 3 g/kg = 150 g
-        let f = fixture(vec![item(3.0, Unit::GramsPerKg)], None);
+        let f = fixture(vec![item(3.0, Unit::GramsPerKg)]);
         let r = StandardDyeCalculator::new()
             .calculate(&f, Kilograms::new(50.0).unwrap(), FormulaSource::CurrentWorkspace)
             .unwrap();
@@ -197,7 +179,7 @@ mod tests {
     #[test]
     fn g_per_kg_with_decimal_amount() {
         // 25 kg * 0.5 g/kg = 12.5 g
-        let f = fixture(vec![item(0.5, Unit::GramsPerKg)], None);
+        let f = fixture(vec![item(0.5, Unit::GramsPerKg)]);
         let r = StandardDyeCalculator::new()
             .calculate(&f, Kilograms::new(25.0).unwrap(), FormulaSource::CurrentWorkspace)
             .unwrap();
@@ -205,28 +187,8 @@ mod tests {
     }
 
     #[test]
-    fn g_per_l_uses_liquor_ratio() {
-        // 10 kg * 8 (浴比 1:8) * 1.5 g/L = 120 g
-        let ratio = LiquorRatio::new(8.0).unwrap();
-        let f = fixture(vec![item(1.5, Unit::GramsPerL)], Some(ratio));
-        let r = StandardDyeCalculator::new()
-            .calculate(&f, Kilograms::new(10.0).unwrap(), FormulaSource::CurrentWorkspace)
-            .unwrap();
-        assert!((r.lines[0].grams.value() - 120.0).abs() < 1e-9);
-    }
-
-    #[test]
-    fn g_per_l_without_ratio_is_rejected() {
-        let f = fixture(vec![item(1.0, Unit::GramsPerL)], None);
-        let err = StandardDyeCalculator::new()
-            .calculate(&f, Kilograms::new(10.0).unwrap(), FormulaSource::CurrentWorkspace)
-            .unwrap_err();
-        assert!(matches!(err, DomainError::LiquorRatioRequired));
-    }
-
-    #[test]
     fn empty_items_is_rejected() {
-        let f = fixture(vec![], None);
+        let f = fixture(vec![]);
         let err = StandardDyeCalculator::new()
             .calculate(&f, Kilograms::new(1.0).unwrap(), FormulaSource::CurrentWorkspace)
             .unwrap_err();
@@ -234,25 +196,19 @@ mod tests {
     }
 
     #[test]
-    fn mixed_units_compute_independently() {
-        // 10 kg, 浴比 1:10, 含 1 个 pct_owf + 1 个 g/kg + 1 个 g/L
-        // 2% owf  -> 10 * 1000 * 2 / 100 = 200 g
-        // 3 g/kg  -> 10 * 3 = 30 g
-        // 0.5 g/L (1:10) -> 10 * 10 * 0.5 = 50 g
-        let f = fixture(
-            vec![
-                item(2.0, Unit::PctOwf),
-                item(3.0, Unit::GramsPerKg),
-                item(0.5, Unit::GramsPerL),
-            ],
-            Some(LiquorRatio::new(10.0).unwrap()),
-        );
+    fn mixed_pct_and_g_per_kg_compute_independently() {
+        // 10 kg, 1 个 pct_owf + 1 个 g/kg
+        //   2% owf  -> 10 * 1000 * 2 / 100 = 200 g
+        //   3 g/kg  -> 10 * 3 = 30 g
+        let f = fixture(vec![
+            item(2.0, Unit::PctOwf),
+            item(3.0, Unit::GramsPerKg),
+        ]);
         let r = StandardDyeCalculator::new()
             .calculate(&f, Kilograms::new(10.0).unwrap(), FormulaSource::CurrentWorkspace)
             .unwrap();
-        assert_eq!(r.lines.len(), 3);
+        assert_eq!(r.lines.len(), 2);
         assert!((r.lines[0].grams.value() - 200.0).abs() < 1e-9);
         assert!((r.lines[1].grams.value() - 30.0).abs() < 1e-9);
-        assert!((r.lines[2].grams.value() - 50.0).abs() < 1e-9);
     }
 }

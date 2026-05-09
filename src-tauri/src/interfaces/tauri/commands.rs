@@ -214,10 +214,7 @@ fn cmd_to_upsert_input(cmd: UpsertFormulaCmd) -> FormulaUpsertInput {
         id: cmd.id.map(FormulaId::new),
         internal_color_code: cmd.internal_color_code,
         customer_color_code: cmd.customer_color_code,
-        color_name: cmd.color_name,
-        description: cmd.description,
-        base_weight_kg: cmd.base_weight_kg,
-        liquor_ratio: cmd.liquor_ratio,
+        color_family: cmd.color_family,
         notes: cmd.notes,
         items: cmd
             .items
@@ -302,6 +299,22 @@ pub fn cmd_delete_workspace_formula(state: State<AppState>, id: i64) -> CmdResul
     services_or_err(&state)?
         .formula
         .delete_workspace_formula(FormulaId::new(id))
+        .map_err(UiError::from)
+}
+
+#[tauri::command]
+pub fn cmd_list_default_color_families(state: State<AppState>) -> CmdResult<Vec<String>> {
+    services_or_err(&state)?
+        .formula
+        .list_default_color_families()
+        .map_err(UiError::from)
+}
+
+#[tauri::command]
+pub fn cmd_list_workspace_color_families(state: State<AppState>) -> CmdResult<Vec<String>> {
+    services_or_err(&state)?
+        .formula
+        .list_workspace_color_families()
         .map_err(UiError::from)
 }
 

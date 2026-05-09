@@ -2,8 +2,13 @@
 -- 染谱 Ranpu - SQLCipher schema (单用户解锁模型)
 --
 -- 不维护 users / 角色 / 登录 — 一道应用解锁密码即进系统.
+-- 配方只保留 4 个核心字段 + 染料明细:
+--   internal_color_code (内部色号), customer_color_code (客户色号),
+--   color_family (色系, dropdown 可选已有或输入新), notes (备注),
+--   外加 default/workspace_formula_items 表里的染料明细.
+-- 计算单位只剩 pct_owf / g_per_kg, g_per_L 因没了 liquor_ratio 一并去掉.
 -- 所有时间列存 RFC3339 字符串 (chrono 默认 TEXT 序列化).
--- 老 v1.0.x DB (有 users 表) 由 connection.rs 的 run_migrations 自动平迁.
+-- 老 v1.0.x DB 由 connection.rs 的 run_migrations 自动平迁.
 -- ===========================================================
 
 PRAGMA foreign_keys = ON;
@@ -22,10 +27,7 @@ CREATE TABLE IF NOT EXISTS default_formulas (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     internal_color_code TEXT NOT NULL UNIQUE,
     customer_color_code TEXT,
-    color_name          TEXT,
-    description         TEXT,
-    base_weight_kg      REAL,
-    liquor_ratio        REAL,
+    color_family        TEXT,
     notes               TEXT,
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL
@@ -37,7 +39,7 @@ CREATE TABLE IF NOT EXISTS default_formula_items (
     dye_name    TEXT NOT NULL,
     dye_code    TEXT,
     percentage  REAL NOT NULL,
-    unit        TEXT NOT NULL CHECK(unit IN ('pct_owf','g_per_kg','g_per_L')),
+    unit        TEXT NOT NULL CHECK(unit IN ('pct_owf','g_per_kg')),
     sort_order  INTEGER NOT NULL DEFAULT 0
 );
 
@@ -47,10 +49,7 @@ CREATE TABLE IF NOT EXISTS workspace_formulas (
     workspace_id        INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     internal_color_code TEXT NOT NULL,
     customer_color_code TEXT,
-    color_name          TEXT,
-    description         TEXT,
-    base_weight_kg      REAL,
-    liquor_ratio        REAL,
+    color_family        TEXT,
     notes               TEXT,
     source_default_id   INTEGER REFERENCES default_formulas(id) ON DELETE SET NULL,
     created_at          TEXT NOT NULL,
@@ -64,7 +63,7 @@ CREATE TABLE IF NOT EXISTS workspace_formula_items (
     dye_name    TEXT NOT NULL,
     dye_code    TEXT,
     percentage  REAL NOT NULL,
-    unit        TEXT NOT NULL CHECK(unit IN ('pct_owf','g_per_kg','g_per_L')),
+    unit        TEXT NOT NULL CHECK(unit IN ('pct_owf','g_per_kg')),
     sort_order  INTEGER NOT NULL DEFAULT 0
 );
 
@@ -95,10 +94,14 @@ CREATE INDEX IF NOT EXISTS idx_workspace_formulas_ws_internal
     ON workspace_formulas(workspace_id, internal_color_code);
 CREATE INDEX IF NOT EXISTS idx_workspace_formulas_ws_customer
     ON workspace_formulas(workspace_id, customer_color_code);
+CREATE INDEX IF NOT EXISTS idx_workspace_formulas_ws_family
+    ON workspace_formulas(workspace_id, color_family);
 CREATE INDEX IF NOT EXISTS idx_default_formulas_internal
     ON default_formulas(internal_color_code);
 CREATE INDEX IF NOT EXISTS idx_default_formulas_customer
     ON default_formulas(customer_color_code);
+CREATE INDEX IF NOT EXISTS idx_default_formulas_family
+    ON default_formulas(color_family);
 CREATE INDEX IF NOT EXISTS idx_cart_workspace
     ON cart_items(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_audit_time

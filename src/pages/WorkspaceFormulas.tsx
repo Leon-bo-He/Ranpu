@@ -37,6 +37,7 @@ export function WorkspaceFormulasPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<FormulaView | null>(null);
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView | null>(null);
+  const [colorFamilies, setColorFamilies] = useState<string[]>([]);
   const isSystemMirror = activeWorkspace?.kind === 'system_mirror';
   const canEdit = !isSystemMirror;
 
@@ -87,6 +88,15 @@ export function WorkspaceFormulasPage() {
       .then((all) => setActiveWorkspace(all.find((w) => w.id === activeWorkspaceId) ?? null))
       .catch(() => setActiveWorkspace(null));
   }, [activeWorkspaceId]);
+
+  // 编辑器打开时, 拉一份当前工作区已用过的色系喂进 dropdown.
+  useEffect(() => {
+    if (!editorOpen || !hasWs) return;
+    formulaApi
+      .listWorkspaceColorFamilies()
+      .then(setColorFamilies)
+      .catch(() => setColorFamilies([]));
+  }, [editorOpen, hasWs]);
 
   if (!hasWs) {
     return (
@@ -224,7 +234,7 @@ export function WorkspaceFormulasPage() {
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-8"
-            placeholder="搜索内部色号 / 客户色号 / 颜色俗称"
+            placeholder="搜索内部色号 / 客户色号 / 色系"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
           />
@@ -269,6 +279,7 @@ export function WorkspaceFormulasPage() {
         onClose={() => setEditorOpen(false)}
         initial={editing}
         scope="工作区"
+        colorFamilies={colorFamilies}
         onSave={onSave}
       />
 
@@ -281,7 +292,7 @@ export function WorkspaceFormulasPage() {
             <>
               将永久删除当前工作区中的{' '}
               <span className="font-mono">{pendingDelete.internal_color_code}</span>
-              {pendingDelete.color_name && <> · {pendingDelete.color_name}</>}
+              {pendingDelete.color_family && <> · {pendingDelete.color_family}</>}
               {' '}及其所有染料明细，操作不可撤销。
             </>
           )
@@ -307,7 +318,7 @@ export function WorkspaceFormulasPage() {
               {cartTarget && (
                 <>
                   <span className="font-mono">{cartTarget.internal_color_code}</span>
-                  {cartTarget.color_name && <> · {cartTarget.color_name}</>}
+                  {cartTarget.color_family && <> · {cartTarget.color_family}</>}
                 </>
               )}
             </DialogDescription>

@@ -33,19 +33,11 @@ export function formatKg(n: number | null | undefined): string {
   return n === null || n === undefined ? '' : `${formatTwoDecimal(n)} kg`;
 }
 
-export function unitLabel(unit: 'pct_owf' | 'g_per_kg' | 'g_per_L'): string {
+export function unitLabel(unit: 'pct_owf' | 'g_per_kg'): string {
   switch (unit) {
     case 'pct_owf':
       return '% (owf)';
     case 'g_per_kg':
       return 'g/kg';
-    case 'g_per_L':
-      return 'g/L';
   }
-}
-
-export function liquorRatioLabel(n: number | null | undefined): string {
-  if (n === null || n === undefined) return '';
-  if (Math.abs(n - Math.round(n)) < 1e-9) return `1:${Math.round(n)}`;
-  return `1:${n.toFixed(2)}`;
 }
