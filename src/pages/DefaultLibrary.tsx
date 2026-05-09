@@ -5,7 +5,6 @@ import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import type { BatchCopySummaryView, FormulaView } from '@/api/types';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { EditModeToggle } from '@/components/EditModeToggle';
 import { FormulaCard } from '@/components/FormulaCard';
 import { FormulaEditor } from '@/components/FormulaEditor';
 import { Badge } from '@/components/ui/badge';
@@ -33,8 +32,6 @@ export function DefaultLibraryPage() {
   const session = useSessionStore((s) => s.session);
   const hasWs = hasActiveWorkspace(session);
   const editEnabled = useEditModeStore((s) => s.formulaEditEnabled);
-  const enableEdit = useEditModeStore((s) => s.enableFormulaEdit);
-  const disableEdit = useEditModeStore((s) => s.disableFormulaEdit);
   const touchEdit = useEditModeStore((s) => s.touchFormulaActivity);
 
   const [keyword, setKeyword] = useState('');
@@ -201,14 +198,6 @@ export function DefaultLibraryPage() {
           )}
         </div>
       </div>
-
-      <EditModeToggle
-        label="配方管理"
-        whenOffCanStill="计算配方 / 加入批次清单 / 复制到工作区"
-        enabled={editEnabled}
-        onEnable={enableEdit}
-        onDisable={disableEdit}
-      />
 
       <div className="max-w-md">
         <div className="relative">

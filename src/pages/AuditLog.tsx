@@ -6,7 +6,6 @@ import { auditApi } from '@/api/audit';
 import { ApiError } from '@/api/invoke';
 import type { AuditEventView } from '@/api/types';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { EditModeToggle } from '@/components/EditModeToggle';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -37,8 +36,6 @@ import { useEditModeStore } from '@/store/editMode';
 
 export function AuditLogPage() {
   const displayEnabled = useEditModeStore((s) => s.auditDisplayEnabled);
-  const enableDisplay = useEditModeStore((s) => s.enableAuditDisplay);
-  const disableDisplay = useEditModeStore((s) => s.disableAuditDisplay);
   const touchDisplay = useEditModeStore((s) => s.touchAuditActivity);
 
   const [events, setEvents] = useState<AuditEventView[]>([]);
@@ -79,17 +76,9 @@ export function AuditLogPage() {
         )}
       </div>
 
-      <EditModeToggle
-        label="审计日志显示"
-        whenOffCanStill=""
-        enabled={displayEnabled}
-        onEnable={enableDisplay}
-        onDisable={disableDisplay}
-      />
-
       {!displayEnabled ? (
         <p className="text-sm text-muted-foreground">
-          审计日志包含敏感操作记录, 默认隐藏. 点上方 "开启" 加载最新 50 条.
+          审计日志包含敏感操作记录, 默认隐藏. 请到 "设置 → 管理模式 → 审计日志显示" 开启.
         </p>
       ) : (
         <>

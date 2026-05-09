@@ -5,7 +5,6 @@ import { ApiError } from '@/api/invoke';
 import type { WorkspaceView } from '@/api/types';
 import { workspaceApi } from '@/api/workspace';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { EditModeToggle } from '@/components/EditModeToggle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,8 +33,6 @@ export function WorkspaceManagementPage() {
   const list = useWorkspacesStore((s) => s.list);
   const refresh = useWorkspacesStore((s) => s.refresh);
   const editEnabled = useEditModeStore((s) => s.workspaceEditEnabled);
-  const enableEdit = useEditModeStore((s) => s.enableWorkspaceEdit);
-  const disableEdit = useEditModeStore((s) => s.disableWorkspaceEdit);
   const touchEdit = useEditModeStore((s) => s.touchWorkspaceActivity);
   const [editing, setEditing] = useState<WorkspaceView | 'new' | null>(null);
   const [pendingDelete, setPendingDelete] = useState<WorkspaceView | null>(null);
@@ -70,14 +67,6 @@ export function WorkspaceManagementPage() {
           </Button>
         )}
       </div>
-
-      <EditModeToggle
-        label="工作区管理"
-        whenOffCanStill="切换工作区 / 浏览"
-        enabled={editEnabled}
-        onEnable={enableEdit}
-        onDisable={disableEdit}
-      />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

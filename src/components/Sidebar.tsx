@@ -13,6 +13,7 @@ import { NavLink } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { useEditModeStore } from '@/store/editMode';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 import { useUpdateStore } from '@/store/update';
 
@@ -56,13 +57,23 @@ export function Sidebar() {
   const session = useSessionStore((s) => s.session);
   // 全局更新状态: 有 pending 就在 "关于" 项右边贴个红点提示新版本.
   const hasUpdate = useUpdateStore((s) => s.pending !== null);
+  // 工作区管理 / 审计日志的入口跟随对应 toggle 隐藏 — 关闭时直接从侧栏移除,
+  // 用户要重新看到入口需要去 "设置 → 管理模式" 打开.
+  const workspaceEditOn = useEditModeStore((s) => s.workspaceEditEnabled);
+  const auditDisplayOn = useEditModeStore((s) => s.auditDisplayEnabled);
   if (!session) return null;
   const hasWs = hasActiveWorkspace(session);
+
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.to === '/workspaces' && !workspaceEditOn) return false;
+    if (item.to === '/audit' && !auditDisplayOn) return false;
+    return true;
+  });
 
   return (
     <aside className="flex w-[200px] shrink-0 select-none flex-col border-r bg-card/30">
       <nav className="flex flex-1 flex-col gap-0.5 p-3">
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const disabled = item.needsActiveWorkspace === true && !hasWs;
           const Icon = item.icon;
           if (disabled) {
