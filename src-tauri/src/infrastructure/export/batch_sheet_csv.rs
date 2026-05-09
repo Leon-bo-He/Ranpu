@@ -272,10 +272,10 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
         r#"<style>
   @page { size: A4; margin: 8mm; }
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
-  .grid-page { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 281mm; page-break-after: always; }
+  .grid-page { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 281mm; page-break-after: always; grid-auto-flow: row dense; }
   .grid-page:last-child { page-break-after: auto; }
   .cell { border: 1px dashed #999; padding: 7mm 6mm 10mm 6mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 13px; line-height: 1.5; }
-  .cell.wide { grid-column: span 2; }
+  .cell.wide { grid-row: span 2; }
   .vat { font-size: 22px; font-weight: bold; line-height: 1.2; margin-bottom: 3px; }
   .meta-line { font-size: 14px; margin-bottom: 2px; }
   .divider { border: 0; border-top: 1.5px solid #1f1f1f; margin: 6px 0 7px; }
