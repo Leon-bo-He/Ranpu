@@ -543,10 +543,12 @@ pub struct ExportCartCmd {
 #[derive(Debug, Default, Deserialize)]
 pub struct PreviewCartCmd {
     pub customer: Option<String>,
-    /// 与 list_cart 返回的购物车顺序对齐的元信息. 长度可短于 cart, 缺位按
-    /// {None, None} 兜底; 长了多余忽略.
+    /// 与 list_cart 返回的购物车顺序对齐. 每条 cart line 对应一组元信息
+    /// 列表 (一个配方可能要打成多份不同纱支的批次单, 每份独立的 vat /
+    /// yarn). 内层空 vec 视为一份空 meta. 长度可短于 cart, 缺位按一份空
+    /// meta 兜底; 长了多余忽略.
     #[serde(default)]
-    pub per_formula: Vec<PreviewFormulaMetaCmd>,
+    pub per_formula: Vec<Vec<PreviewFormulaMetaCmd>>,
     /// "standard" (默认) 或 "grid" — 选择批次单渲染版本.
     #[serde(default)]
     pub layout: Option<String>,

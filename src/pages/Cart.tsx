@@ -29,8 +29,10 @@ import { formatGrams } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ComboboxInput } from '@/components/ComboboxInput';
 import {
+  emptyEntry,
   lineKey,
   useBatchSheetInfoStore,
+  type PerFormulaEntry,
   type PerFormulaMeta,
 } from '@/store/batchSheetInfo';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
@@ -139,20 +141,48 @@ export function CartPage() {
     setPromptPerFormula(
       lines.map((line) => {
         const meta = saved?.perFormula[lineKey(line.source_kind, line.source_formula_id)];
-        return {
-          vat: meta?.vat ?? '',
-          batch: meta?.batch ?? '',
-          yarnMill: meta?.yarnMill ?? '',
-          yarnSpec: meta?.yarnSpec ?? '',
-        };
+        const entries = meta?.entries && meta.entries.length > 0
+          ? meta.entries.map((e) => ({ ...e }))
+          : [emptyEntry()];
+        return { entries };
       }),
     );
     setPromptOpen(true);
   };
 
-  const updatePromptMeta = (idx: number, patch: Partial<PerFormulaMeta>) =>
+  // 改某个配方下某条 entry 的某几个字段.
+  const updatePromptEntry = (
+    formulaIdx: number,
+    entryIdx: number,
+    patch: Partial<PerFormulaEntry>,
+  ) =>
     setPromptPerFormula((prev) =>
-      prev.map((m, i) => (i === idx ? { ...m, ...patch } : m)),
+      prev.map((m, i) =>
+        i === formulaIdx
+          ? {
+              entries: m.entries.map((e, j) => (j === entryIdx ? { ...e, ...patch } : e)),
+            }
+          : m,
+      ),
+    );
+
+  // "+ 加一组纱支": 在该配方末尾追加一条空 entry.
+  const addPromptEntry = (formulaIdx: number) =>
+    setPromptPerFormula((prev) =>
+      prev.map((m, i) =>
+        i === formulaIdx ? { entries: [...m.entries, emptyEntry()] } : m,
+      ),
+    );
+
+  // 删除该配方下某条 entry. 至少保留 1 条 (全删等于把配方从批次清单去掉,
+  // 那是另外的清空 / 删配方动作, 这里只管纱支变体).
+  const removePromptEntry = (formulaIdx: number, entryIdx: number) =>
+    setPromptPerFormula((prev) =>
+      prev.map((m, i) => {
+        if (i !== formulaIdx) return m;
+        if (m.entries.length <= 1) return { entries: [emptyEntry()] };
+        return { entries: m.entries.filter((_, j) => j !== entryIdx) };
+      }),
     );
 
   // 把当前 prompt 输入持久化到 batchSheetInfo store, 按工作区维度存. 入口:
@@ -167,8 +197,13 @@ export function CartPage() {
     perFormula.forEach((m, i) => {
       const line = lines[i];
       if (!line) return;
-      if (m.vat || m.batch || m.yarnMill || m.yarnSpec) {
-        map[lineKey(line.source_kind, line.source_formula_id)] = m;
+      const nonEmptyEntries = m.entries.filter(
+        (e) => e.vat || e.batch || e.yarnMill || e.yarnSpec,
+      );
+      if (nonEmptyEntries.length > 0) {
+        map[lineKey(line.source_kind, line.source_formula_id)] = {
+          entries: nonEmptyEntries,
+        };
       }
     });
     setBatchSheetInfo(activeWorkspaceId, { customer, perFormula: map });
@@ -186,12 +221,16 @@ export function CartPage() {
     try {
       const html = await cartApi.previewHtml({
         customer: customer || null,
-        perFormula: promptPerFormula.map((m) => ({
-          // 后端字段还是 vat_number / yarn_count, 前端把 缸号-缸次 / 厂名 规格
-          // 拼起来传过去. 任一为空就只显示有的那个; 全空则 null 不展示.
-          vatNumber: combineDash(m.vat, m.batch),
-          yarnCount: combineSpace(m.yarnMill, m.yarnSpec),
-        })),
+        // 一个 cart line 可能有多条变体, 每条都传给后端 — 后端按 (line, entry)
+        // 展开成单独一份批次单. 后端字段保持 vat_number / yarn_count, 前端
+        // 把 缸号-缸次 / 厂名 规格 拼起来. 任一为空就只显示有的那个; 全空
+        // 则 null 不展示.
+        perFormula: promptPerFormula.map((m) =>
+          m.entries.map((e) => ({
+            vatNumber: combineDash(e.vat, e.batch),
+            yarnCount: combineSpace(e.yarnMill, e.yarnSpec),
+          })),
+        ),
         layout,
       });
       setPreviewHtml(html);
@@ -387,15 +426,11 @@ export function CartPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>每条配方的 缸号 · 缸次 · 纱支厂名 · 规格（留空则不显示）</Label>
+              <Label>每条配方的 缸号 · 缸次 · 纱支厂名 · 规格（同一配方可加多份不同纱支）</Label>
               <div className="space-y-3">
                 {lines.map((line, idx) => {
-                  const meta = promptPerFormula[idx] ?? {
-                    vat: '',
-                    batch: '',
-                    yarnMill: '',
-                    yarnSpec: '',
-                  };
+                  const meta = promptPerFormula[idx] ?? { entries: [emptyEntry()] };
+                  const entries = meta.entries.length > 0 ? meta.entries : [emptyEntry()];
                   return (
                     <div
                       key={`${line.source_kind}-${line.source_formula_id}-${idx}`}
@@ -411,36 +446,68 @@ export function CartPage() {
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-4 gap-2">
-                        <Input
-                          value={meta.vat}
-                          onChange={(e) =>
-                            updatePromptMeta(idx, { vat: e.target.value })
-                          }
-                          placeholder="缸号"
-                          inputMode="numeric"
-                        />
-                        <Input
-                          value={meta.batch}
-                          onChange={(e) =>
-                            updatePromptMeta(idx, { batch: e.target.value })
-                          }
-                          placeholder="缸次"
-                          inputMode="numeric"
-                        />
-                        <ComboboxInput
-                          value={meta.yarnMill}
-                          onChange={(v) => updatePromptMeta(idx, { yarnMill: v })}
-                          options={yarnMills}
-                          placeholder="纱支厂名"
-                        />
-                        <ComboboxInput
-                          value={meta.yarnSpec}
-                          onChange={(v) => updatePromptMeta(idx, { yarnSpec: v })}
-                          options={yarnSpecs}
-                          placeholder="纱支规格"
-                        />
+                      <div className="space-y-2">
+                        {entries.map((entry, entryIdx) => (
+                          <div
+                            key={entryIdx}
+                            className="flex items-center gap-2"
+                          >
+                            <div className="grid flex-1 grid-cols-4 gap-2">
+                              <Input
+                                value={entry.vat}
+                                onChange={(e) =>
+                                  updatePromptEntry(idx, entryIdx, { vat: e.target.value })
+                                }
+                                placeholder="缸号"
+                                inputMode="numeric"
+                              />
+                              <Input
+                                value={entry.batch}
+                                onChange={(e) =>
+                                  updatePromptEntry(idx, entryIdx, { batch: e.target.value })
+                                }
+                                placeholder="缸次"
+                                inputMode="numeric"
+                              />
+                              <ComboboxInput
+                                value={entry.yarnMill}
+                                onChange={(v) =>
+                                  updatePromptEntry(idx, entryIdx, { yarnMill: v })
+                                }
+                                options={yarnMills}
+                                placeholder="纱支厂名"
+                              />
+                              <ComboboxInput
+                                value={entry.yarnSpec}
+                                onChange={(v) =>
+                                  updatePromptEntry(idx, entryIdx, { yarnSpec: v })
+                                }
+                                options={yarnSpecs}
+                                placeholder="纱支规格"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removePromptEntry(idx, entryIdx)}
+                              aria-label="删除这组纱支"
+                              disabled={entries.length === 1}
+                              className="shrink-0"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addPromptEntry(idx)}
+                      >
+                        + 加一组纱支
+                      </Button>
                     </div>
                   );
                 })}

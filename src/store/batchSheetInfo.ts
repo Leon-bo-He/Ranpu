@@ -1,11 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export interface PerFormulaMeta {
+/// 单条 "纱支变体": 一个 (缸号, 缸次, 厂名, 规格) 组合.
+export interface PerFormulaEntry {
   vat: string;
   batch: string;
   yarnMill: string;
   yarnSpec: string;
+}
+
+/// 一个配方在批次单 prompt 里的所有变体. 同一个配方可能要打多份不同纱支
+/// 的批次单 (例如博奥 30/2 一份, 名仁 32/2 一份), 每份独立 vat / yarn.
+export interface PerFormulaMeta {
+  entries: PerFormulaEntry[];
 }
 
 export interface BatchSheetInfo {
@@ -20,81 +27,98 @@ interface BatchSheetInfoState {
   setInfo: (workspaceId: number, info: BatchSheetInfo) => void;
 }
 
-interface LegacyPerFormulaMeta {
+interface LegacyV1PerFormulaMeta {
   vat?: string;
   yarn?: string;
 }
 
+interface LegacyV2PerFormulaMeta {
+  vat?: string;
+  batch?: string;
+  yarnMill?: string;
+  yarnSpec?: string;
+}
+
 interface LegacyBatchSheetInfo {
   customer?: string;
-  perFormula?: Record<string, LegacyPerFormulaMeta>;
+  perFormula?: Record<string, unknown>;
 }
 
 interface PersistedShape {
-  byWorkspace?: Record<string, LegacyBatchSheetInfo | BatchSheetInfo>;
+  byWorkspace?: Record<string, LegacyBatchSheetInfo>;
 }
 
-/// v1 → v2 迁移: vat ("5-2") → vat + batch; yarn ("博奥 30/2" / "30/2") →
-/// yarnMill + yarnSpec. 拆不出来时尽量保留进 spec 字段, 让用户自己再调.
-function migrateV1ToV2(state: PersistedShape | undefined): BatchSheetInfoState {
-  const out: BatchSheetInfoState['byWorkspace'] = {};
-  if (state?.byWorkspace) {
-    for (const [wsId, info] of Object.entries(state.byWorkspace)) {
-      const newPerFormula: Record<string, PerFormulaMeta> = {};
-      const legacy = (info as LegacyBatchSheetInfo).perFormula ?? {};
-      for (const [key, m] of Object.entries(legacy)) {
-        const meta = m as LegacyPerFormulaMeta & Partial<PerFormulaMeta>;
-        // 已经是新结构 (v2 重启) 就直接用.
-        if (
-          'batch' in meta ||
-          'yarnMill' in meta ||
-          'yarnSpec' in meta
-        ) {
-          newPerFormula[key] = {
-            vat: meta.vat ?? '',
-            batch: meta.batch ?? '',
-            yarnMill: meta.yarnMill ?? '',
-            yarnSpec: meta.yarnSpec ?? '',
-          };
-          continue;
-        }
-        let vat = '';
-        let batch = '';
-        if (meta.vat) {
-          const dash = meta.vat.lastIndexOf('-');
-          if (dash > 0) {
-            vat = meta.vat.slice(0, dash);
-            batch = meta.vat.slice(dash + 1);
-          } else {
-            vat = meta.vat;
-          }
-        }
-        let yarnMill = '';
-        let yarnSpec = '';
-        if (meta.yarn) {
-          const space = meta.yarn.indexOf(' ');
-          if (space > 0) {
-            yarnMill = meta.yarn.slice(0, space).trim();
-            yarnSpec = meta.yarn.slice(space + 1).trim();
-          } else {
-            yarnSpec = meta.yarn;
-          }
-        }
-        newPerFormula[key] = { vat, batch, yarnMill, yarnSpec };
-      }
-      out[Number(wsId)] = {
-        customer: (info as LegacyBatchSheetInfo).customer ?? '',
-        perFormula: newPerFormula,
-      };
+export function emptyEntry(): PerFormulaEntry {
+  return { vat: '', batch: '', yarnMill: '', yarnSpec: '' };
+}
+
+function toEntryFromV1(m: LegacyV1PerFormulaMeta): PerFormulaEntry {
+  let vat = '';
+  let batch = '';
+  if (m.vat) {
+    const dash = m.vat.lastIndexOf('-');
+    if (dash > 0) {
+      vat = m.vat.slice(0, dash);
+      batch = m.vat.slice(dash + 1);
+    } else {
+      vat = m.vat;
     }
   }
-  return {
-    byWorkspace: out,
-    setInfo: (() => {
-      // placeholder — real impl 在 store factory 里覆盖.
-      throw new Error('not initialized');
-    }) as BatchSheetInfoState['setInfo'],
-  };
+  let yarnMill = '';
+  let yarnSpec = '';
+  if (m.yarn) {
+    const space = m.yarn.indexOf(' ');
+    if (space > 0) {
+      yarnMill = m.yarn.slice(0, space).trim();
+      yarnSpec = m.yarn.slice(space + 1).trim();
+    } else {
+      yarnSpec = m.yarn;
+    }
+  }
+  return { vat, batch, yarnMill, yarnSpec };
+}
+
+/// v1 → v3 / v2 → v3: 单条 meta 包成 entries 数组.
+function migrateToV3(state: PersistedShape | undefined): BatchSheetInfoState['byWorkspace'] {
+  const out: BatchSheetInfoState['byWorkspace'] = {};
+  if (!state?.byWorkspace) return out;
+  for (const [wsId, info] of Object.entries(state.byWorkspace)) {
+    const newPerFormula: Record<string, PerFormulaMeta> = {};
+    const legacy = info.perFormula ?? {};
+    for (const [key, raw] of Object.entries(legacy)) {
+      // v3 (新结构) 直接保留.
+      const m = raw as { entries?: PerFormulaEntry[] };
+      if (Array.isArray(m.entries)) {
+        newPerFormula[key] = { entries: m.entries.length > 0 ? m.entries : [emptyEntry()] };
+        continue;
+      }
+      const v2 = raw as LegacyV2PerFormulaMeta;
+      if (
+        'batch' in v2 ||
+        'yarnMill' in v2 ||
+        'yarnSpec' in v2
+      ) {
+        newPerFormula[key] = {
+          entries: [
+            {
+              vat: v2.vat ?? '',
+              batch: v2.batch ?? '',
+              yarnMill: v2.yarnMill ?? '',
+              yarnSpec: v2.yarnSpec ?? '',
+            },
+          ],
+        };
+        continue;
+      }
+      // v1 fallback.
+      newPerFormula[key] = { entries: [toEntryFromV1(raw as LegacyV1PerFormulaMeta)] };
+    }
+    out[Number(wsId)] = {
+      customer: info.customer ?? '',
+      perFormula: newPerFormula,
+    };
+  }
+  return out;
 }
 
 export const useBatchSheetInfoStore = create<BatchSheetInfoState>()(
@@ -108,11 +132,12 @@ export const useBatchSheetInfoStore = create<BatchSheetInfoState>()(
     }),
     {
       name: 'ranpu-batch-sheet-info',
-      version: 2,
+      version: 3,
       migrate: (persisted, fromVersion) => {
-        if (fromVersion < 2) {
-          const migrated = migrateV1ToV2(persisted as PersistedShape);
-          return { byWorkspace: migrated.byWorkspace } as BatchSheetInfoState;
+        if (fromVersion < 3) {
+          return {
+            byWorkspace: migrateToV3(persisted as PersistedShape),
+          } as BatchSheetInfoState;
         }
         return persisted as BatchSheetInfoState;
       },

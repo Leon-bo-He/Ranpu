@@ -515,9 +515,14 @@ pub fn cmd_preview_cart_as_batch_sheet_html(
     let per_formula = c
         .per_formula
         .into_iter()
-        .map(|m| PreviewFormulaMetaInput {
-            vat_number: m.vat_number,
-            yarn_count: m.yarn_count,
+        .map(|line_metas| {
+            line_metas
+                .into_iter()
+                .map(|m| PreviewFormulaMetaInput {
+                    vat_number: m.vat_number,
+                    yarn_count: m.yarn_count,
+                })
+                .collect()
         })
         .collect();
     let layout = match c.layout.as_deref() {
