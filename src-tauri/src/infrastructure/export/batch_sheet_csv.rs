@@ -283,7 +283,7 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
   .cell.wide { grid-row: span 2; }
   .vat { font-size: 32px; font-weight: bold; line-height: 1.2; margin-bottom: 6px; }
   .meta-line { font-size: 19px; margin-bottom: 4px; }
-  .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 9px 0 10px; }
+  .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 18px 0 18px; }
   .dye-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 17px; }
   .dye-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: 700; color: #000; }
