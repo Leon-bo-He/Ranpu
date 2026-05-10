@@ -279,15 +279,15 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
   .grid-page { display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); width: 100%; height: 281mm; page-break-after: always; grid-auto-flow: row dense; }
   .grid-page:last-child { page-break-after: auto; }
-  .cell { border: 1px dashed #999; padding: 10mm 9mm 16mm 9mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 16px; line-height: 1.6; }
+  .cell { border: 1px dashed #999; padding: 10mm 9mm 16mm 9mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 19px; line-height: 1.6; }
   .cell.wide { grid-row: span 2; }
-  .vat { font-size: 28px; font-weight: bold; line-height: 1.2; margin-bottom: 6px; }
-  .meta-line { font-size: 17px; margin-bottom: 4px; }
-  .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 18px 0 18px; }
-  .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 6px 0; font-size: 24px; }
+  .vat { font-size: 32px; font-weight: bold; line-height: 1.2; margin-bottom: 6px; }
+  .meta-line { font-size: 20px; margin-bottom: 4px; }
+  .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 20px 0 20px; }
+  .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 6px 0; font-size: 22px; }
   .dye-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: 700; color: #000; text-align: left; }
-  .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 17px; margin-bottom: 4px; }
+  .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 20px; margin-bottom: 4px; }
   .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
   .corner-l { position: absolute; bottom: 4mm; left: 6mm; font-size: 13px; color: #888; }
