@@ -15,10 +15,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { useEditModeStore } from '@/store/editMode';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
 
 export function DashboardPage() {
   const session = useSessionStore((s) => s.session);
+  // 跟侧栏过滤同源: toggle 关时对应卡片隐藏 (避免主面板成了绕过 toggle
+  // 的旁门). 配方互导的开关在设置 → 管理模式, 开启需启动口令.
+  const workspaceEditOn = useEditModeStore((s) => s.workspaceEditEnabled);
+  const auditDisplayOn = useEditModeStore((s) => s.auditDisplayEnabled);
+  const libraryTransferOn = useEditModeStore((s) => s.libraryTransferEnabled);
   if (!session) return null;
   const hasWs = hasActiveWorkspace(session);
 
@@ -56,24 +62,30 @@ export function DashboardPage() {
           desc="本缸要染的多条配方汇总，一键导出批次单（CSV / 可打印 HTML）交操作工。"
           icon={<ShoppingCart className="h-5 w-5" />}
         />
-        <NavCard
-          to="/workspaces"
-          title="工作区管理"
-          desc="按客户或项目划分工作区。配方与批次清单按工作区隔离。"
-          icon={<Layers className="h-5 w-5" />}
-        />
-        <NavCard
-          to="/audit"
-          title="审计日志"
-          desc="查询本机操作记录。支持按日期 / 动作筛选，加密 .ranpu 或明文 CSV 导出。"
-          icon={<ClipboardList className="h-5 w-5" />}
-        />
-        <NavCard
-          to="/library-transfer"
-          title="配方互导"
-          desc="把默认库 + 任意工作区一次性加密导出为 .ranpu，或在另一台机器导入；工作区按名称匹配（新建 / 合并 / 跳过）。"
-          icon={<PackageOpen className="h-5 w-5" />}
-        />
+        {workspaceEditOn && (
+          <NavCard
+            to="/workspaces"
+            title="工作区管理"
+            desc="按客户或项目划分工作区。配方与批次清单按工作区隔离。"
+            icon={<Layers className="h-5 w-5" />}
+          />
+        )}
+        {auditDisplayOn && (
+          <NavCard
+            to="/audit"
+            title="审计日志"
+            desc="查询本机操作记录。支持按日期 / 动作筛选，加密 .ranpu 或明文 CSV 导出。"
+            icon={<ClipboardList className="h-5 w-5" />}
+          />
+        )}
+        {libraryTransferOn && (
+          <NavCard
+            to="/library-transfer"
+            title="配方互导"
+            desc="把默认库 + 任意工作区一次性加密导出为 .ranpu，或在另一台机器导入；工作区按名称匹配（新建 / 合并 / 跳过）。"
+            icon={<PackageOpen className="h-5 w-5" />}
+          />
+        )}
         <NavCard
           to="/settings"
           title="设置"

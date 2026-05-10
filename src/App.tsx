@@ -22,6 +22,7 @@ import { LibraryTransferPage } from '@/pages/LibraryTransfer';
 import { SettingsPage } from '@/pages/Settings';
 import { WorkspaceFormulasPage } from '@/pages/WorkspaceFormulas';
 import { WorkspaceManagementPage } from '@/pages/WorkspaceManagement';
+import { useEditModeStore } from '@/store/editMode';
 import { useSessionStore } from '@/store/session';
 import { useUpdateStore } from '@/store/update';
 
@@ -142,7 +143,14 @@ function App() {
               <Route path="/cart" element={<CartPage />} />
               <Route path="/workspaces" element={<WorkspaceManagementPage />} />
               <Route path="/audit" element={<AuditLogPage />} />
-              <Route path="/library-transfer" element={<LibraryTransferPage />} />
+              <Route
+                path="/library-transfer"
+                element={
+                  <RequireLibraryTransfer>
+                    <LibraryTransferPage />
+                  </RequireLibraryTransfer>
+                }
+              />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
@@ -162,6 +170,14 @@ function SplashLoader() {
       <p className="text-sm text-muted-foreground">正在启动…</p>
     </div>
   );
+}
+
+/// "配方互导" 路由守卫. toggle 关时直接重定向回主面板, 不渲染页面 —
+/// 防止用户从主面板卡片以外的入口 (旧书签 / 直接敲 URL) 绕过密码检查.
+function RequireLibraryTransfer({ children }: { children: React.ReactNode }) {
+  const enabled = useEditModeStore((s) => s.libraryTransferEnabled);
+  if (!enabled) return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
 
 export default App;

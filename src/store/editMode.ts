@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 
-/// 三个 "管理模式" 开关 — 默认全部 OFF, 把改动 / 敏感数据藏在 toggle 后面.
-///   formulaEdit:    开启后才能新建 / 编辑 / 删除配方 (默认库 + 工作区配方)
-///   workspaceEdit:  开启后才能新建 / 改名 / 删除工作区
-///   auditDisplay:   开启后才显示审计日志列表
+/// 四个 "管理模式" 开关 — 默认全部 OFF, 把改动 / 敏感数据藏在 toggle 后面.
+///   formulaEdit:      开启后才能新建 / 编辑 / 删除配方 (默认库 + 工作区配方)
+///   workspaceEdit:    开启后才能新建 / 改名 / 删除工作区
+///   auditDisplay:     开启后才显示审计日志列表
+///   libraryTransfer:  开启后才显示侧栏 "配方互导" 入口; 开启需要启动口令.
 ///
 /// 自动关: 开启后 30 分钟内无相应操作 (touch*Activity), 由 EditModeAutoOffGuard
 /// 每分钟扫一次, 自动 disable* . 重启应用一律回到 OFF (内存 store 不持久化).
@@ -11,9 +12,11 @@ interface EditModeState {
   formulaEditEnabled: boolean;
   workspaceEditEnabled: boolean;
   auditDisplayEnabled: boolean;
+  libraryTransferEnabled: boolean;
   formulaLastActivity: number;
   workspaceLastActivity: number;
   auditLastActivity: number;
+  libraryTransferLastActivity: number;
 
   enableFormulaEdit: () => void;
   disableFormulaEdit: () => void;
@@ -27,6 +30,10 @@ interface EditModeState {
   disableAuditDisplay: () => void;
   touchAuditActivity: () => void;
 
+  enableLibraryTransfer: () => void;
+  disableLibraryTransfer: () => void;
+  touchLibraryTransferActivity: () => void;
+
   /// EditModeAutoOffGuard 用. 调用一次清掉所有超过 idle_ms 没活动的开关.
   sweepIdle: (idle_ms: number) => void;
 }
@@ -37,9 +44,11 @@ export const useEditModeStore = create<EditModeState>()((set) => ({
   formulaEditEnabled: false,
   workspaceEditEnabled: false,
   auditDisplayEnabled: false,
+  libraryTransferEnabled: false,
   formulaLastActivity: 0,
   workspaceLastActivity: 0,
   auditLastActivity: 0,
+  libraryTransferLastActivity: 0,
 
   enableFormulaEdit: () =>
     set({ formulaEditEnabled: true, formulaLastActivity: Date.now() }),
@@ -56,6 +65,12 @@ export const useEditModeStore = create<EditModeState>()((set) => ({
   disableAuditDisplay: () => set({ auditDisplayEnabled: false }),
   touchAuditActivity: () => set({ auditLastActivity: Date.now() }),
 
+  enableLibraryTransfer: () =>
+    set({ libraryTransferEnabled: true, libraryTransferLastActivity: Date.now() }),
+  disableLibraryTransfer: () => set({ libraryTransferEnabled: false }),
+  touchLibraryTransferActivity: () =>
+    set({ libraryTransferLastActivity: Date.now() }),
+
   sweepIdle: (idle_ms) =>
     set((s) => {
       const now = Date.now();
@@ -68,6 +83,12 @@ export const useEditModeStore = create<EditModeState>()((set) => ({
       }
       if (s.auditDisplayEnabled && now - s.auditLastActivity > idle_ms) {
         patch.auditDisplayEnabled = false;
+      }
+      if (
+        s.libraryTransferEnabled &&
+        now - s.libraryTransferLastActivity > idle_ms
+      ) {
+        patch.libraryTransferEnabled = false;
       }
       // 没有任何 toggle 超时时返回 s 本身, 让 zustand 的 Object.is(nextState, state)
       // 命中并 bail. 否则空 patch 会被 Object.assign 合成新 state, 每分钟扫一次

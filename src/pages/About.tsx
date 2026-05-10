@@ -88,12 +88,11 @@ export function AboutPage() {
             </Button>
           </div>
           <p>
-            染谱是一个面向印染车间的离线配方管理 + 染料计算软件，运行在 Windows 桌面，
-            数据本地加密存储（SQLCipher + DPAPI）。
+            染谱是一款面向印染车间的离线配方管理与染料计算软件，围绕实际生产流程设计。
+            软件支持统一维护工厂配方库、按客户隔离管理订单配方，并可根据目标重量自动计算各类染料投料克数，支持批次清单打印，方便车间现场直接使用。
           </p>
           <p>
-            架构采用 DDD + Hexagonal/Ports-and-Adapters；前端 React + Tailwind +
-            shadcn/ui；后端 Rust + Tauri 2。
+            所有数据仅保存在本机，采用 SQLCipher 数据库加密与 Windows DPAPI 密钥保护，不联网、不上云，导出的 .ranpu 备份文件支持口令二次加密，保障配方与客户数据安全可控。
           </p>
           <p className="text-muted-foreground">© {new Date().getFullYear()} 染谱 Ranpu</p>
         </CardContent>

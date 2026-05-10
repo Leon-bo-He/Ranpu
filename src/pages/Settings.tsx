@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
+import { PassphrasePromptDialog } from '@/components/PassphrasePromptDialog';
+import { ResetDatabaseDialog } from '@/components/ResetDatabaseDialog';
 import { StringListEditor } from '@/components/StringListEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,6 +39,15 @@ export function SettingsPage() {
   const enableAudit = useEditModeStore((s) => s.enableAuditDisplay);
   const disableAudit = useEditModeStore((s) => s.disableAuditDisplay);
 
+  const libraryTransfer = useEditModeStore((s) => s.libraryTransferEnabled);
+  const enableLibraryTransfer = useEditModeStore((s) => s.enableLibraryTransfer);
+  const disableLibraryTransfer = useEditModeStore((s) => s.disableLibraryTransfer);
+  // 配方互导开启需要再次输入启动口令; 这里 toggle 的 onEnable 改成
+  // 弹密码 dialog, 校验通过才真正打开开关.
+  const [askLibraryTransferPwd, setAskLibraryTransferPwd] = useState(false);
+
+  const [askResetDb, setAskResetDb] = useState(false);
+
   const yarnMills = useYarnSettingsStore((s) => s.mills);
   const setYarnMills = useYarnSettingsStore((s) => s.setMills);
   const resetYarnMills = useYarnSettingsStore((s) => s.resetMills);
@@ -64,63 +75,6 @@ export function SettingsPage() {
   return (
     <div className="space-y-6 p-6">
       <h2 className="font-serif text-xl tracking-[2px]">设置</h2>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>管理模式</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <EditModeToggle
-            label="配方管理"
-            whenOffCanStill="计算配方 / 加入批次清单"
-            enabled={formulaEdit}
-            onEnable={enableFormula}
-            onDisable={disableFormula}
-          />
-          <EditModeToggle
-            label="工作区管理"
-            whenOffCanStill="切换工作区 / 浏览"
-            enabled={workspaceEdit}
-            onEnable={enableWorkspace}
-            onDisable={disableWorkspace}
-          />
-          <EditModeToggle
-            label="审计日志显示"
-            whenOffCanStill=""
-            enabled={auditDisplay}
-            onEnable={enableAudit}
-            onDisable={disableAudit}
-          />
-          <p className="text-xs text-muted-foreground">
-            「工作区管理」与「审计日志显示」关闭时，对应入口在侧栏隐藏。
-            重新开启即可看见。
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>自动锁屏</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2 max-w-md">
-          <Label>空闲多久自动锁定</Label>
-          <Select
-            value={String(idleMinutes)}
-            onValueChange={(v) => setIdleMinutes(Number(v) as IdleTimeoutMinutes)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">关闭自动锁屏</SelectItem>
-              <SelectItem value="5">5 分钟</SelectItem>
-              <SelectItem value="10">10 分钟</SelectItem>
-              <SelectItem value="30">30 分钟</SelectItem>
-              <SelectItem value="60">60 分钟</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -159,7 +113,7 @@ export function SettingsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setAskResetMills(true)}
-                  title="还原默认: 博奥 / 名仁 / 妙虎 / 弘曲"
+                  title="还原默认: 博奥 / 弘曲 / 鸿泰 / 华盛 / 锦华 / 妙虎 / 名仁"
                 >
                   还原默认
                 </Button>
@@ -196,11 +150,98 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>管理模式</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <EditModeToggle
+            label="配方管理"
+            whenOffCanStill="计算配方 / 加入批次清单"
+            enabled={formulaEdit}
+            onEnable={enableFormula}
+            onDisable={disableFormula}
+          />
+          <EditModeToggle
+            label="工作区管理"
+            whenOffCanStill="切换工作区 / 浏览"
+            enabled={workspaceEdit}
+            onEnable={enableWorkspace}
+            onDisable={disableWorkspace}
+          />
+          <EditModeToggle
+            label="审计日志显示"
+            whenOffCanStill=""
+            enabled={auditDisplay}
+            onEnable={enableAudit}
+            onDisable={disableAudit}
+          />
+          <EditModeToggle
+            label="配方互导"
+            whenOffCanStill=""
+            enabled={libraryTransfer}
+            onEnable={() => setAskLibraryTransferPwd(true)}
+            onDisable={disableLibraryTransfer}
+          />
+          <p className="text-xs text-muted-foreground">
+            「工作区管理」「审计日志显示」「配方互导」关闭时，对应入口在侧栏隐藏。
+            重新开启即可看见。「配方互导」开启需再次输入启动口令。
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>自动锁屏</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 max-w-md">
+          <Label>空闲多久自动锁定</Label>
+          <Select
+            value={String(idleMinutes)}
+            onValueChange={(v) => setIdleMinutes(Number(v) as IdleTimeoutMinutes)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">关闭自动锁屏</SelectItem>
+              <SelectItem value="5">5 分钟</SelectItem>
+              <SelectItem value="10">10 分钟</SelectItem>
+              <SelectItem value="30">30 分钟</SelectItem>
+              <SelectItem value="60">60 分钟</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">重置数据库</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              清空整个数据目录（默认配方、工作区、批次清单、审计日志、启动口令），不可恢复。
+              <br />
+              需要启动口令 + 明文确认，完成后软件自动重启回到首次设置界面。
+            </p>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setAskResetDb(true)}
+              className="shrink-0"
+            >
+              重置数据库
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <ConfirmDialog
         open={askResetMills}
         onClose={() => setAskResetMills(false)}
         title="还原厂名默认列表？"
-        description="当前厂名将被清空，恢复成内置的 博奥 / 名仁 / 妙虎 / 弘曲。已经手动加的会丢失。"
+        description="当前厂名将被清空，恢复成内置的 博奥 / 弘曲 / 鸿泰 / 华盛 / 锦华 / 妙虎 / 名仁。已经手动加的会丢失。"
         confirmLabel="还原"
         destructive
         onConfirm={() => {
@@ -219,6 +260,20 @@ export function SettingsPage() {
           resetYarnSpecs();
           setAskResetSpecs(false);
         }}
+      />
+      <PassphrasePromptDialog
+        open={askLibraryTransferPwd}
+        onClose={() => setAskLibraryTransferPwd(false)}
+        title="开启配方互导"
+        description="此操作会在侧栏显示「配方互导」入口，需要再次输入启动口令。"
+        onConfirmed={() => {
+          setAskLibraryTransferPwd(false);
+          enableLibraryTransfer();
+        }}
+      />
+      <ResetDatabaseDialog
+        open={askResetDb}
+        onClose={() => setAskResetDb(false)}
       />
     </div>
   );
