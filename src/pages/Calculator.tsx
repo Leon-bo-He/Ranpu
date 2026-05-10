@@ -5,6 +5,7 @@ import { calculationApi } from '@/api/calculation';
 import { cartApi } from '@/api/cart';
 import { ApiError } from '@/api/invoke';
 import type { CalculationResultView, CustomerCodeMatchView } from '@/api/types';
+import { useCartStaleGuard } from '@/components/CartStaleGuard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -64,6 +65,10 @@ export function CalculatorPage() {
     addKg: number;
     existingKg: number;
   } | null>(null);
+  // 跨日工作前提醒清空昨天残留的批次清单. dialog 在 JSX 末尾渲染.
+  const { guard: cartStaleGuard, dialog: cartStaleDialog } = useCartStaleGuard({
+    onError: setError,
+  });
 
   if (!hasWs) {
     return (
@@ -120,7 +125,14 @@ export function CalculatorPage() {
     }
   };
 
-  const onAddToCart = async () => {
+  const onAddToCart = () => {
+    if (!result || result.formula_id === null) return;
+    cartStaleGuard(() => {
+      void doAddToCart();
+    });
+  };
+
+  const doAddToCart = async () => {
     if (!result || result.formula_id === null) return;
     const sourceKind: 'workspace' | 'default' =
       result.source === 'current_workspace' ? 'workspace' : 'default';
@@ -454,6 +466,8 @@ export function CalculatorPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {cartStaleDialog}
     </div>
   );
 }

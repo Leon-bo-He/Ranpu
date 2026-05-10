@@ -1,5 +1,4 @@
-import { save } from '@tauri-apps/plugin-dialog';
-import { Printer, Trash, Trash2, Upload } from 'lucide-react';
+import { Printer, Trash, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { cartApi } from '@/api/cart';
@@ -54,7 +53,7 @@ export function CartPage() {
   const [promptPerFormula, setPromptPerFormula] = useState<PerFormulaMeta[]>([]);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
-  // 预览版本 toggle: standard (每条一段) 或 grid (A4 九宫格). 用户在
+  // 预览版本 toggle: standard (每条一段) 或 grid (A4 四宫格). 用户在
   // 预览框右上角切换, 切换时重新请求对应 HTML.
   const [previewLayout, setPreviewLayout] =
     useState<'standard' | 'grid'>('standard');
@@ -122,24 +121,6 @@ export function CartPage() {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
       setAskClear(false);
-    }
-  };
-
-  const onExportCsv = async () => {
-    try {
-      const date = new Date().toISOString().slice(0, 10);
-      const namePrefix = workspaceName
-        ? `${sanitizeForFilename(workspaceName)}-批次单-${date}`
-        : `批次单-${date}`;
-      const out = await save({
-        defaultPath: `${namePrefix}.csv`,
-        filters: [{ name: 'CSV', extensions: ['csv'] }],
-      });
-      if (!out) return;
-      await cartApi.export('csv', out);
-      alert('已导出 CSV。');
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
     }
   };
 
@@ -250,13 +231,6 @@ export function CartPage() {
       <div className="flex items-center justify-between">
         <h2 className="font-serif text-xl tracking-[2px]">批次清单</h2>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={onExportCsv}
-            disabled={lines.length === 0}
-          >
-            <Upload className="mr-1 h-4 w-4" /> 导出 CSV
-          </Button>
           <Button
             variant="outline"
             onClick={onOpenPreviewPrompt}
@@ -491,7 +465,7 @@ export function CartPage() {
                     : 'text-foreground hover:bg-accent',
                 )}
               >
-                九宫格
+                四宫格
               </button>
             </div>
           </DialogHeader>
