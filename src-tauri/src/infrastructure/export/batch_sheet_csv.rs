@@ -126,7 +126,7 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
   }
   th { background-color: #f3f3f3; }
   th.num { text-align: right; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: #000; }
   body {
     font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
     color: #1f1f1f;
@@ -218,7 +218,7 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         let th_style = "border:1px solid #ccc;padding:6px 10px;text-align:left;background-color:#f3f3f3;";
         let th_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;background-color:#f3f3f3;";
         let td_style = "border:1px solid #ccc;padding:6px 10px;text-align:left;";
-        let td_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;";
+        let td_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:#000;";
         html.push_str(
             "    <table style=\"border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed;\">\n",
         );
@@ -286,7 +286,7 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
   .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 9px 0 10px; }
   .dye-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 17px; }
   .dye-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dye-row .grams { font-variant-numeric: tabular-nums; }
+  .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: 700; color: #000; }
   .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 19px; margin-bottom: 4px; }
   .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; }
