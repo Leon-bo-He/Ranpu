@@ -59,10 +59,10 @@ export function UnknownYarnPromptDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>有新的纱支项, 加入到库里复用?</DialogTitle>
+          <DialogTitle>有新的纱支项，加入到库里复用？</DialogTitle>
           <DialogDescription>
-            勾选的项会保存到「设置 → 纱支」, 下次输入可以直接挑.
-            不想加入的取消勾选即可, 这次仍会按原样使用.
+            勾选的项会保存到「设置 → 纱支」，下次输入可以直接挑。
+            不想加入的取消勾选即可，这次仍会按原样使用。
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 max-h-[50vh] overflow-y-auto">
