@@ -28,12 +28,26 @@ export function ComboboxInput({
 }: ComboboxInputProps) {
   const [open, setOpen] = useState(false);
   const [debounced, setDebounced] = useState(value);
+  // 下拉默认向下展开; 接近视口底部时翻转向上 (例如批次单 prompt 的最后
+  // 一两条配方, 向下展开会被 DialogFooter 遮住).
+  const [openUp, setOpenUp] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(value), FILTER_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [value]);
+
+  // 打开瞬间测一次空间, 决定上 / 下展开方向.
+  useEffect(() => {
+    if (!open) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    // max-h-48 = 12rem ≈ 192px; 留点余量定 220.
+    setOpenUp(spaceBelow < 220 && spaceAbove > spaceBelow);
+  }, [open]);
 
   // 点外部关下拉.
   useEffect(() => {
@@ -77,7 +91,12 @@ export function ComboboxInput({
         autoComplete="off"
       />
       {open && filtered.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-auto rounded-md border bg-popover py-1 shadow-md">
+        <div
+          className={cn(
+            'absolute left-0 right-0 z-50 max-h-48 overflow-auto rounded-md border bg-popover py-1 shadow-md',
+            openUp ? 'bottom-full mb-1' : 'top-full mt-1',
+          )}
+        >
           {filtered.map((opt) => (
             <button
               key={opt}
