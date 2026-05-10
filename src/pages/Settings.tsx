@@ -78,70 +78,6 @@ export function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>管理模式</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <EditModeToggle
-            label="配方管理"
-            whenOffCanStill="计算配方 / 加入批次清单"
-            enabled={formulaEdit}
-            onEnable={enableFormula}
-            onDisable={disableFormula}
-          />
-          <EditModeToggle
-            label="工作区管理"
-            whenOffCanStill="切换工作区 / 浏览"
-            enabled={workspaceEdit}
-            onEnable={enableWorkspace}
-            onDisable={disableWorkspace}
-          />
-          <EditModeToggle
-            label="审计日志显示"
-            whenOffCanStill=""
-            enabled={auditDisplay}
-            onEnable={enableAudit}
-            onDisable={disableAudit}
-          />
-          <EditModeToggle
-            label="配方互导"
-            whenOffCanStill=""
-            enabled={libraryTransfer}
-            onEnable={() => setAskLibraryTransferPwd(true)}
-            onDisable={disableLibraryTransfer}
-          />
-          <p className="text-xs text-muted-foreground">
-            「工作区管理」「审计日志显示」「配方互导」关闭时，对应入口在侧栏隐藏。
-            重新开启即可看见。「配方互导」开启需再次输入启动口令。
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>自动锁屏</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2 max-w-md">
-          <Label>空闲多久自动锁定</Label>
-          <Select
-            value={String(idleMinutes)}
-            onValueChange={(v) => setIdleMinutes(Number(v) as IdleTimeoutMinutes)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">关闭自动锁屏</SelectItem>
-              <SelectItem value="5">5 分钟</SelectItem>
-              <SelectItem value="10">10 分钟</SelectItem>
-              <SelectItem value="30">30 分钟</SelectItem>
-              <SelectItem value="60">60 分钟</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle>纱支</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -211,6 +147,70 @@ export function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>管理模式</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <EditModeToggle
+            label="配方管理"
+            whenOffCanStill="计算配方 / 加入批次清单"
+            enabled={formulaEdit}
+            onEnable={enableFormula}
+            onDisable={disableFormula}
+          />
+          <EditModeToggle
+            label="工作区管理"
+            whenOffCanStill="切换工作区 / 浏览"
+            enabled={workspaceEdit}
+            onEnable={enableWorkspace}
+            onDisable={disableWorkspace}
+          />
+          <EditModeToggle
+            label="审计日志显示"
+            whenOffCanStill=""
+            enabled={auditDisplay}
+            onEnable={enableAudit}
+            onDisable={disableAudit}
+          />
+          <EditModeToggle
+            label="配方互导"
+            whenOffCanStill=""
+            enabled={libraryTransfer}
+            onEnable={() => setAskLibraryTransferPwd(true)}
+            onDisable={disableLibraryTransfer}
+          />
+          <p className="text-xs text-muted-foreground">
+            「工作区管理」「审计日志显示」「配方互导」关闭时，对应入口在侧栏隐藏。
+            重新开启即可看见。「配方互导」开启需再次输入启动口令。
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>自动锁屏</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 max-w-md">
+          <Label>空闲多久自动锁定</Label>
+          <Select
+            value={String(idleMinutes)}
+            onValueChange={(v) => setIdleMinutes(Number(v) as IdleTimeoutMinutes)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">关闭自动锁屏</SelectItem>
+              <SelectItem value="5">5 分钟</SelectItem>
+              <SelectItem value="10">10 分钟</SelectItem>
+              <SelectItem value="30">30 分钟</SelectItem>
+              <SelectItem value="60">60 分钟</SelectItem>
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
