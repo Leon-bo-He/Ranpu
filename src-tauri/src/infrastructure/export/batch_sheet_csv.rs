@@ -284,7 +284,7 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
   .vat { font-size: 32px; font-weight: bold; line-height: 1.2; margin-bottom: 6px; }
   .meta-line { font-size: 20px; margin-bottom: 4px; }
   .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 20px 0 20px; }
-  .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 6px 0; font-size: 22px; }
+  .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 6px 0; font-size: 24px; }
   .dye-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: 700; color: #000; text-align: left; }
   .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 20px; margin-bottom: 4px; }
