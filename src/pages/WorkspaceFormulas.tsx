@@ -6,6 +6,7 @@ import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import type { FormulaView, WorkspaceView } from '@/api/types';
 import { workspaceApi } from '@/api/workspace';
+import { useCartStaleGuard } from '@/components/CartStaleGuard';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FormulaCard } from '@/components/FormulaCard';
 import { FormulaEditor } from '@/components/FormulaEditor';
@@ -57,6 +58,10 @@ export function WorkspaceFormulasPage() {
     addKg: number;
     existingKg: number;
   } | null>(null);
+  // 跨日工作前提醒清空昨天残留的批次清单. dialog 在 JSX 末尾渲染.
+  const { guard: cartStaleGuard, dialog: cartStaleDialog } = useCartStaleGuard({
+    onError: setCartErr,
+  });
 
   const load = (kw: string = debouncedKeyword) => {
     if (!hasWs) {
@@ -134,9 +139,11 @@ export function WorkspaceFormulasPage() {
   };
 
   const onOpenAddToCart = (formula: FormulaView) => {
-    setCartTarget(formula);
-    setCartKg('10');
-    setCartErr(null);
+    cartStaleGuard(() => {
+      setCartTarget(formula);
+      setCartKg('10');
+      setCartErr(null);
+    });
   };
 
   const onConfirmAddToCart = async () => {
@@ -433,6 +440,8 @@ export function WorkspaceFormulasPage() {
           </div>
         </div>
       )}
+
+      {cartStaleDialog}
     </div>
   );
 }

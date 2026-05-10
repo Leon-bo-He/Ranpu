@@ -5,6 +5,7 @@ import { cartApi } from '@/api/cart';
 import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import type { BatchCopySummaryView, FormulaView } from '@/api/types';
+import { useCartStaleGuard } from '@/components/CartStaleGuard';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FormulaCard } from '@/components/FormulaCard';
 import { FormulaEditor } from '@/components/FormulaEditor';
@@ -67,11 +68,17 @@ export function DefaultLibraryPage() {
     addKg: number;
     existingKg: number;
   } | null>(null);
+  // 跨日工作前提醒清空昨天残留的批次清单. dialog 在 JSX 末尾渲染.
+  const { guard: cartStaleGuard, dialog: cartStaleDialog } = useCartStaleGuard({
+    onError: setCartErr,
+  });
 
   const onOpenAddToCart = (formula: FormulaView) => {
-    setCartTarget(formula);
-    setCartKg('10');
-    setCartErr(null);
+    cartStaleGuard(() => {
+      setCartTarget(formula);
+      setCartKg('10');
+      setCartErr(null);
+    });
   };
 
   const onConfirmAddToCart = async () => {
@@ -535,6 +542,8 @@ export function DefaultLibraryPage() {
           </div>
         </div>
       )}
+
+      {cartStaleDialog}
     </div>
   );
 }
