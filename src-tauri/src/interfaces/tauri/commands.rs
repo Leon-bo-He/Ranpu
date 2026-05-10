@@ -122,10 +122,10 @@ pub fn cmd_verify_boot_passphrase(
     Ok(())
 }
 
-/// 把数据库整盘擦掉 (默认配方库 + 所有工作区 + 批次清单 + 审计日志).
-/// 用户必须同时通过启动口令 + 明文输入 "重置数据库" 才会执行. recovery.bin
-/// / keystore.bin 都保留 (启动口令不变, 重启后重新派生 db_key 自动建一份
-/// 全新空 DB).
+/// 把整个 app 数据目录擦干净 (DB + keystore + recovery + tmp). 等价
+/// `Remove-Item -Recurse -Force $env:APPDATA\Ranpu`. 用户必须同时通过
+/// 启动口令 + 明文输入 "重置数据库" 才会执行. 重启后 keystore 不存在, 走
+/// 首次设置流程让用户重新设定启动口令 (跟全新装机一致).
 const RESET_CONFIRM_PHRASE: &str = "重置数据库";
 
 #[tauri::command]
@@ -150,8 +150,11 @@ pub fn cmd_reset_database(
     *state.unlock_passphrase.lock() = None;
     // 给 OS 一点点时间释放文件句柄 (Windows quirk).
     std::thread::sleep(std::time::Duration::from_millis(150));
-    if state.paths.db_path.exists() {
-        std::fs::remove_file(&state.paths.db_path)
+    // 整盘擦掉 app data dir (db + keystore + recovery + tmp). app.restart 后
+    // boot setup 会自动 create_dir_all 重建空目录, frontend 看到 keystore
+    // 不存在就走 setup-first-run.
+    if state.paths.app_data_dir.exists() {
+        std::fs::remove_dir_all(&state.paths.app_data_dir)
             .map_err(|e| UiError::from(AppError::Io(e.to_string())))?;
     }
     // 异步触发 restart, 让前端先收到 Ok 再被踢出 — 避免 await 期间进程

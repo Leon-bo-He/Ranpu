@@ -65,8 +65,8 @@ export function ResetDatabaseDialog({ open, onClose }: ResetDatabaseDialogProps)
         <DialogHeader>
           <DialogTitle>重置数据库</DialogTitle>
           <DialogDescription>
-            将清除所有默认配方、工作区、批次清单和审计日志，且不可恢复。
-            重置完成后软件会自动重启，需要重新输入启动口令。
+            将清空整个数据目录（默认配方、工作区、批次清单、审计日志和启动口令），且不可恢复。
+            重启后回到首次设置界面，需要重新设定启动口令。
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="grid gap-3">

@@ -220,7 +220,7 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3 max-w-md">
           <p className="text-xs text-muted-foreground">
-            清除所有默认配方、工作区、批次清单、审计日志，且不可恢复。需要输入启动口令并明文确认。完成后软件会自动重启。
+            清空整个数据目录（默认配方、工作区、批次清单、审计日志和启动口令），且不可恢复。需要输入启动口令并明文确认。完成后软件自动重启，回到首次设置界面。
           </p>
           <Button
             variant="destructive"
