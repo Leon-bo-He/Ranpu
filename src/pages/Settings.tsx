@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
 import { StringListEditor } from '@/components/StringListEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -42,6 +43,23 @@ export function SettingsPage() {
   const yarnSpecs = useYarnSettingsStore((s) => s.specs);
   const setYarnSpecs = useYarnSettingsStore((s) => s.setSpecs);
   const resetYarnSpecs = useYarnSettingsStore((s) => s.resetSpecs);
+
+  // 单个纱支重量 (kg). 用本地 state 暂存输入中态, 失焦再过 store 钳位
+  // (拒非正数, 上限 999).
+  const singleYarnWeight = useSettingsStore((s) => s.singleYarnWeightKg);
+  const setSingleYarnWeight = useSettingsStore((s) => s.setSingleYarnWeightKg);
+  const [singleYarnInput, setSingleYarnInput] = useState(String(singleYarnWeight));
+  useEffect(() => {
+    setSingleYarnInput(String(singleYarnWeight));
+  }, [singleYarnWeight]);
+  const commitSingleYarn = () => {
+    const n = Number(singleYarnInput);
+    if (Number.isFinite(n) && n > 0) {
+      setSingleYarnWeight(n);
+    } else {
+      setSingleYarnInput(String(singleYarnWeight));
+    }
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -108,7 +126,34 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle>纱支</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2 max-w-md">
+            <Label htmlFor="single-yarn-weight">单个纱支重量</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="single-yarn-weight"
+                type="number"
+                min={0.01}
+                max={999}
+                step={0.01}
+                inputMode="decimal"
+                value={singleYarnInput}
+                onChange={(e) => setSingleYarnInput(e.target.value)}
+                onBlur={commitSingleYarn}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="w-32"
+              />
+              <span className="text-sm text-muted-foreground">kg</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              批次单 prompt 用 总重量 / 单个重量 自动算每条配方的纱支个数。
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <Card className="min-w-0 w-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0">

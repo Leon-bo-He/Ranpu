@@ -37,6 +37,7 @@ import {
   type PerFormulaMeta,
 } from '@/store/batchSheetInfo';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
+import { useSettingsStore } from '@/store/settings';
 import { useYarnSettingsStore } from '@/store/yarnSettings';
 
 export function CartPage() {
@@ -46,6 +47,7 @@ export function CartPage() {
   const setBatchSheetInfo = useBatchSheetInfoStore((s) => s.setInfo);
   const yarnMills = useYarnSettingsStore((s) => s.mills);
   const yarnSpecs = useYarnSettingsStore((s) => s.specs);
+  const singleYarnWeight = useSettingsStore((s) => s.singleYarnWeightKg);
   const [lines, setLines] = useState<CartLineView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState<string>('');
@@ -142,14 +144,30 @@ export function CartPage() {
     setPromptPerFormula(
       lines.map((line) => {
         const meta = saved?.perFormula[lineKey(line.source_kind, line.source_formula_id)];
-        if (!meta) return emptyMeta();
+        const totalMax = totalCountFor(line.target_kg, singleYarnWeight);
+        if (!meta) {
+          // 全新配方: 第一条 entry 用 总重 / 单个重 兜底, 用户可改.
+          return {
+            vat: '',
+            batch: '',
+            entries: [{ yarnMill: '', yarnSpec: '', count: formatCount(totalMax) }],
+          };
+        }
+        // 已存档的: count 空时用 "剩余" 兜底 (按当前 entries 顺序减已设置).
+        let usedSum = 0;
+        const filled = meta.entries.map((e) => {
+          let count = e.count;
+          if (!count.trim()) {
+            count = formatCount(Math.max(0, totalMax - usedSum));
+          }
+          const n = parseFloat(count);
+          if (Number.isFinite(n)) usedSum += n;
+          return { ...e, count };
+        });
         return {
           vat: meta.vat ?? '',
           batch: meta.batch ?? '',
-          entries:
-            meta.entries && meta.entries.length > 0
-              ? meta.entries.map((e) => ({ ...e }))
-              : [emptyEntry()],
+          entries: filled.length > 0 ? filled : [emptyEntry()],
         };
       }),
     );
@@ -182,13 +200,28 @@ export function CartPage() {
       ),
     );
 
-  // "+ 加一组纱支": 在该配方末尾追加一条空 entry. 缸号 / 缸次不变 (跟着
-  // 配方走), 只多一行厂名 / 规格.
+  // "+ 加一组纱支": 在该配方末尾追加一条新 entry. 缸号 / 缸次不变 (跟着
+  // 配方走). count 默认 = 总重/单个重 - 已设置 entries 的 count 之和;
+  // 厂名 / 规格留空让用户填.
   const addPromptEntry = (formulaIdx: number) =>
     setPromptPerFormula((prev) =>
-      prev.map((m, i) =>
-        i === formulaIdx ? { ...m, entries: [...m.entries, emptyEntry()] } : m,
-      ),
+      prev.map((m, i) => {
+        if (i !== formulaIdx) return m;
+        const line = lines[formulaIdx];
+        const totalMax = line ? totalCountFor(line.target_kg, singleYarnWeight) : 0;
+        const usedSum = m.entries.reduce((acc, e) => {
+          const n = parseFloat(e.count);
+          return acc + (Number.isFinite(n) ? n : 0);
+        }, 0);
+        const remaining = Math.max(0, totalMax - usedSum);
+        return {
+          ...m,
+          entries: [
+            ...m.entries,
+            { yarnMill: '', yarnSpec: '', count: formatCount(remaining) },
+          ],
+        };
+      }),
     );
 
   // 删除该配方下某条 entry. 至少保留 1 条.
@@ -214,7 +247,7 @@ export function CartPage() {
       const line = lines[i];
       if (!line) return;
       const nonEmptyEntries = m.entries.filter(
-        (e) => e.yarnMill || e.yarnSpec,
+        (e) => e.yarnMill || e.yarnSpec || e.count.trim(),
       );
       const hasAny = m.vat || m.batch || nonEmptyEntries.length > 0;
       if (hasAny) {
@@ -448,7 +481,7 @@ export function CartPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>每条配方的 缸号 · 缸次 + 纱支厂名 · 规格（同一配方可加多份不同纱支）</Label>
+              <Label>每条配方的 缸号 · 缸次 + 纱支厂名 · 规格 · 个数（同一配方可加多份不同纱支）</Label>
               <div className="space-y-3">
                 {lines.map((line, idx) => {
                   const meta = promptPerFormula[idx] ?? emptyMeta();
@@ -491,7 +524,7 @@ export function CartPage() {
                       <div className="space-y-2">
                         {entries.map((entry, entryIdx) => (
                           <div key={entryIdx} className="flex items-center gap-2">
-                            <div className="grid flex-1 grid-cols-2 gap-2">
+                            <div className="grid flex-1 grid-cols-[1fr_1fr_5rem] gap-2">
                               <ComboboxInput
                                 value={entry.yarnMill}
                                 onChange={(v) =>
@@ -507,6 +540,16 @@ export function CartPage() {
                                 }
                                 options={yarnSpecs}
                                 placeholder="纱支规格"
+                              />
+                              <Input
+                                value={entry.count}
+                                onChange={(e) =>
+                                  updatePromptEntry(idx, entryIdx, {
+                                    count: e.target.value,
+                                  })
+                                }
+                                placeholder="个数"
+                                inputMode="decimal"
                               />
                             </div>
                             <Button
@@ -643,6 +686,19 @@ function combineSpace(a: string, b: string): string | null {
   if (!x && !y) return null;
   if (x && y) return `${x} ${y}`;
   return x || y;
+}
+
+/// 总纱支个数 = 配方目标 kg / 单个纱支重量. 任一非法返回 0.
+function totalCountFor(targetKg: number, singleWeightKg: number): number {
+  if (!Number.isFinite(targetKg) || targetKg <= 0) return 0;
+  if (!Number.isFinite(singleWeightKg) || singleWeightKg <= 0) return 0;
+  return targetKg / singleWeightKg;
+}
+
+/// 个数显示成最多 2 位小数, 末尾零去掉; 非有限或负值显示空串.
+function formatCount(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '';
+  return Number(n.toFixed(2)).toString();
 }
 
 export default CartPage;

@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-/// 一组纱支变体: 厂名 + 规格. 缸号 / 缸次 不在这里 — 同一个配方下所有
-/// 变体共用 PerFormulaMeta 上的缸号 / 缸次.
+/// 一组纱支变体: 厂名 + 规格 + 个数. 缸号 / 缸次 不在这里 — 同一个配方
+/// 下所有变体共用 PerFormulaMeta 上的缸号 / 缸次. count 默认由 总重量 /
+/// 单个重量 算出, 用户可手改; 加一组纱支时新行的默认 = 总重 / 单个重 -
+/// 已设置总和.
 export interface PerFormulaEntry {
   yarnMill: string;
   yarnSpec: string;
+  count: string;
 }
 
 /// 一个配方在批次单 prompt 里的元信息. 缸号 + 缸次 跟着配方走 (一个配方
@@ -47,6 +50,11 @@ interface LegacyV3Entry {
   yarnSpec?: string;
 }
 
+interface LegacyV4Entry {
+  yarnMill?: string;
+  yarnSpec?: string;
+}
+
 interface LegacyBatchSheetInfo {
   customer?: string;
   perFormula?: Record<string, unknown>;
@@ -57,7 +65,7 @@ interface PersistedShape {
 }
 
 export function emptyEntry(): PerFormulaEntry {
-  return { yarnMill: '', yarnSpec: '' };
+  return { yarnMill: '', yarnSpec: '', count: '' };
 }
 
 export function emptyMeta(): PerFormulaMeta {
@@ -87,31 +95,55 @@ function fromV1(m: LegacyV1PerFormulaMeta): PerFormulaMeta {
       yarnSpec = m.yarn;
     }
   }
-  return { vat, batch, entries: [{ yarnMill, yarnSpec }] };
+  return { vat, batch, entries: [{ yarnMill, yarnSpec, count: '' }] };
 }
 
-/// 把任何旧版本规格化到 v4: 缸号 / 缸次 提到 PerFormulaMeta, entries 只
-/// 留厂名 / 规格. 多 entries 时取第一条的缸号 / 缸次作为整组共用值.
-function migrateToV4(state: PersistedShape | undefined): BatchSheetInfoState['byWorkspace'] {
+/// 把任何旧版本规格化到 v5: 配方层 vat + batch + entries[厂名/规格/个数].
+/// 多 entries 旧数据取第一条的缸号 / 缸次作为整组共用值; 个数全部置空,
+/// 等用户重新打开 prompt 时自动算默认值.
+function migrateToV5(state: PersistedShape | undefined): BatchSheetInfoState['byWorkspace'] {
   const out: BatchSheetInfoState['byWorkspace'] = {};
   if (!state?.byWorkspace) return out;
   for (const [wsId, info] of Object.entries(state.byWorkspace)) {
     const newPerFormula: Record<string, PerFormulaMeta> = {};
     const legacy = info.perFormula ?? {};
     for (const [key, raw] of Object.entries(legacy)) {
-      // v4 (新结构): 已经有 entries + 顶层 vat / batch.
-      const v4 = raw as Partial<PerFormulaMeta>;
-      if (Array.isArray(v4.entries) && ('vat' in v4 || 'batch' in v4)) {
+      // v5 (新结构): 已有 entries 含 count.
+      const v5 = raw as Partial<PerFormulaMeta>;
+      if (
+        Array.isArray(v5.entries) &&
+        ('vat' in v5 || 'batch' in v5) &&
+        v5.entries.every((e) => typeof e?.count === 'string')
+      ) {
+        newPerFormula[key] = {
+          vat: v5.vat ?? '',
+          batch: v5.batch ?? '',
+          entries:
+            v5.entries.length > 0
+              ? v5.entries.map((e) => ({
+                  yarnMill: e.yarnMill ?? '',
+                  yarnSpec: e.yarnSpec ?? '',
+                  count: e.count ?? '',
+                }))
+              : [emptyEntry()],
+        };
+        continue;
+      }
+      // v4: { vat, batch, entries: [{yarnMill, yarnSpec}, ...] }
+      const v4 = raw as { vat?: string; batch?: string; entries?: LegacyV4Entry[] };
+      if (
+        Array.isArray(v4.entries) &&
+        v4.entries.length > 0 &&
+        v4.entries.every((e) => 'yarnMill' in e || 'yarnSpec' in e)
+      ) {
         newPerFormula[key] = {
           vat: v4.vat ?? '',
           batch: v4.batch ?? '',
-          entries:
-            v4.entries.length > 0
-              ? v4.entries.map((e) => ({
-                  yarnMill: e.yarnMill ?? '',
-                  yarnSpec: e.yarnSpec ?? '',
-                }))
-              : [emptyEntry()],
+          entries: v4.entries.map((e) => ({
+            yarnMill: e.yarnMill ?? '',
+            yarnSpec: e.yarnSpec ?? '',
+            count: '',
+          })),
         };
         continue;
       }
@@ -127,6 +159,7 @@ function migrateToV4(state: PersistedShape | undefined): BatchSheetInfoState['by
               ? v3.entries.map((e) => ({
                   yarnMill: e.yarnMill ?? '',
                   yarnSpec: e.yarnSpec ?? '',
+                  count: '',
                 }))
               : [emptyEntry()],
         };
@@ -138,7 +171,13 @@ function migrateToV4(state: PersistedShape | undefined): BatchSheetInfoState['by
         newPerFormula[key] = {
           vat: v2.vat ?? '',
           batch: v2.batch ?? '',
-          entries: [{ yarnMill: v2.yarnMill ?? '', yarnSpec: v2.yarnSpec ?? '' }],
+          entries: [
+            {
+              yarnMill: v2.yarnMill ?? '',
+              yarnSpec: v2.yarnSpec ?? '',
+              count: '',
+            },
+          ],
         };
         continue;
       }
@@ -164,11 +203,11 @@ export const useBatchSheetInfoStore = create<BatchSheetInfoState>()(
     }),
     {
       name: 'ranpu-batch-sheet-info',
-      version: 4,
+      version: 5,
       migrate: (persisted, fromVersion) => {
-        if (fromVersion < 4) {
+        if (fromVersion < 5) {
           return {
-            byWorkspace: migrateToV4(persisted as PersistedShape),
+            byWorkspace: migrateToV5(persisted as PersistedShape),
           } as BatchSheetInfoState;
         }
         return persisted as BatchSheetInfoState;
