@@ -126,7 +126,7 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
   }
   th { background-color: #f3f3f3; }
   th.num { text-align: right; }
-  td.num { text-align: right; font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
   body {
     font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
     color: #1f1f1f;
@@ -214,7 +214,7 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         let th_style = "border:1px solid #ccc;padding:6px 10px;text-align:left;background-color:#f3f3f3;";
         let th_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;background-color:#f3f3f3;";
         let td_style = "border:1px solid #ccc;padding:6px 10px;text-align:left;";
-        let td_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;font-family:'Cascadia Mono','JetBrains Mono',monospace;";
+        let td_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;";
         html.push_str(
             "    <table style=\"border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed;\">\n",
         );
@@ -281,7 +281,7 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
   .divider { border: 0; border-top: 1.5px solid #1f1f1f; margin: 6px 0 7px; }
   .dye-row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
   .dye-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dye-row .grams { font-family: "Cascadia Mono", "JetBrains Mono", monospace; }
+  .dye-row .grams { font-variant-numeric: tabular-nums; }
   .corner-l { position: absolute; bottom: 3mm; left: 5mm; font-size: 11px; color: #888; }
   .corner-r { position: absolute; bottom: 3mm; right: 5mm; font-size: 11px; color: #888; }
   @media print {
@@ -371,7 +371,7 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
                 None => l.dye_name.clone(),
             };
             html.push_str(&format!(
-                "    <div class=\"dye-row\"><span class=\"name\">{}</span><span class=\"grams\">{} g</span></div>\n",
+                "    <div class=\"dye-row\"><span class=\"name\">{}</span><span class=\"grams\">{}</span></div>\n",
                 html_escape(&dye_label),
                 format_amount(l.grams.value()),
             ));
