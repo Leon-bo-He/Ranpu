@@ -36,6 +36,10 @@ pub struct AppPaths {
     pub keystore_path: PathBuf,
     /// 临时目录（VACUUM INTO 用）：{app_data_dir}/tmp
     pub tmp_dir: PathBuf,
+    /// 恢复槽路径：{app_data_dir}/recovery.bin
+    /// 内含 db_key_hex, 用编译期内置的 master passphrase 加密. 用户忘记
+    /// 启动口令时此文件作为后备 — 由内置口令解密直接拿 db_key, 跳过派生.
+    pub recovery_path: PathBuf,
 }
 
 impl AppPaths {
@@ -43,11 +47,13 @@ impl AppPaths {
         let db_path = app_data_dir.join("ranpu.db");
         let keystore_path = app_data_dir.join("keystore.bin");
         let tmp_dir = app_data_dir.join("tmp");
+        let recovery_path = app_data_dir.join("recovery.bin");
         Self {
             app_data_dir,
             db_path,
             keystore_path,
             tmp_dir,
+            recovery_path,
         }
     }
 }

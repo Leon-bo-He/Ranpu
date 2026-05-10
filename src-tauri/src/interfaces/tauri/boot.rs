@@ -17,7 +17,8 @@ use crate::application::workspace::WorkspaceService;
 use crate::domain::calculation::dye_calculator::{DyeCalculator, StandardDyeCalculator};
 use crate::infrastructure::clock_system::SystemClock;
 use crate::infrastructure::crypto::{
-    derive_db_key_hex, ensure_master_key, OsKeyStore, RanpuExporter,
+    derive_db_key_hex, ensure_master_key, read_recovery, write_recovery, OsKeyStore,
+    RanpuExporter,
 };
 use crate::infrastructure::export::{BatchSheetCsvExporter, PlainAuditCsvExporter};
 use crate::infrastructure::persistence::seed;
@@ -44,10 +45,33 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
 
     let keystore = OsKeyStore::new(paths.keystore_path.clone());
     let master_key = ensure_master_key(&keystore).map_err(|e| AppError::Crypto(e.to_string()))?;
-    let db_key_hex = derive_db_key_hex(&master_key, boot_passphrase);
+    let derived_db_key = derive_db_key_hex(&master_key, boot_passphrase);
 
-    let db = open_db_or_wrong_passphrase(&paths.db_path, &db_key_hex)?;
+    // 先尝试用户口令派生出来的 db_key 开 DB; 用户口令对不上 → 看 recovery.bin
+    // 里有没有 master 后门加密的 db_key 可用 (用户忘记口令 / 用 master 口令
+    // 进系统都走这条). 拿到能开 DB 的 db_key 后留下来稍后写 recovery 用.
+    let (db, used_key) = match open_db_or_wrong_passphrase(&paths.db_path, &derived_db_key) {
+        Ok(conn) => (conn, derived_db_key),
+        Err(AppError::BootPassphraseIncorrect) => {
+            let recovered = read_recovery(&paths.recovery_path)
+                .map_err(|e| AppError::Crypto(e.to_string()))?;
+            match recovered {
+                Some(key) => {
+                    let conn = open_db_or_wrong_passphrase(&paths.db_path, &key)?;
+                    (conn, key)
+                }
+                None => return Err(AppError::BootPassphraseIncorrect),
+            }
+        }
+        Err(other) => return Err(other),
+    };
     let db_arc = Arc::new(db);
+
+    // recovery.bin 还没写过 (旧装机 / 首次 boot) → 此时 used_key 是有效值,
+    // 一次性写入. 失败不致命, 下次启动还会再试.
+    if !paths.recovery_path.exists() {
+        let _ = write_recovery(&paths.recovery_path, &used_key);
+    }
 
     let workspace_repo = Arc::new(SqliteWorkspaceRepository::new(db_arc.clone()));
     let default_repo = Arc::new(SqliteDefaultFormulaRepository::new(db_arc.clone()));
