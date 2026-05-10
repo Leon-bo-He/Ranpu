@@ -103,10 +103,10 @@ export function SettingsPage() {
           <CardTitle>纱支</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
-            <section className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">厂名</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">厂名</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -115,19 +115,21 @@ export function SettingsPage() {
                 >
                   还原默认
                 </Button>
-              </div>
-              <StringListEditor
-                values={yarnMills}
-                onChange={setYarnMills}
-                newPlaceholder="新增厂名…"
-              />
-              <p className="text-xs text-muted-foreground">
-                后续批次单纱支输入会从这里挑候选。
-              </p>
-            </section>
-            <section className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">规格</h3>
+              </CardHeader>
+              <CardContent className="grid gap-2">
+                <StringListEditor
+                  values={yarnMills}
+                  onChange={setYarnMills}
+                  newPlaceholder="新增厂名…"
+                />
+                <p className="text-xs text-muted-foreground">
+                  后续批次单纱支输入会从这里挑候选。
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">规格</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -136,13 +138,15 @@ export function SettingsPage() {
                 >
                   还原默认
                 </Button>
-              </div>
-              <StringListEditor
-                values={yarnSpecs}
-                onChange={setYarnSpecs}
-                newPlaceholder="新增规格 (例 32/2)…"
-              />
-            </section>
+              </CardHeader>
+              <CardContent className="grid gap-2">
+                <StringListEditor
+                  values={yarnSpecs}
+                  onChange={setYarnSpecs}
+                  newPlaceholder="新增规格 (例 32/2)…"
+                />
+              </CardContent>
+            </Card>
           </div>
         </CardContent>
       </Card>
