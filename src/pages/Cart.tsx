@@ -53,7 +53,7 @@ export function CartPage() {
   const [promptPerFormula, setPromptPerFormula] = useState<PerFormulaMeta[]>([]);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
-  // 预览版本 toggle: standard (每条一段) 或 grid (A4 九宫格). 用户在
+  // 预览版本 toggle: standard (每条一段) 或 grid (A4 四宫格). 用户在
   // 预览框右上角切换, 切换时重新请求对应 HTML.
   const [previewLayout, setPreviewLayout] =
     useState<'standard' | 'grid'>('standard');
@@ -465,7 +465,7 @@ export function CartPage() {
                     : 'text-foreground hover:bg-accent',
                 )}
               >
-                九宫格
+                四宫格
               </button>
             </div>
           </DialogHeader>

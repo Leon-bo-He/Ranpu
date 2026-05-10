@@ -39,7 +39,7 @@ export const cartApi = {
   /// 渲染当前批次清单为 HTML 字符串, 不落盘. 用于 iframe 预览 / 打印.
   /// customer 写到批次单头部 (空则后端 fallback 当前工作区名).
   /// perFormula 跟 list() 返回的购物车顺序对齐, 每条配方独立的缸号 / 纱支.
-  /// layout: 'standard' (默认每条一段) 或 'grid' (A4 九宫格).
+  /// layout: 'standard' (默认每条一段) 或 'grid' (A4 四宫格).
   previewHtml: (args: {
     customer?: string | null;
     perFormula?: Array<{
