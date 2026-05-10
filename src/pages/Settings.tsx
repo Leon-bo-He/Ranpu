@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
+import { StringListEditor } from '@/components/StringListEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import {
 import { useEditModeStore } from '@/store/editMode';
 import { useSettingsStore, type IdleTimeoutMinutes } from '@/store/settings';
 import { useVatSequenceStore } from '@/store/vatSequence';
+import { useYarnSettingsStore } from '@/store/yarnSettings';
 
 export function SettingsPage() {
   const idleMinutes = useSettingsStore((s) => s.idleTimeoutMinutes);
@@ -52,6 +54,13 @@ export function SettingsPage() {
   const auditDisplay = useEditModeStore((s) => s.auditDisplayEnabled);
   const enableAudit = useEditModeStore((s) => s.enableAuditDisplay);
   const disableAudit = useEditModeStore((s) => s.disableAuditDisplay);
+
+  const yarnMills = useYarnSettingsStore((s) => s.mills);
+  const setYarnMills = useYarnSettingsStore((s) => s.setMills);
+  const resetYarnMills = useYarnSettingsStore((s) => s.resetMills);
+  const yarnSpecs = useYarnSettingsStore((s) => s.specs);
+  const setYarnSpecs = useYarnSettingsStore((s) => s.setSpecs);
+  const resetYarnSpecs = useYarnSettingsStore((s) => s.resetSpecs);
 
   return (
     <div className="space-y-6 p-6">
@@ -149,6 +158,51 @@ export function SettingsPage() {
           <p className="text-xs text-muted-foreground">
             用于缸号自动生成。范围 1-99。
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle>纱支 · 厂名</CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={resetYarnMills}
+            title="还原默认: 博奥 / 名仁 / 妙虎 / 弘曲"
+          >
+            还原默认
+          </Button>
+        </CardHeader>
+        <CardContent className="grid gap-2 max-w-md">
+          <StringListEditor
+            values={yarnMills}
+            onChange={setYarnMills}
+            newPlaceholder="新增厂名…"
+          />
+          <p className="text-xs text-muted-foreground">
+            后续批次单纱支输入会从这里挑候选。
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle>纱支 · 规格</CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={resetYarnSpecs}
+            title="还原默认: 20/2 至 60/3"
+          >
+            还原默认
+          </Button>
+        </CardHeader>
+        <CardContent className="grid gap-2 max-w-md">
+          <StringListEditor
+            values={yarnSpecs}
+            onChange={setYarnSpecs}
+            newPlaceholder="新增规格 (例 32/2)…"
+          />
         </CardContent>
       </Card>
 
