@@ -635,3 +635,11 @@ pub struct BootStatusView {
     pub keystore_exists: bool,
     pub db_initialized: bool,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ResetDatabaseCmd {
+    /// 用户启动口令或内置 master 口令.
+    pub passphrase: String,
+    /// 用户必须明文输入 "重置数据库" 才生效.
+    pub confirm_text: String,
+}

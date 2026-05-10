@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
 import { PassphrasePromptDialog } from '@/components/PassphrasePromptDialog';
+import { ResetDatabaseDialog } from '@/components/ResetDatabaseDialog';
 import { StringListEditor } from '@/components/StringListEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +45,8 @@ export function SettingsPage() {
   // 配方互导开启需要再次输入启动口令; 这里 toggle 的 onEnable 改成
   // 弹密码 dialog, 校验通过才真正打开开关.
   const [askLibraryTransferPwd, setAskLibraryTransferPwd] = useState(false);
+
+  const [askResetDb, setAskResetDb] = useState(false);
 
   const yarnMills = useYarnSettingsStore((s) => s.mills);
   const setYarnMills = useYarnSettingsStore((s) => s.setMills);
@@ -211,6 +214,24 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">重置数据库</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 max-w-md">
+          <p className="text-xs text-muted-foreground">
+            清除所有默认配方、工作区、批次清单、审计日志，且不可恢复。需要输入启动口令并明文确认。完成后软件会自动重启。
+          </p>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setAskResetDb(true)}
+          >
+            重置数据库
+          </Button>
+        </CardContent>
+      </Card>
+
       <ConfirmDialog
         open={askResetMills}
         onClose={() => setAskResetMills(false)}
@@ -244,6 +265,10 @@ export function SettingsPage() {
           setAskLibraryTransferPwd(false);
           enableLibraryTransfer();
         }}
+      />
+      <ResetDatabaseDialog
+        open={askResetDb}
+        onClose={() => setAskResetDb(false)}
       />
     </div>
   );

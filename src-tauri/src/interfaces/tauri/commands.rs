@@ -122,6 +122,48 @@ pub fn cmd_verify_boot_passphrase(
     Ok(())
 }
 
+/// 把数据库整盘擦掉 (默认配方库 + 所有工作区 + 批次清单 + 审计日志).
+/// 用户必须同时通过启动口令 + 明文输入 "重置数据库" 才会执行. recovery.bin
+/// / keystore.bin 都保留 (启动口令不变, 重启后重新派生 db_key 自动建一份
+/// 全新空 DB).
+const RESET_CONFIRM_PHRASE: &str = "重置数据库";
+
+#[tauri::command]
+pub fn cmd_reset_database(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    cmd: ResetDatabaseCmd,
+) -> CmdResult<()> {
+    let stored = state.unlock_passphrase.lock().clone();
+    let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
+    if cmd.passphrase != expected && cmd.passphrase != RECOVERY_MASTER_PASSPHRASE {
+        return Err(UiError::from(AppError::BootPassphraseIncorrect));
+    }
+    if cmd.confirm_text.trim() != RESET_CONFIRM_PHRASE {
+        return Err(UiError {
+            code: "domain",
+            message: format!("确认文字必须是「{RESET_CONFIRM_PHRASE}」"),
+        });
+    }
+    // 先把 services 释放掉关 SQLCipher 连接, 不然 Windows 上会锁住 db 文件.
+    *state.services.write() = None;
+    *state.unlock_passphrase.lock() = None;
+    // 给 OS 一点点时间释放文件句柄 (Windows quirk).
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    if state.paths.db_path.exists() {
+        std::fs::remove_file(&state.paths.db_path)
+            .map_err(|e| UiError::from(AppError::Io(e.to_string())))?;
+    }
+    // 异步触发 restart, 让前端先收到 Ok 再被踢出 — 避免 await 期间进程
+    // 已退出导致的 "channel closed" 报错.
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        app_clone.restart();
+    });
+    Ok(())
+}
+
 #[tauri::command]
 pub fn cmd_unlock_session(
     state: State<AppState>,
