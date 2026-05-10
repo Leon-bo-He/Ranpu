@@ -20,3 +20,21 @@ export function matchOption(query: string, option: string): boolean {
   if (pinyinFirstLetters(option).includes(q)) return true;
   return false;
 }
+
+/// 字符串列表按完整拼音 (大小写不敏感) 升序排. 例 "博奥/弘曲/鸿泰" →
+/// "博奥, 弘曲, 鸿泰" (boao < hongqu < hongtai). 非中文按原字符串参与排序.
+export function sortByPinyin(list: string[]): string[] {
+  return [...list].sort((a, b) => {
+    const pa = pinyin(a, {
+      toneType: 'none',
+      separator: '',
+      nonZh: 'consecutive',
+    }).toLowerCase();
+    const pb = pinyin(b, {
+      toneType: 'none',
+      separator: '',
+      nonZh: 'consecutive',
+    }).toLowerCase();
+    return pa.localeCompare(pb);
+  });
+}
