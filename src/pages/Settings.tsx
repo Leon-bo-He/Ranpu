@@ -98,50 +98,52 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle>纱支 · 厂名</CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={resetYarnMills}
-            title="还原默认: 博奥 / 名仁 / 妙虎 / 弘曲"
-          >
-            还原默认
-          </Button>
-        </CardHeader>
-        <CardContent className="grid gap-2 max-w-2xl">
-          <StringListEditor
-            values={yarnMills}
-            onChange={setYarnMills}
-            newPlaceholder="新增厂名…"
-          />
-          <p className="text-xs text-muted-foreground">
-            后续批次单纱支输入会从这里挑候选。
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle>纱支 · 厂名</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetYarnMills}
+              title="还原默认: 博奥 / 名仁 / 妙虎 / 弘曲"
+            >
+              还原默认
+            </Button>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <StringListEditor
+              values={yarnMills}
+              onChange={setYarnMills}
+              newPlaceholder="新增厂名…"
+            />
+            <p className="text-xs text-muted-foreground">
+              后续批次单纱支输入会从这里挑候选。
+            </p>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle>纱支 · 规格</CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={resetYarnSpecs}
-            title="还原默认: 20/2 至 60/3"
-          >
-            还原默认
-          </Button>
-        </CardHeader>
-        <CardContent className="grid gap-2 max-w-2xl">
-          <StringListEditor
-            values={yarnSpecs}
-            onChange={setYarnSpecs}
-            newPlaceholder="新增规格 (例 32/2)…"
-          />
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle>纱支 · 规格</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetYarnSpecs}
+              title="还原默认: 20/2 至 60/3"
+            >
+              还原默认
+            </Button>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <StringListEditor
+              values={yarnSpecs}
+              onChange={setYarnSpecs}
+              newPlaceholder="新增规格 (例 32/2)…"
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -55,7 +55,7 @@ export function StringListEditor({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         {values.map((v, i) => (
           // key 包含 v: 列表 onChange 后该行的 defaultValue 跟着刷新.
           <div key={`${i}-${v}`} className="flex items-center gap-1">
