@@ -53,6 +53,7 @@ pub fn run() {
             cmd_setup_first_run,
             cmd_lock_session,
             cmd_unlock_session,
+            cmd_verify_boot_passphrase,
             cmd_create_workspace,
             cmd_rename_workspace,
             cmd_update_workspace_description,

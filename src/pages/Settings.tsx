@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
+import { PassphrasePromptDialog } from '@/components/PassphrasePromptDialog';
 import { StringListEditor } from '@/components/StringListEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +37,13 @@ export function SettingsPage() {
   const auditDisplay = useEditModeStore((s) => s.auditDisplayEnabled);
   const enableAudit = useEditModeStore((s) => s.enableAuditDisplay);
   const disableAudit = useEditModeStore((s) => s.disableAuditDisplay);
+
+  const libraryTransfer = useEditModeStore((s) => s.libraryTransferEnabled);
+  const enableLibraryTransfer = useEditModeStore((s) => s.enableLibraryTransfer);
+  const disableLibraryTransfer = useEditModeStore((s) => s.disableLibraryTransfer);
+  // 配方互导开启需要再次输入启动口令; 这里 toggle 的 onEnable 改成
+  // 弹密码 dialog, 校验通过才真正打开开关.
+  const [askLibraryTransferPwd, setAskLibraryTransferPwd] = useState(false);
 
   const yarnMills = useYarnSettingsStore((s) => s.mills);
   const setYarnMills = useYarnSettingsStore((s) => s.setMills);
@@ -91,9 +99,16 @@ export function SettingsPage() {
             onEnable={enableAudit}
             onDisable={disableAudit}
           />
+          <EditModeToggle
+            label="配方互导"
+            whenOffCanStill=""
+            enabled={libraryTransfer}
+            onEnable={() => setAskLibraryTransferPwd(true)}
+            onDisable={disableLibraryTransfer}
+          />
           <p className="text-xs text-muted-foreground">
-            「工作区管理」与「审计日志显示」关闭时，对应入口在侧栏隐藏。
-            重新开启即可看见。
+            「工作区管理」「审计日志显示」「配方互导」关闭时，对应入口在侧栏隐藏。
+            重新开启即可看见。「配方互导」开启需再次输入启动口令。
           </p>
         </CardContent>
       </Card>
@@ -218,6 +233,16 @@ export function SettingsPage() {
         onConfirm={() => {
           resetYarnSpecs();
           setAskResetSpecs(false);
+        }}
+      />
+      <PassphrasePromptDialog
+        open={askLibraryTransferPwd}
+        onClose={() => setAskLibraryTransferPwd(false)}
+        title="开启配方互导"
+        description="此操作会在侧栏显示「配方互导」入口，需要再次输入启动口令。"
+        onConfirmed={() => {
+          setAskLibraryTransferPwd(false);
+          enableLibraryTransfer();
         }}
       />
     </div>

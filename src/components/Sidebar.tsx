@@ -63,10 +63,12 @@ export function Sidebar() {
   const session = useSessionStore((s) => s.session);
   // 全局更新状态: 有 pending 就在 "关于" 项右边贴个红点提示新版本.
   const hasUpdate = useUpdateStore((s) => s.pending !== null);
-  // 工作区管理 / 审计日志的入口跟随对应 toggle 隐藏 — 关闭时直接从侧栏移除,
-  // 用户要重新看到入口需要去 "设置 → 管理模式" 打开.
+  // 工作区管理 / 审计日志 / 配方互导 入口跟随对应 toggle 隐藏 — 关闭时
+  // 直接从侧栏移除, 用户要重新看到入口需要去 "设置 → 管理模式" 打开
+  // (配方互导额外要求输入启动口令).
   const workspaceEditOn = useEditModeStore((s) => s.workspaceEditEnabled);
   const auditDisplayOn = useEditModeStore((s) => s.auditDisplayEnabled);
+  const libraryTransferOn = useEditModeStore((s) => s.libraryTransferEnabled);
   if (!session) return null;
   const hasWs = hasActiveWorkspace(session);
 
@@ -82,6 +84,7 @@ export function Sidebar() {
     }
     if (entry.to === '/workspaces' && !workspaceEditOn) return;
     if (entry.to === '/audit' && !auditDisplayOn) return;
+    if (entry.to === '/library-transfer' && !libraryTransferOn) return;
     visibleEntries.push(entry);
   });
   // 剔除 "悬空" / 重复的 divider: 列表头尾的, 以及连续的两条.

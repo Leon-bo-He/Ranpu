@@ -106,6 +106,22 @@ pub fn cmd_lock_session(state: State<AppState>) -> CmdResult<()> {
     Ok(())
 }
 
+/// 用户口令 / master 后门口令 任一对上即视为通过. 不动 session 状态,
+/// 不写审计 — 纯粹是设置页那种 "开启高权限 toggle" 的口令二次确认入口.
+#[tauri::command]
+pub fn cmd_verify_boot_passphrase(
+    state: State<AppState>,
+    cmd: UnlockSessionCmd,
+) -> CmdResult<()> {
+    let _ = services_or_err(&state)?;
+    let stored = state.unlock_passphrase.lock().clone();
+    let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
+    if cmd.passphrase != expected && cmd.passphrase != RECOVERY_MASTER_PASSPHRASE {
+        return Err(UiError::from(AppError::BootPassphraseIncorrect));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn cmd_unlock_session(
     state: State<AppState>,
