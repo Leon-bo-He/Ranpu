@@ -11,7 +11,7 @@ pub use add_to_cart::AddToCartInput;
 pub use export_cart_as_batch_sheet::ExportCartInput;
 pub use list_cart_with_calculations::CartLine;
 pub use preview_cart_as_batch_sheet::{
-    PreviewBatchSheetInput, PreviewFormulaMetaInput, PreviewLayout,
+    PreviewBatchSheetInput, PreviewFormulaMetaInput, PreviewLayout, PreviewYarnEntryInput,
 };
 pub use remove_from_cart::RemoveFromCartInput;
 pub use service::CartService;

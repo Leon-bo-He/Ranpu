@@ -543,19 +543,29 @@ pub struct ExportCartCmd {
 #[derive(Debug, Default, Deserialize)]
 pub struct PreviewCartCmd {
     pub customer: Option<String>,
-    /// 与 list_cart 返回的购物车顺序对齐的元信息. 长度可短于 cart, 缺位按
-    /// {None, None} 兜底; 长了多余忽略.
+    /// 与 list_cart 返回的购物车顺序对齐. 每条 cart line 一份元信息: 单个
+    /// vat (整组共用) + 多条纱支变体 (厂名 / 规格 / 个数). 长度可短于 cart,
+    /// 缺位按空 meta 兜底; 长了多余忽略.
     #[serde(default)]
     pub per_formula: Vec<PreviewFormulaMetaCmd>,
-    /// "standard" (默认) 或 "grid" — 选择批次单渲染版本.
+    /// "standard" 或 "grid" — 选择批次单渲染版本. None 时走应用默认.
     #[serde(default)]
     pub layout: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
 pub struct PreviewFormulaMetaCmd {
+    /// 缸号 (含缸次). 同一配方所有纱支变体共用.
     pub vat_number: Option<String>,
-    pub yarn_count: Option<String>,
+    #[serde(default)]
+    pub yarns: Vec<PreviewYarnEntryCmd>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct PreviewYarnEntryCmd {
+    pub mill: Option<String>,
+    pub spec: Option<String>,
+    pub count: Option<String>,
 }
 
 // ---------- Backup ----------

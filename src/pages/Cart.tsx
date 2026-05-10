@@ -27,18 +27,27 @@ import {
 } from '@/components/ui/table';
 import { formatGrams } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ComboboxInput } from '@/components/ComboboxInput';
 import {
+  emptyEntry,
+  emptyMeta,
   lineKey,
   useBatchSheetInfoStore,
+  type PerFormulaEntry,
   type PerFormulaMeta,
 } from '@/store/batchSheetInfo';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
+import { useSettingsStore } from '@/store/settings';
+import { useYarnSettingsStore } from '@/store/yarnSettings';
 
 export function CartPage() {
   const session = useSessionStore((s) => s.session);
   const hasWs = hasActiveWorkspace(session);
   const activeWorkspaceId = session?.active_workspace_id ?? null;
   const setBatchSheetInfo = useBatchSheetInfoStore((s) => s.setInfo);
+  const yarnMills = useYarnSettingsStore((s) => s.mills);
+  const yarnSpecs = useYarnSettingsStore((s) => s.specs);
+  const singleYarnWeight = useSettingsStore((s) => s.singleYarnWeightKg);
   const [lines, setLines] = useState<CartLineView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState<string>('');
@@ -53,10 +62,10 @@ export function CartPage() {
   const [promptPerFormula, setPromptPerFormula] = useState<PerFormulaMeta[]>([]);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
-  // 预览版本 toggle: standard (每条一段) 或 grid (A4 四宫格). 用户在
-  // 预览框右上角切换, 切换时重新请求对应 HTML.
+  // 预览版本 toggle: grid (A4 四宫格, 默认) 或 standard (每条一段). 用户
+  // 在预览框右上角切换, 切换时重新请求对应 HTML.
   const [previewLayout, setPreviewLayout] =
-    useState<'standard' | 'grid'>('standard');
+    useState<'standard' | 'grid'>('grid');
 
   const load = () => {
     if (!hasWs) {
@@ -135,15 +144,94 @@ export function CartPage() {
     setPromptPerFormula(
       lines.map((line) => {
         const meta = saved?.perFormula[lineKey(line.source_kind, line.source_formula_id)];
-        return { vat: meta?.vat ?? '', yarn: meta?.yarn ?? '' };
+        const totalMax = totalCountFor(line.target_kg, singleYarnWeight);
+        if (!meta) {
+          // 全新配方: 第一条 entry 用 总重 / 单个重 兜底, 用户可改.
+          return {
+            vat: '',
+            batch: '',
+            entries: [{ yarnMill: '', yarnSpec: '', count: formatCount(totalMax) }],
+          };
+        }
+        // 已存档的: count 空时用 "剩余" 兜底 (按当前 entries 顺序减已设置).
+        let usedSum = 0;
+        const filled = meta.entries.map((e) => {
+          let count = e.count;
+          if (!count.trim()) {
+            count = formatCount(Math.max(0, totalMax - usedSum));
+          }
+          const n = parseFloat(count);
+          if (Number.isFinite(n)) usedSum += n;
+          return { ...e, count };
+        });
+        return {
+          vat: meta.vat ?? '',
+          batch: meta.batch ?? '',
+          entries: filled.length > 0 ? filled : [emptyEntry()],
+        };
       }),
     );
     setPromptOpen(true);
   };
 
-  const updatePromptMeta = (idx: number, patch: Partial<PerFormulaMeta>) =>
+  // 改配方顶层字段 (缸号 / 缸次), 整组纱支共用.
+  const updatePromptMeta = (
+    formulaIdx: number,
+    patch: Partial<Pick<PerFormulaMeta, 'vat' | 'batch'>>,
+  ) =>
     setPromptPerFormula((prev) =>
-      prev.map((m, i) => (i === idx ? { ...m, ...patch } : m)),
+      prev.map((m, i) => (i === formulaIdx ? { ...m, ...patch } : m)),
+    );
+
+  // 改某条纱支变体字段 (厂名 / 规格).
+  const updatePromptEntry = (
+    formulaIdx: number,
+    entryIdx: number,
+    patch: Partial<PerFormulaEntry>,
+  ) =>
+    setPromptPerFormula((prev) =>
+      prev.map((m, i) =>
+        i === formulaIdx
+          ? {
+              ...m,
+              entries: m.entries.map((e, j) => (j === entryIdx ? { ...e, ...patch } : e)),
+            }
+          : m,
+      ),
+    );
+
+  // "+ 加一组纱支": 在该配方末尾追加一条新 entry. 缸号 / 缸次不变 (跟着
+  // 配方走). count 默认 = 总重/单个重 - 已设置 entries 的 count 之和;
+  // 厂名 / 规格留空让用户填.
+  const addPromptEntry = (formulaIdx: number) =>
+    setPromptPerFormula((prev) =>
+      prev.map((m, i) => {
+        if (i !== formulaIdx) return m;
+        const line = lines[formulaIdx];
+        const totalMax = line ? totalCountFor(line.target_kg, singleYarnWeight) : 0;
+        const usedSum = m.entries.reduce((acc, e) => {
+          const n = parseFloat(e.count);
+          return acc + (Number.isFinite(n) ? n : 0);
+        }, 0);
+        const remaining = Math.max(0, totalMax - usedSum);
+        return {
+          ...m,
+          entries: [
+            ...m.entries,
+            { yarnMill: '', yarnSpec: '', count: formatCount(remaining) },
+          ],
+        };
+      }),
+    );
+
+  // 删除该配方下某条 entry. 至少保留 1 条.
+  const removePromptEntry = (formulaIdx: number, entryIdx: number) =>
+    setPromptPerFormula((prev) =>
+      prev.map((m, i) => {
+        if (i !== formulaIdx) return m;
+        if (m.entries.length <= 1) return { ...m, entries: [emptyEntry()] };
+        return { ...m, entries: m.entries.filter((_, j) => j !== entryIdx) };
+      }),
     );
 
   // 把当前 prompt 输入持久化到 batchSheetInfo store, 按工作区维度存. 入口:
@@ -158,8 +246,18 @@ export function CartPage() {
     perFormula.forEach((m, i) => {
       const line = lines[i];
       if (!line) return;
-      if (m.vat || m.yarn) {
-        map[lineKey(line.source_kind, line.source_formula_id)] = m;
+      const nonEmptyEntries = m.entries.filter(
+        (e) => e.yarnMill || e.yarnSpec || e.count.trim(),
+      );
+      const hasAny = m.vat || m.batch || nonEmptyEntries.length > 0;
+      if (hasAny) {
+        map[lineKey(line.source_kind, line.source_formula_id)] = {
+          vat: m.vat,
+          batch: m.batch,
+          // 至少保留 1 条 entry (即便全空), 重开 prompt 还能渲染那一行
+          // 输入框. 全空 entry 在生成预览时会过滤掉.
+          entries: nonEmptyEntries.length > 0 ? nonEmptyEntries : [emptyEntry()],
+        };
       }
     });
     setBatchSheetInfo(activeWorkspaceId, { customer, perFormula: map });
@@ -177,9 +275,16 @@ export function CartPage() {
     try {
       const html = await cartApi.previewHtml({
         customer: customer || null,
+        // 一份配方一格 (四宫格) / 一段 (标准), 不论多少组纱支变体. 缸号 /
+        // 缸次 拼成单个 vat_number 整组共用; 多组纱支以 yarns 数组里的多
+        // 条变体 (厂名 / 规格 / 个数) 展示成内联多行.
         perFormula: promptPerFormula.map((m) => ({
-          vatNumber: m.vat.trim() || null,
-          yarnCount: m.yarn.trim() || null,
+          vatNumber: combineDash(m.vat, m.batch),
+          yarns: m.entries.map((e) => ({
+            mill: e.yarnMill || null,
+            spec: e.yarnSpec || null,
+            count: e.count.trim() || null,
+          })),
         })),
         layout,
       });
@@ -197,8 +302,8 @@ export function CartPage() {
     persistPromptInfo(promptCustomer, promptPerFormula);
     setPromptOpen(false);
     setPrintCustomer(customer || workspaceName);
-    // 进预览默认 standard 版本; 用户可在右上角切到 grid.
-    await fetchPreview('standard');
+    // 进预览默认 grid (四宫格); 用户可在右上角切到 standard.
+    await fetchPreview('grid');
   };
 
   const onPrintPreview = () => {
@@ -360,7 +465,7 @@ export function CartPage() {
           if (!o) onCancelPrompt();
         }}
       >
-        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col gap-0 p-0">
+        <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 p-0">
           <DialogHeader className="shrink-0 border-b px-6 py-4">
             <DialogTitle>批次单信息</DialogTitle>
           </DialogHeader>
@@ -376,43 +481,102 @@ export function CartPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>每条配方的缸号 / 纱支（留空则不显示）</Label>
-              <div className="space-y-2">
-                {lines.map((line, idx) => (
-                  <div
-                    key={`${line.source_kind}-${line.source_formula_id}-${idx}`}
-                    className="grid grid-cols-12 items-end gap-2"
-                  >
-                    <div className="col-span-4 truncate text-sm">
-                      <span className="font-medium">
-                        {line.internal_color_code ?? '（已删除）'}
-                      </span>
-                      {line.color_family && (
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          · {line.color_family}
-                        </span>
-                      )}
+              <Label>每条配方的 缸号 · 缸次 + 纱支厂名 · 规格 · 个数（同一配方可加多份不同纱支）</Label>
+              <div className="space-y-3">
+                {lines.map((line, idx) => {
+                  const meta = promptPerFormula[idx] ?? emptyMeta();
+                  const entries = meta.entries.length > 0 ? meta.entries : [emptyEntry()];
+                  return (
+                    <div
+                      key={`${line.source_kind}-${line.source_formula_id}-${idx}`}
+                      className="space-y-2 rounded-md border p-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 truncate text-sm">
+                          <span className="font-medium">
+                            {line.internal_color_code ?? '（已删除）'}
+                          </span>
+                          {line.color_family && (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              · {line.color_family}
+                            </span>
+                          )}
+                        </div>
+                        <Input
+                          value={meta.vat}
+                          onChange={(e) =>
+                            updatePromptMeta(idx, { vat: e.target.value })
+                          }
+                          placeholder="缸号"
+                          inputMode="numeric"
+                          className="w-24"
+                        />
+                        <Input
+                          value={meta.batch}
+                          onChange={(e) =>
+                            updatePromptMeta(idx, { batch: e.target.value })
+                          }
+                          placeholder="缸次"
+                          inputMode="numeric"
+                          className="w-24"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        {entries.map((entry, entryIdx) => (
+                          <div key={entryIdx} className="flex items-center gap-2">
+                            <div className="grid flex-1 grid-cols-[1fr_1fr_5rem] gap-2">
+                              <ComboboxInput
+                                value={entry.yarnMill}
+                                onChange={(v) =>
+                                  updatePromptEntry(idx, entryIdx, { yarnMill: v })
+                                }
+                                options={yarnMills}
+                                placeholder="纱支厂名"
+                              />
+                              <ComboboxInput
+                                value={entry.yarnSpec}
+                                onChange={(v) =>
+                                  updatePromptEntry(idx, entryIdx, { yarnSpec: v })
+                                }
+                                options={yarnSpecs}
+                                placeholder="纱支规格"
+                              />
+                              <Input
+                                value={entry.count}
+                                onChange={(e) =>
+                                  updatePromptEntry(idx, entryIdx, {
+                                    count: e.target.value,
+                                  })
+                                }
+                                placeholder="个数"
+                                inputMode="decimal"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removePromptEntry(idx, entryIdx)}
+                              aria-label="删除这组纱支"
+                              disabled={entries.length === 1}
+                              className="shrink-0"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addPromptEntry(idx)}
+                      >
+                        + 加一组纱支
+                      </Button>
                     </div>
-                    <div className="col-span-4">
-                      <Input
-                        value={promptPerFormula[idx]?.vat ?? ''}
-                        onChange={(e) =>
-                          updatePromptMeta(idx, { vat: e.target.value })
-                        }
-                        placeholder="缸号（例：5-2）"
-                      />
-                    </div>
-                    <div className="col-span-4">
-                      <Input
-                        value={promptPerFormula[idx]?.yarn ?? ''}
-                        onChange={(e) =>
-                          updatePromptMeta(idx, { yarn: e.target.value })
-                        }
-                        placeholder="纱支（例：32S/2）"
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -444,28 +608,28 @@ export function CartPage() {
               <button
                 type="button"
                 disabled={previewBusy}
-                onClick={() => previewLayout !== 'standard' && fetchPreview('standard')}
-                className={cn(
-                  'rounded-l-md px-5 py-2 text-sm font-medium transition-colors',
-                  previewLayout === 'standard'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-foreground hover:bg-accent',
-                )}
-              >
-                标准
-              </button>
-              <button
-                type="button"
-                disabled={previewBusy}
                 onClick={() => previewLayout !== 'grid' && fetchPreview('grid')}
                 className={cn(
-                  'rounded-r-md border-l px-5 py-2 text-sm font-medium transition-colors',
+                  'rounded-l-md px-5 py-2 text-sm font-medium transition-colors',
                   previewLayout === 'grid'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-foreground hover:bg-accent',
                 )}
               >
                 四宫格
+              </button>
+              <button
+                type="button"
+                disabled={previewBusy}
+                onClick={() => previewLayout !== 'standard' && fetchPreview('standard')}
+                className={cn(
+                  'rounded-r-md border-l px-5 py-2 text-sm font-medium transition-colors',
+                  previewLayout === 'standard'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground hover:bg-accent',
+                )}
+              >
+                标准
               </button>
             </div>
           </DialogHeader>
@@ -502,6 +666,29 @@ export function CartPage() {
 function sanitizeForFilename(s: string): string {
   // eslint-disable-next-line no-control-regex
   return s.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim();
+}
+
+/// 用 "-" 拼两个字符串, 任一为空则只返回非空那个; 全空返回 null. 用于
+/// 缸号-缸次 → "5-2".
+function combineDash(a: string, b: string): string | null {
+  const x = a.trim();
+  const y = b.trim();
+  if (!x && !y) return null;
+  if (x && y) return `${x}-${y}`;
+  return x || y;
+}
+
+/// 总纱支个数 = 配方目标 kg / 单个纱支重量. 任一非法返回 0.
+function totalCountFor(targetKg: number, singleWeightKg: number): number {
+  if (!Number.isFinite(targetKg) || targetKg <= 0) return 0;
+  if (!Number.isFinite(singleWeightKg) || singleWeightKg <= 0) return 0;
+  return targetKg / singleWeightKg;
+}
+
+/// 个数显示成最多 2 位小数, 末尾零去掉; 非有限或负值显示空串.
+function formatCount(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '';
+  return Number(n.toFixed(2)).toString();
 }
 
 export default CartPage;

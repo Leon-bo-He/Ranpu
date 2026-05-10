@@ -38,13 +38,18 @@ export const cartApi = {
 
   /// 渲染当前批次清单为 HTML 字符串, 不落盘. 用于 iframe 预览 / 打印.
   /// customer 写到批次单头部 (空则后端 fallback 当前工作区名).
-  /// perFormula 跟 list() 返回的购物车顺序对齐, 每条配方独立的缸号 / 纱支.
-  /// layout: 'standard' (默认每条一段) 或 'grid' (A4 四宫格).
+  /// perFormula 跟 list() 返回的购物车顺序对齐. 每条 cart line 一份元信息:
+  /// 单个 vat (整组共用) + 多条纱支变体 (厂名 / 规格 / 个数).
+  /// layout: 'standard' 或 'grid' (A4 四宫格, 默认).
   previewHtml: (args: {
     customer?: string | null;
     perFormula?: Array<{
       vatNumber?: string | null;
-      yarnCount?: string | null;
+      yarns?: Array<{
+        mill?: string | null;
+        spec?: string | null;
+        count?: string | null;
+      }>;
     }>;
     layout?: 'standard' | 'grid';
   } = {}) =>
@@ -53,7 +58,11 @@ export const cartApi = {
         customer: args.customer ?? null,
         per_formula: (args.perFormula ?? []).map((m) => ({
           vat_number: m.vatNumber ?? null,
-          yarn_count: m.yarnCount ?? null,
+          yarns: (m.yarns ?? []).map((y) => ({
+            mill: y.mill ?? null,
+            spec: y.spec ?? null,
+            count: y.count ?? null,
+          })),
         })),
         layout: args.layout ?? null,
       },

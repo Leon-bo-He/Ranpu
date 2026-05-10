@@ -3,7 +3,7 @@ use std::path::Path;
 use chrono::Local;
 
 use crate::application::ports::batch_sheet_exporter::{
-    BatchSheetContext, BatchSheetError, BatchSheetExporter, BatchSheetFormat,
+    BatchSheetContext, BatchSheetError, BatchSheetExporter, BatchSheetFormat, FormulaMeta,
 };
 use crate::domain::calculation::dye_calculator::CalculationResult;
 
@@ -126,7 +126,7 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
   }
   th { background-color: #f3f3f3; }
   th.num { text-align: right; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: #000; }
   body {
     font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
     color: #1f1f1f;
@@ -173,8 +173,9 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     html.push_str("</span></div>\n");
     html.push_str("  </div>\n");
 
+    let empty_meta = FormulaMeta::default();
     for (idx, r) in results.iter().enumerate() {
-        let meta = context.per_formula.get(idx).copied().unwrap_or_default();
+        let meta = context.per_formula.get(idx).unwrap_or(&empty_meta);
         html.push_str(r#"  <div class="formula">"#);
         html.push('\n');
         html.push_str(&format!(
@@ -183,9 +184,9 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
             format_amount(r.target_kg.value()),
         ));
         html.push('\n');
-        // 色系 / 缸号 / 纱支 写在 h2 下面一行 (而非顶部 meta), 因为这几项
-        // 每个配方各自不同 — 色系跟着配方走, 缸号 / 纱支跟着染色锅 / 纱卷走.
-        if meta.color_family.is_some() || meta.vat_number.is_some() || meta.yarn_count.is_some() {
+        // 色系 / 缸号 / 纱支 写在 h2 下面一行. 纱支可能有多条变体,
+        // 同一段内逐行展示 ("厂名 规格   N 个").
+        if meta.color_family.is_some() || meta.vat_number.is_some() || !meta.yarns.is_empty() {
             html.push_str(r#"    <div class="formula-meta">"#);
             html.push('\n');
             if let Some(family) = meta.color_family {
@@ -200,11 +201,14 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
                     html_escape(vat),
                 ));
             }
-            if let Some(yarn) = meta.yarn_count {
-                html.push_str(&format!(
-                    "      <span class=\"label\">纱支:</span><span class=\"value\">{}</span>\n",
-                    html_escape(yarn),
-                ));
+            for y in &meta.yarns {
+                let label = format_yarn_line(y.mill, y.spec, y.count);
+                if !label.is_empty() {
+                    html.push_str(&format!(
+                        "      <span class=\"label\">纱支:</span><span class=\"value\">{}</span>\n",
+                        html_escape(&label),
+                    ));
+                }
             }
             html.push_str("    </div>\n");
         }
@@ -214,7 +218,7 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
         let th_style = "border:1px solid #ccc;padding:6px 10px;text-align:left;background-color:#f3f3f3;";
         let th_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;background-color:#f3f3f3;";
         let td_style = "border:1px solid #ccc;padding:6px 10px;text-align:left;";
-        let td_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;";
+        let td_num_style = "border:1px solid #ccc;padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:#000;";
         html.push_str(
             "    <table style=\"border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed;\">\n",
         );
@@ -275,16 +279,19 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
   .grid-page { display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); width: 100%; height: 281mm; page-break-after: always; grid-auto-flow: row dense; }
   .grid-page:last-child { page-break-after: auto; }
-  .cell { border: 1px dashed #999; padding: 7mm 6mm 10mm 6mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 13px; line-height: 1.5; }
+  .cell { border: 1px dashed #999; padding: 9mm 8mm 14mm 8mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 17px; line-height: 1.6; }
   .cell.wide { grid-row: span 2; }
-  .vat { font-size: 22px; font-weight: bold; line-height: 1.2; margin-bottom: 3px; }
-  .meta-line { font-size: 14px; margin-bottom: 2px; }
-  .divider { border: 0; border-top: 1.5px solid #1f1f1f; margin: 6px 0 7px; }
-  .dye-row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .vat { font-size: 32px; font-weight: bold; line-height: 1.2; margin-bottom: 6px; }
+  .meta-line { font-size: 19px; margin-bottom: 4px; }
+  .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 18px 0 18px; }
+  .dye-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 17px; }
   .dye-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dye-row .grams { font-variant-numeric: tabular-nums; }
-  .corner-l { position: absolute; bottom: 3mm; left: 5mm; font-size: 11px; color: #888; }
-  .corner-r { position: absolute; bottom: 3mm; right: 5mm; font-size: 11px; color: #888; }
+  .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: 700; color: #000; }
+  .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 19px; margin-bottom: 4px; }
+  .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .corner-l { position: absolute; bottom: 4mm; left: 6mm; font-size: 13px; color: #888; }
+  .corner-r { position: absolute; bottom: 4mm; right: 6mm; font-size: 13px; color: #888; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
@@ -332,7 +339,7 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
         }
 
         let (idx, r) = queue.pop_front().expect("front exists");
-        let meta = context.per_formula.get(idx).copied().unwrap_or_default();
+        let meta = context.per_formula.get(idx).cloned().unwrap_or_default();
         let class = if wide { "cell wide" } else { "cell" };
         html.push_str(&format!("  <div class=\"{class}\">\n"));
 
@@ -358,12 +365,23 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
             "    <div class=\"meta-line\">{}</div>\n",
             html_escape(&third),
         ));
-        // 第四排 纱支
-        let yarn_display = meta.yarn_count.unwrap_or("—");
-        html.push_str(&format!(
-            "    <div class=\"meta-line\">{}</div>\n",
-            html_escape(yarn_display),
-        ));
+        // 纱支多行: 一条变体一行 ("厂名 规格   N 个"). 没填的话用 "—" 占
+        // 一行作为 placeholder 维持视觉骨架.
+        if meta.yarns.is_empty() {
+            html.push_str(
+                "    <div class=\"meta-line\">—</div>\n",
+            );
+        } else {
+            for y in &meta.yarns {
+                let name = format_yarn_name(y.mill, y.spec);
+                let count = y.count.map(|c| format!("{c} 个"));
+                html.push_str(&format!(
+                    "    <div class=\"yarn-row\"><span class=\"name\">{}</span><span class=\"count\">{}</span></div>\n",
+                    html_escape(if name.is_empty() { "—" } else { &name }),
+                    html_escape(count.as_deref().unwrap_or("")),
+                ));
+            }
+        }
         html.push_str("    <hr class=\"divider\" />\n");
         // 染料明细
         for l in &r.lines {
@@ -406,6 +424,28 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
 
     html.push_str("</body>\n</html>\n");
     html
+}
+
+/// "厂名 规格" 拼字符串. 任一为空就只返回非空那部分; 全空返回空串.
+fn format_yarn_name(mill: Option<&str>, spec: Option<&str>) -> String {
+    match (mill, spec) {
+        (Some(m), Some(s)) => format!("{m} {s}"),
+        (Some(m), None) => m.to_owned(),
+        (None, Some(s)) => s.to_owned(),
+        (None, None) => String::new(),
+    }
+}
+
+/// 标准格式 "色系/缸号/纱支" meta 段里, 一条纱支变体的单行文本:
+/// "{厂名} {规格}   {count} 个". 全空返回空串, 调用方会跳过.
+fn format_yarn_line(mill: Option<&str>, spec: Option<&str>, count: Option<&str>) -> String {
+    let name = format_yarn_name(mill, spec);
+    match (name.as_str(), count) {
+        ("", None) => String::new(),
+        ("", Some(c)) => format!("{c} 个"),
+        (n, None) => n.to_owned(),
+        (n, Some(c)) => format!("{n}    {c} 个"),
+    }
 }
 
 fn csv_escape(s: &str) -> String {
