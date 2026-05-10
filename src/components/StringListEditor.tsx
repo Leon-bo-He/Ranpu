@@ -55,10 +55,10 @@ export function StringListEditor({
 
   return (
     <div className="space-y-2">
-      <div className="space-y-1">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
         {values.map((v, i) => (
-          // key 包含 v 让 onChange 把列表替换后, 对应行的 defaultValue 跟着刷.
-          <div key={`${i}-${v}`} className="flex items-center gap-2">
+          // key 包含 v: 列表 onChange 后该行的 defaultValue 跟着刷新.
+          <div key={`${i}-${v}`} className="flex items-center gap-1">
             <Input
               defaultValue={v}
               placeholder={itemPlaceholder}
@@ -69,7 +69,7 @@ export function StringListEditor({
                   (e.target as HTMLInputElement).blur();
                 }
               }}
-              className="h-9"
+              className="h-9 min-w-0"
             />
             <Button
               type="button"
@@ -77,14 +77,14 @@ export function StringListEditor({
               size="icon"
               onClick={() => onRemove(i)}
               aria-label="删除"
-              className="shrink-0"
+              className="h-8 w-8 shrink-0"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pt-1">
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -95,7 +95,7 @@ export function StringListEditor({
             }
           }}
           placeholder={newPlaceholder}
-          className="h-9"
+          className="h-9 max-w-xs"
         />
         <Button
           type="button"

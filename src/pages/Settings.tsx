@@ -173,7 +173,7 @@ export function SettingsPage() {
             还原默认
           </Button>
         </CardHeader>
-        <CardContent className="grid gap-2 max-w-md">
+        <CardContent className="grid gap-2 max-w-2xl">
           <StringListEditor
             values={yarnMills}
             onChange={setYarnMills}
@@ -197,7 +197,7 @@ export function SettingsPage() {
             还原默认
           </Button>
         </CardHeader>
-        <CardContent className="grid gap-2 max-w-md">
+        <CardContent className="grid gap-2 max-w-2xl">
           <StringListEditor
             values={yarnSpecs}
             onChange={setYarnSpecs}
