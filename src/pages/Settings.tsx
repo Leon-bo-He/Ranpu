@@ -221,7 +221,9 @@ export function SettingsPage() {
         <CardContent>
           <div className="flex items-center justify-between gap-4">
             <p className="text-xs text-muted-foreground">
-              清空整个数据目录（默认配方、工作区、批次清单、审计日志和启动口令），且不可恢复。需要输入启动口令并明文确认。完成后软件自动重启，回到首次设置界面。
+              清空整个数据目录（默认配方、工作区、批次清单、审计日志、启动口令），不可恢复。
+              <br />
+              需要启动口令 + 明文确认，完成后软件自动重启回到首次设置界面。
             </p>
             <Button
               variant="destructive"
