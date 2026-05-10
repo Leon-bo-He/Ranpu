@@ -29,6 +29,10 @@ import { formatGrams } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ComboboxInput } from '@/components/ComboboxInput';
 import {
+  UnknownYarnPromptDialog,
+  type UnknownYarnEntry,
+} from '@/components/UnknownYarnPromptDialog';
+import {
   emptyEntry,
   emptyMeta,
   lineKey,
@@ -47,6 +51,8 @@ export function CartPage() {
   const setBatchSheetInfo = useBatchSheetInfoStore((s) => s.setInfo);
   const yarnMills = useYarnSettingsStore((s) => s.mills);
   const yarnSpecs = useYarnSettingsStore((s) => s.specs);
+  const setYarnMills = useYarnSettingsStore((s) => s.setMills);
+  const setYarnSpecs = useYarnSettingsStore((s) => s.setSpecs);
   const singleYarnWeight = useSettingsStore((s) => s.singleYarnWeightKg);
   const [lines, setLines] = useState<CartLineView[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +72,9 @@ export function CartPage() {
   // 在预览框右上角切换, 切换时重新请求对应 HTML.
   const [previewLayout, setPreviewLayout] =
     useState<'standard' | 'grid'>('grid');
+  // 提交 prompt 时如果发现新词 (不在 yarnMills / yarnSpecs 里), 暂存 +
+  // 弹 dialog 让用户决定加不加进库.
+  const [unknownYarns, setUnknownYarns] = useState<UnknownYarnEntry[]>([]);
 
   const load = () => {
     if (!hasWs) {
@@ -308,12 +317,75 @@ export function CartPage() {
   };
 
   const onConfirmPreview = async () => {
+    // 扫一遍 prompt 里的厂名 / 规格, 找出不在库里的新词 — 用户可能临时
+    // 输入了新厂名 / 新规格. 同一个新词出现多次只问一次. 比对大小写 +
+    // 首尾空白都忽略.
+    const millSet = new Set(yarnMills.map((s) => s.trim().toLowerCase()));
+    const specSet = new Set(yarnSpecs.map((s) => s.trim().toLowerCase()));
+    const seen = new Set<string>();
+    const unknowns: UnknownYarnEntry[] = [];
+    for (const m of promptPerFormula) {
+      for (const e of m.entries) {
+        const mill = e.yarnMill.trim();
+        if (mill) {
+          const key = `mill:${mill.toLowerCase()}`;
+          if (!millSet.has(mill.toLowerCase()) && !seen.has(key)) {
+            seen.add(key);
+            unknowns.push({ kind: 'mill', value: mill });
+          }
+        }
+        const spec = e.yarnSpec.trim();
+        if (spec) {
+          const key = `spec:${spec.toLowerCase()}`;
+          if (!specSet.has(spec.toLowerCase()) && !seen.has(key)) {
+            seen.add(key);
+            unknowns.push({ kind: 'spec', value: spec });
+          }
+        }
+      }
+    }
+    if (unknowns.length > 0) {
+      setUnknownYarns(unknowns);
+      return; // dialog 流程会接着调 doProceedPreview
+    }
+    await doProceedPreview();
+  };
+
+  /// 实际跳预览: 把客户名 + 配方信息持久化, 关 prompt, 拉 HTML.
+  const doProceedPreview = async () => {
     const customer = promptCustomer.trim();
     persistPromptInfo(promptCustomer, promptPerFormula);
     setPromptOpen(false);
     setPrintCustomer(customer || workspaceName);
     // 进预览默认 grid (四宫格); 用户可在右上角切到 standard.
     await fetchPreview('grid');
+  };
+
+  /// UnknownYarnPromptDialog 确认回调: 把选中的新词加进 yarnSettings store,
+  /// 然后继续跳预览. 取消 (cancel) 也跳预览 — 用户已经确认过 prompt 内容,
+  /// 不让 "加不加进库" 的小决策挡住主流程.
+  const onUnknownYarnsResolved = (toAdd: UnknownYarnEntry[]) => {
+    if (toAdd.length > 0) {
+      const newMills = toAdd
+        .filter((u) => u.kind === 'mill')
+        .map((u) => u.value);
+      const newSpecs = toAdd
+        .filter((u) => u.kind === 'spec')
+        .map((u) => u.value);
+      if (newMills.length > 0) {
+        setYarnMills([...yarnMills, ...newMills]);
+      }
+      if (newSpecs.length > 0) {
+        setYarnSpecs([...yarnSpecs, ...newSpecs]);
+      }
+    }
+    setUnknownYarns([]);
+    void doProceedPreview();
+  };
+
+  const onUnknownYarnsCancel = () => {
+    // 用户点取消视为 "返回继续改 prompt", 不跳预览.
+    setUnknownYarns([]);
   };
 
   const onPrintPreview = () => {
@@ -668,6 +740,13 @@ export function CartPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UnknownYarnPromptDialog
+        open={unknownYarns.length > 0}
+        unknowns={unknownYarns}
+        onConfirm={onUnknownYarnsResolved}
+        onCancel={onUnknownYarnsCancel}
+      />
     </div>
   );
 }
