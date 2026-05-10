@@ -243,10 +243,11 @@ fn render_html(results: &[CalculationResult], context: BatchSheetContext<'_>) ->
     html
 }
 
-/// 九宫格 / 多页 A4 打印格式. 一页 3x3 = 9 格, 虚线分割; 染料 ≥ 8 的配方
-/// 跨 2 列独享一格. 没有顶部 meta 段 — 客户 / 缸号 / 纱支 / 色号 / 色系
+/// 四宫格 / 多页 A4 打印格式. 一页 2x2 = 4 格, 虚线分割; 染料 ≥ 8 的配方
+/// 跨 2 行独享一整列. 没有顶部 meta 段 — 客户 / 缸号 / 纱支 / 色号 / 色系
 /// 都进每个格子里.
 const GRID_WIDE_THRESHOLD: usize = 8;
+const GRID_CELLS_PER_PAGE: usize = 4;
 
 fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
     let now = Local::now();
@@ -256,9 +257,9 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
         None => format!("批次单-{date_full}"),
     };
 
-    // 把 results 切分到 page-cells: 每页最多 9 columns. 跨 2 列的算 2.
-    // CSS Grid auto-flow 会自动布局, Rust 这边只负责按顺序输出 cell + 在
-    // 累计 columns 达到 9 时插入 page break.
+    // 把 results 切分到 page-cells: 每页最多 GRID_CELLS_PER_PAGE 个 slot.
+    // 跨 2 行的 wide 配方算 2. CSS Grid auto-flow 自动布局, Rust 只负责按
+    // 顺序输出 cell + 在累计达到上限时插入 page break.
     let total = results.len();
 
     let mut html = String::new();
@@ -272,7 +273,7 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
         r#"<style>
   @page { size: A4; margin: 8mm; }
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
-  .grid-page { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 281mm; page-break-after: always; grid-auto-flow: row dense; }
+  .grid-page { display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); width: 100%; height: 281mm; page-break-after: always; grid-auto-flow: row dense; }
   .grid-page:last-child { page-break-after: auto; }
   .cell { border: 1px dashed #999; padding: 7mm 6mm 10mm 6mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 13px; line-height: 1.5; }
   .cell.wide { grid-row: span 2; }
@@ -293,10 +294,10 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
 "#,
     );
 
-    // 把 results 塞进 grid-page. 一页 9 个 cell-slot, 宽配方占 2 个.
-    // 用 VecDeque + lookahead-swap: 当队首装不下时, 往后找第一个能塞进
-    // 当前页剩余空间的配方, 调上来填. 这样宽配方留下的 1 格空隙不会
-    // 浪费, 也不需要等 CSS dense (dense 只能跨同页, 跨页无效).
+    // 把 results 塞进 grid-page. 一页 GRID_CELLS_PER_PAGE 个 cell-slot,
+    // 宽配方占 2 个. 用 VecDeque + lookahead-swap: 当队首装不下时, 往后
+    // 找第一个能塞进当前页剩余空间的配方, 调上来填. 这样宽配方留下的
+    // 空隙不会浪费, 也不需要等 CSS dense (dense 只能跨同页, 跨页无效).
     use std::collections::VecDeque;
     let mut queue: VecDeque<(usize, &CalculationResult)> = results.iter().enumerate().collect();
     let mut cells_used = 0usize;
@@ -311,12 +312,12 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
             page_open = true;
         }
 
-        if cells_used + need > 9 {
+        if cells_used + need > GRID_CELLS_PER_PAGE {
             // 队首塞不下. 往后找第一个能塞下的, 调到队首.
             let swap_pos = queue.iter().enumerate().skip(1).find_map(|(i, (_, f))| {
                 let f_wide = f.lines.len() >= GRID_WIDE_THRESHOLD;
                 let f_need = if f_wide { 2 } else { 1 };
-                if cells_used + f_need <= 9 { Some(i) } else { None }
+                if cells_used + f_need <= GRID_CELLS_PER_PAGE { Some(i) } else { None }
             });
             if let Some(pos) = swap_pos {
                 let item = queue.remove(pos).expect("found above");
@@ -393,7 +394,7 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
         html.push_str("  </div>\n");
 
         cells_used += need;
-        if cells_used >= 9 {
+        if cells_used >= GRID_CELLS_PER_PAGE {
             html.push_str("</div>\n");
             page_open = false;
             cells_used = 0;

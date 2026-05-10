@@ -12,7 +12,7 @@ pub struct PreviewBatchSheetInput {
     /// 每个购物车条目对应的缸号 / 纱支, 顺序跟 list_cart_with_calculations
     /// 返回的 lines 一致 (前端在按 cart 顺序展示, 一对一收集).
     pub per_formula: Vec<PreviewFormulaMetaInput>,
-    /// 渲染版本: Standard = 经典每条配方一段; Grid = A4 九宫格.
+    /// 渲染版本: Standard = 经典每条配方一段; Grid = A4 四宫格.
     /// 默认 Standard.
     pub layout: PreviewLayout,
 }
