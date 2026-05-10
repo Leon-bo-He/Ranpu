@@ -27,18 +27,22 @@ import {
 } from '@/components/ui/table';
 import { formatGrams } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ComboboxInput } from '@/components/ComboboxInput';
 import {
   lineKey,
   useBatchSheetInfoStore,
   type PerFormulaMeta,
 } from '@/store/batchSheetInfo';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
+import { useYarnSettingsStore } from '@/store/yarnSettings';
 
 export function CartPage() {
   const session = useSessionStore((s) => s.session);
   const hasWs = hasActiveWorkspace(session);
   const activeWorkspaceId = session?.active_workspace_id ?? null;
   const setBatchSheetInfo = useBatchSheetInfoStore((s) => s.setInfo);
+  const yarnMills = useYarnSettingsStore((s) => s.mills);
+  const yarnSpecs = useYarnSettingsStore((s) => s.specs);
   const [lines, setLines] = useState<CartLineView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState<string>('');
@@ -135,7 +139,12 @@ export function CartPage() {
     setPromptPerFormula(
       lines.map((line) => {
         const meta = saved?.perFormula[lineKey(line.source_kind, line.source_formula_id)];
-        return { vat: meta?.vat ?? '', yarn: meta?.yarn ?? '' };
+        return {
+          vat: meta?.vat ?? '',
+          batch: meta?.batch ?? '',
+          yarnMill: meta?.yarnMill ?? '',
+          yarnSpec: meta?.yarnSpec ?? '',
+        };
       }),
     );
     setPromptOpen(true);
@@ -158,7 +167,7 @@ export function CartPage() {
     perFormula.forEach((m, i) => {
       const line = lines[i];
       if (!line) return;
-      if (m.vat || m.yarn) {
+      if (m.vat || m.batch || m.yarnMill || m.yarnSpec) {
         map[lineKey(line.source_kind, line.source_formula_id)] = m;
       }
     });
@@ -178,8 +187,10 @@ export function CartPage() {
       const html = await cartApi.previewHtml({
         customer: customer || null,
         perFormula: promptPerFormula.map((m) => ({
-          vatNumber: m.vat.trim() || null,
-          yarnCount: m.yarn.trim() || null,
+          // 后端字段还是 vat_number / yarn_count, 前端把 缸号-缸次 / 厂名 规格
+          // 拼起来传过去. 任一为空就只显示有的那个; 全空则 null 不展示.
+          vatNumber: combineDash(m.vat, m.batch),
+          yarnCount: combineSpace(m.yarnMill, m.yarnSpec),
         })),
         layout,
       });
@@ -360,7 +371,7 @@ export function CartPage() {
           if (!o) onCancelPrompt();
         }}
       >
-        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col gap-0 p-0">
+        <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 p-0">
           <DialogHeader className="shrink-0 border-b px-6 py-4">
             <DialogTitle>批次单信息</DialogTitle>
           </DialogHeader>
@@ -376,43 +387,63 @@ export function CartPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>每条配方的缸号 / 纱支（留空则不显示）</Label>
-              <div className="space-y-2">
-                {lines.map((line, idx) => (
-                  <div
-                    key={`${line.source_kind}-${line.source_formula_id}-${idx}`}
-                    className="grid grid-cols-12 items-end gap-2"
-                  >
-                    <div className="col-span-4 truncate text-sm">
-                      <span className="font-medium">
-                        {line.internal_color_code ?? '（已删除）'}
-                      </span>
-                      {line.color_family && (
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          · {line.color_family}
+              <Label>每条配方的 缸号 · 缸次 · 纱支厂名 · 规格（留空则不显示）</Label>
+              <div className="space-y-3">
+                {lines.map((line, idx) => {
+                  const meta = promptPerFormula[idx] ?? {
+                    vat: '',
+                    batch: '',
+                    yarnMill: '',
+                    yarnSpec: '',
+                  };
+                  return (
+                    <div
+                      key={`${line.source_kind}-${line.source_formula_id}-${idx}`}
+                      className="space-y-2 rounded-md border p-3"
+                    >
+                      <div className="truncate text-sm">
+                        <span className="font-medium">
+                          {line.internal_color_code ?? '（已删除）'}
                         </span>
-                      )}
+                        {line.color_family && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            · {line.color_family}
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <Input
+                          value={meta.vat}
+                          onChange={(e) =>
+                            updatePromptMeta(idx, { vat: e.target.value })
+                          }
+                          placeholder="缸号"
+                          inputMode="numeric"
+                        />
+                        <Input
+                          value={meta.batch}
+                          onChange={(e) =>
+                            updatePromptMeta(idx, { batch: e.target.value })
+                          }
+                          placeholder="缸次"
+                          inputMode="numeric"
+                        />
+                        <ComboboxInput
+                          value={meta.yarnMill}
+                          onChange={(v) => updatePromptMeta(idx, { yarnMill: v })}
+                          options={yarnMills}
+                          placeholder="纱支厂名"
+                        />
+                        <ComboboxInput
+                          value={meta.yarnSpec}
+                          onChange={(v) => updatePromptMeta(idx, { yarnSpec: v })}
+                          options={yarnSpecs}
+                          placeholder="纱支规格"
+                        />
+                      </div>
                     </div>
-                    <div className="col-span-4">
-                      <Input
-                        value={promptPerFormula[idx]?.vat ?? ''}
-                        onChange={(e) =>
-                          updatePromptMeta(idx, { vat: e.target.value })
-                        }
-                        placeholder="缸号（例：5-2）"
-                      />
-                    </div>
-                    <div className="col-span-4">
-                      <Input
-                        value={promptPerFormula[idx]?.yarn ?? ''}
-                        onChange={(e) =>
-                          updatePromptMeta(idx, { yarn: e.target.value })
-                        }
-                        placeholder="纱支（例：32S/2）"
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -502,6 +533,26 @@ export function CartPage() {
 function sanitizeForFilename(s: string): string {
   // eslint-disable-next-line no-control-regex
   return s.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim();
+}
+
+/// 用 "-" 拼两个字符串, 任一为空则只返回非空那个; 全空返回 null. 用于
+/// 缸号-缸次 → "5-2".
+function combineDash(a: string, b: string): string | null {
+  const x = a.trim();
+  const y = b.trim();
+  if (!x && !y) return null;
+  if (x && y) return `${x}-${y}`;
+  return x || y;
+}
+
+/// 用空格拼两个字符串, 任一为空则只返回非空那个; 全空返回 null. 用于
+/// 厂名 + 规格 → "博奥 30/2".
+function combineSpace(a: string, b: string): string | null {
+  const x = a.trim();
+  const y = b.trim();
+  if (!x && !y) return null;
+  if (x && y) return `${x} ${y}`;
+  return x || y;
 }
 
 export default CartPage;
