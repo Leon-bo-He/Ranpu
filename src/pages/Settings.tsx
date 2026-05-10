@@ -218,17 +218,20 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-destructive">重置数据库</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 max-w-md">
-          <p className="text-xs text-muted-foreground">
-            清空整个数据目录（默认配方、工作区、批次清单、审计日志和启动口令），且不可恢复。需要输入启动口令并明文确认。完成后软件自动重启，回到首次设置界面。
-          </p>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setAskResetDb(true)}
-          >
-            重置数据库
-          </Button>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              清空整个数据目录（默认配方、工作区、批次清单、审计日志和启动口令），且不可恢复。需要输入启动口令并明文确认。完成后软件自动重启，回到首次设置界面。
+            </p>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setAskResetDb(true)}
+              className="shrink-0"
+            >
+              重置数据库
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
