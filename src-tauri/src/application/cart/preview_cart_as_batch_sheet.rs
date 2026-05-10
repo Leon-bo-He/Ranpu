@@ -1,7 +1,7 @@
 use crate::application::cart::service::CartService;
 use crate::application::errors::{AppError, AppResult};
 use crate::application::ports::batch_sheet_exporter::{
-    BatchSheetContext, BatchSheetFormat, FormulaMeta,
+    BatchSheetContext, BatchSheetFormat, FormulaMeta, YarnEntry,
 };
 use crate::application::session_guard::ensure_active_workspace;
 
@@ -9,26 +9,40 @@ use crate::application::session_guard::ensure_active_workspace;
 pub struct PreviewBatchSheetInput {
     /// 客户名 (打印头). None 则 fallback 到当前工作区名称.
     pub customer: Option<String>,
-    /// 每条购物车 line 对应一组元信息列表. 一个配方要打成多份不同纱支的
-    /// 批次单时, 内层放多条 (每条独立的 vat / yarn). 内层空 vec 视为一
-    /// 份空 meta. 顺序跟 list_cart_with_calculations 返回的 lines 一致.
-    pub per_formula: Vec<Vec<PreviewFormulaMetaInput>>,
+    /// 每条 cart line 一份元信息: 单个 vat (整组共用) + 多条纱支变体.
+    /// 长度可短于 cart, 缺位按空 meta 兜底.
+    pub per_formula: Vec<PreviewFormulaMetaInput>,
     /// 渲染版本: Standard = 经典每条配方一段; Grid = A4 四宫格.
-    /// 默认 Standard.
+    /// 默认 Grid (Cart 入口 fetchPreview 也用 grid).
     pub layout: PreviewLayout,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum PreviewLayout {
-    #[default]
     Standard,
+    #[default]
     Grid,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct PreviewFormulaMetaInput {
     pub vat_number: Option<String>,
-    pub yarn_count: Option<String>,
+    pub yarns: Vec<PreviewYarnEntryInput>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PreviewYarnEntryInput {
+    pub mill: Option<String>,
+    pub spec: Option<String>,
+    pub count: Option<String>,
+}
+
+/// 把 String 字段 trim 后空串 → None. 渲染层只看 Some, 不需要再判空.
+fn norm(s: Option<String>) -> Option<String> {
+    s.and_then(|v| {
+        let t = v.trim();
+        if t.is_empty() { None } else { Some(t.to_owned()) }
+    })
 }
 
 impl CartService {
@@ -42,40 +56,51 @@ impl CartService {
         let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         let lines = self.list_cart_with_calculations()?;
 
-        // 复用 export 流程的过滤策略: 只渲染能算出结果的行, 失败行
-        // 留给批次清单页面提示用户先修配方. 同一个 cart line 可能要打多份
-        // 不同纱支 (per_formula[idx] 是个 Vec) — 把 (result, meta) 展开成
-        // 平的输出, 同一条 result 复制 N 份, 每份配上各自的 meta.
-        // 色系直接从 cart line 上拿 (用户不用在 prompt 里再填一次).
+        // 只渲染能算出结果的行, 失败行留给批次清单页面提示用户先修配方.
+        // 同一个 cart line 一份配方 + 一组共用 vat + N 条纱支变体, 渲染时
+        // 这一格 / 段里把多条变体作为内联多行展示, 不再展开成多个独立单元.
         let mut results = Vec::new();
-        let mut metas_owned: Vec<(Option<String>, Option<String>, Option<String>)> = Vec::new();
+        struct OwnedMeta {
+            color_family: Option<String>,
+            vat: Option<String>,
+            yarns: Vec<(Option<String>, Option<String>, Option<String>)>,
+        }
+        let mut metas_owned: Vec<OwnedMeta> = Vec::new();
         for (idx, line) in lines.into_iter().enumerate() {
             if line.calculation.is_err() {
                 continue;
             }
             let family = line.color_family.clone();
             let calc = line.calculation.expect("checked above");
-            // 取这条 line 的元信息列表; 缺失或空 vec 都视为 "一份空 meta"
-            // 兜底, 保证配方至少渲染一次.
-            let line_metas = input.per_formula.get(idx).cloned().unwrap_or_default();
-            let line_metas = if line_metas.is_empty() {
-                vec![PreviewFormulaMetaInput::default()]
-            } else {
-                line_metas
-            };
-            for meta in line_metas {
-                let vat = meta.vat_number.filter(|s| !s.trim().is_empty());
-                let yarn = meta.yarn_count.filter(|s| !s.trim().is_empty());
-                results.push(calc.clone());
-                metas_owned.push((family.clone(), vat, yarn));
-            }
+            results.push(calc);
+            let meta_in = input.per_formula.get(idx).cloned().unwrap_or_default();
+            let yarns: Vec<_> = meta_in
+                .yarns
+                .into_iter()
+                .map(|y| (norm(y.mill), norm(y.spec), norm(y.count)))
+                // 整条 (mill, spec, count) 都为空就不渲染这一行.
+                .filter(|(m, s, c)| m.is_some() || s.is_some() || c.is_some())
+                .collect();
+            metas_owned.push(OwnedMeta {
+                color_family: family,
+                vat: norm(meta_in.vat_number),
+                yarns,
+            });
         }
         let metas: Vec<FormulaMeta<'_>> = metas_owned
             .iter()
-            .map(|(f, v, y)| FormulaMeta {
-                color_family: f.as_deref(),
-                vat_number: v.as_deref(),
-                yarn_count: y.as_deref(),
+            .map(|m| FormulaMeta {
+                color_family: m.color_family.as_deref(),
+                vat_number: m.vat.as_deref(),
+                yarns: m
+                    .yarns
+                    .iter()
+                    .map(|(mill, spec, count)| YarnEntry {
+                        mill: mill.as_deref(),
+                        spec: spec.as_deref(),
+                        count: count.as_deref(),
+                    })
+                    .collect(),
             })
             .collect();
 

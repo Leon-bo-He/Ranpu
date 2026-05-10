@@ -62,10 +62,10 @@ export function CartPage() {
   const [promptPerFormula, setPromptPerFormula] = useState<PerFormulaMeta[]>([]);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
-  // 预览版本 toggle: standard (每条一段) 或 grid (A4 四宫格). 用户在
-  // 预览框右上角切换, 切换时重新请求对应 HTML.
+  // 预览版本 toggle: grid (A4 四宫格, 默认) 或 standard (每条一段). 用户
+  // 在预览框右上角切换, 切换时重新请求对应 HTML.
   const [previewLayout, setPreviewLayout] =
-    useState<'standard' | 'grid'>('standard');
+    useState<'standard' | 'grid'>('grid');
 
   const load = () => {
     if (!hasWs) {
@@ -275,17 +275,17 @@ export function CartPage() {
     try {
       const html = await cartApi.previewHtml({
         customer: customer || null,
-        // 一个配方可能有多组纱支变体, 每组共用配方层的 缸号 / 缸次. 这里
-        // 把每组展开成 (vatNumber=缸号-缸次, yarnCount=厂名 规格) 传给
-        // 后端 — 后端按 (line, entry) 展开成独立批次单. 任一为空就只显示
-        // 有的那个; 全空则 null 不展示.
-        perFormula: promptPerFormula.map((m) => {
-          const vatLabel = combineDash(m.vat, m.batch);
-          return m.entries.map((e) => ({
-            vatNumber: vatLabel,
-            yarnCount: combineSpace(e.yarnMill, e.yarnSpec),
-          }));
-        }),
+        // 一份配方一格 (四宫格) / 一段 (标准), 不论多少组纱支变体. 缸号 /
+        // 缸次 拼成单个 vat_number 整组共用; 多组纱支以 yarns 数组里的多
+        // 条变体 (厂名 / 规格 / 个数) 展示成内联多行.
+        perFormula: promptPerFormula.map((m) => ({
+          vatNumber: combineDash(m.vat, m.batch),
+          yarns: m.entries.map((e) => ({
+            mill: e.yarnMill || null,
+            spec: e.yarnSpec || null,
+            count: e.count.trim() || null,
+          })),
+        })),
         layout,
       });
       setPreviewHtml(html);
@@ -302,8 +302,8 @@ export function CartPage() {
     persistPromptInfo(promptCustomer, promptPerFormula);
     setPromptOpen(false);
     setPrintCustomer(customer || workspaceName);
-    // 进预览默认 standard 版本; 用户可在右上角切到 grid.
-    await fetchPreview('standard');
+    // 进预览默认 grid (四宫格); 用户可在右上角切到 standard.
+    await fetchPreview('grid');
   };
 
   const onPrintPreview = () => {
@@ -608,28 +608,28 @@ export function CartPage() {
               <button
                 type="button"
                 disabled={previewBusy}
-                onClick={() => previewLayout !== 'standard' && fetchPreview('standard')}
-                className={cn(
-                  'rounded-l-md px-5 py-2 text-sm font-medium transition-colors',
-                  previewLayout === 'standard'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-foreground hover:bg-accent',
-                )}
-              >
-                标准
-              </button>
-              <button
-                type="button"
-                disabled={previewBusy}
                 onClick={() => previewLayout !== 'grid' && fetchPreview('grid')}
                 className={cn(
-                  'rounded-r-md border-l px-5 py-2 text-sm font-medium transition-colors',
+                  'rounded-l-md px-5 py-2 text-sm font-medium transition-colors',
                   previewLayout === 'grid'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-foreground hover:bg-accent',
                 )}
               >
                 四宫格
+              </button>
+              <button
+                type="button"
+                disabled={previewBusy}
+                onClick={() => previewLayout !== 'standard' && fetchPreview('standard')}
+                className={cn(
+                  'rounded-r-md border-l px-5 py-2 text-sm font-medium transition-colors',
+                  previewLayout === 'standard'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground hover:bg-accent',
+                )}
+              >
+                标准
               </button>
             </div>
           </DialogHeader>
@@ -675,16 +675,6 @@ function combineDash(a: string, b: string): string | null {
   const y = b.trim();
   if (!x && !y) return null;
   if (x && y) return `${x}-${y}`;
-  return x || y;
-}
-
-/// 用空格拼两个字符串, 任一为空则只返回非空那个; 全空返回 null. 用于
-/// 厂名 + 规格 → "博奥 30/2".
-function combineSpace(a: string, b: string): string | null {
-  const x = a.trim();
-  const y = b.trim();
-  if (!x && !y) return null;
-  if (x && y) return `${x} ${y}`;
   return x || y;
 }
 

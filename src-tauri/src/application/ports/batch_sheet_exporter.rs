@@ -36,12 +36,23 @@ pub struct BatchSheetContext<'a> {
 }
 
 /// 单条配方的额外元信息 — 渲染到该配方块的标题下方.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct FormulaMeta<'a> {
     /// 配方的色系 (从 cart line / formula 取, 不需要用户填).
     pub color_family: Option<&'a str>,
+    /// 缸号 (含缸次, 已拼好的 "X-Y" 格式). 同一配方下所有纱支变体共用.
     pub vat_number: Option<&'a str>,
-    pub yarn_count: Option<&'a str>,
+    /// 纱支变体列表. 一个配方可能要在多种纱支上同时染, 每条变体一行
+    /// "厂名 规格 个数". 空列表表示没填纱支, 渲染时跳过整段.
+    pub yarns: Vec<YarnEntry<'a>>,
+}
+
+/// 单条纱支变体: 厂名 + 规格 + 个数. 各字段独立可空, 渲染时只输出非空段.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct YarnEntry<'a> {
+    pub mill: Option<&'a str>,
+    pub spec: Option<&'a str>,
+    pub count: Option<&'a str>,
 }
 
 /// 把购物车的多条计算结果导出为「批次单」文件（PROMPT 第 297 行）。

@@ -12,7 +12,7 @@ use crate::application::backup::{ExportBackupInput, ImportBackupInput};
 use crate::application::calculation::{CalculateDyeAmountsInput, SearchByCustomerCodeInput};
 use crate::application::cart::{
     AddToCartInput, ExportCartInput, PreviewBatchSheetInput, PreviewFormulaMetaInput,
-    PreviewLayout, RemoveFromCartInput, UpdateCartItemKgInput,
+    PreviewLayout, PreviewYarnEntryInput, RemoveFromCartInput, UpdateCartItemKgInput,
 };
 use crate::application::errors::AppError;
 use crate::application::formula::{
@@ -515,14 +515,17 @@ pub fn cmd_preview_cart_as_batch_sheet_html(
     let per_formula = c
         .per_formula
         .into_iter()
-        .map(|line_metas| {
-            line_metas
+        .map(|m| PreviewFormulaMetaInput {
+            vat_number: m.vat_number,
+            yarns: m
+                .yarns
                 .into_iter()
-                .map(|m| PreviewFormulaMetaInput {
-                    vat_number: m.vat_number,
-                    yarn_count: m.yarn_count,
+                .map(|y| PreviewYarnEntryInput {
+                    mill: y.mill,
+                    spec: y.spec,
+                    count: y.count,
                 })
-                .collect()
+                .collect(),
         })
         .collect();
     let layout = match c.layout.as_deref() {
