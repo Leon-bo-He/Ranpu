@@ -1,3 +1,6 @@
+import { useState } from 'react';
+
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
 import { StringListEditor } from '@/components/StringListEditor';
 import { Button } from '@/components/ui/button';
@@ -17,6 +20,9 @@ import { useYarnSettingsStore } from '@/store/yarnSettings';
 export function SettingsPage() {
   const idleMinutes = useSettingsStore((s) => s.idleTimeoutMinutes);
   const setIdleMinutes = useSettingsStore((s) => s.setIdleTimeoutMinutes);
+
+  const [askResetMills, setAskResetMills] = useState(false);
+  const [askResetSpecs, setAskResetSpecs] = useState(false);
 
   const formulaEdit = useEditModeStore((s) => s.formulaEditEnabled);
   const enableFormula = useEditModeStore((s) => s.enableFormulaEdit);
@@ -110,7 +116,7 @@ export function SettingsPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={resetYarnMills}
+                  onClick={() => setAskResetMills(true)}
                   title="还原默认: 博奥 / 名仁 / 妙虎 / 弘曲"
                 >
                   还原默认
@@ -133,7 +139,7 @@ export function SettingsPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={resetYarnSpecs}
+                  onClick={() => setAskResetSpecs(true)}
                   title="还原默认: 20/2 至 60/3"
                 >
                   还原默认
@@ -150,6 +156,31 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={askResetMills}
+        onClose={() => setAskResetMills(false)}
+        title="还原厂名默认列表？"
+        description="当前厂名将被清空，恢复成内置的 博奥 / 名仁 / 妙虎 / 弘曲。已经手动加的会丢失。"
+        confirmLabel="还原"
+        destructive
+        onConfirm={() => {
+          resetYarnMills();
+          setAskResetMills(false);
+        }}
+      />
+      <ConfirmDialog
+        open={askResetSpecs}
+        onClose={() => setAskResetSpecs(false)}
+        title="还原规格默认列表？"
+        description="当前规格将被清空，恢复成内置的 20/2 至 60/3 共 10 条。已经手动加的会丢失。"
+        confirmLabel="还原"
+        destructive
+        onConfirm={() => {
+          resetYarnSpecs();
+          setAskResetSpecs(false);
+        }}
+      />
     </div>
   );
 }
