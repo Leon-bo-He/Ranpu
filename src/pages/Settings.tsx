@@ -109,8 +109,8 @@ export function SettingsPage() {
           <CardTitle>纱支</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="min-w-0 w-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">厂名</CardTitle>
                 <Button
@@ -133,7 +133,7 @@ export function SettingsPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="min-w-0 w-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">规格</CardTitle>
                 <Button
