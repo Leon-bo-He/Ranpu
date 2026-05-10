@@ -62,6 +62,9 @@ pub struct AppState {
     pub paths: AppPaths,
     pub services: RwLock<Option<Arc<Services>>>,
     pub unlock_passphrase: Mutex<Option<String>>,
+    /// 局域网同步服务. 用户在设置里 toggle 开关时启动 / 停止. 初始 None.
+    /// 第一阶段只做 mDNS 服务发现, 后续 PR 加 HTTP / 同步协议.
+    pub sync_service: Mutex<Option<crate::application::sync::SyncService>>,
 }
 
 impl AppState {
@@ -70,6 +73,7 @@ impl AppState {
             paths,
             services: RwLock::new(None),
             unlock_passphrase: Mutex::new(None),
+            sync_service: Mutex::new(None),
         }
     }
 

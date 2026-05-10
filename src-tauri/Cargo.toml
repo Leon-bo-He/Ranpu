@@ -49,6 +49,11 @@ sha2 = "0.10"
 rand = "0.8"
 zeroize = { version = "1", features = ["derive"] }
 
+# 局域网同步: mDNS 服务广播 / 发现. 后续 PR 会在它上面叠 HTTP / 同步协议.
+mdns-sd = { version = "0.11", default-features = false, features = ["async"] }
+# 同步服务在 Tauri 已有 tokio runtime 上跑后台任务用.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [
   "Win32_Security_Cryptography",

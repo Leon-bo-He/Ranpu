@@ -11,6 +11,7 @@ pub mod errors;
 pub mod formula;
 pub mod ports;
 pub mod session_guard;
+pub mod sync;
 pub mod workspace;
 
 pub use audit::AuditService;

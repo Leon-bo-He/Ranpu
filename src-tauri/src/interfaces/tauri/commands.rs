@@ -21,6 +21,7 @@ use crate::application::formula::{
     PreviewArchiveInput, WorkspaceImportPlan,
 };
 use crate::application::ports::batch_sheet_exporter::BatchSheetFormat;
+use crate::application::sync::SyncService;
 use crate::application::workspace::{
     CreateWorkspaceInput, RenameWorkspaceInput, UpdateWorkspaceDescriptionInput,
 };
@@ -624,4 +625,57 @@ pub fn cmd_export_audit(state: State<AppState>, cmd: ExportAuditCmd) -> CmdResul
             out_path: cmd.out_path.into(),
         })
         .map_err(UiError::from)
+}
+
+// ---------- LAN Sync (服务发现阶段) ----------
+
+#[tauri::command]
+pub fn cmd_sync_status(state: State<AppState>) -> SyncStatusView {
+    let guard = state.sync_service.lock();
+    match guard.as_ref() {
+        Some(svc) => SyncStatusView {
+            running: true,
+            instance_id: Some(svc.instance_id().to_owned()),
+        },
+        None => SyncStatusView {
+            running: false,
+            instance_id: None,
+        },
+    }
+}
+
+#[tauri::command]
+pub fn cmd_sync_enable(state: State<AppState>) -> CmdResult<SyncStatusView> {
+    let mut guard = state.sync_service.lock();
+    if guard.is_none() {
+        let app_version = env!("CARGO_PKG_VERSION");
+        let svc = SyncService::start(app_version).map_err(|e| UiError {
+            code: "sync",
+            message: e.to_string(),
+        })?;
+        *guard = Some(svc);
+    }
+    let svc = guard.as_ref().expect("just inserted");
+    Ok(SyncStatusView {
+        running: true,
+        instance_id: Some(svc.instance_id().to_owned()),
+    })
+}
+
+#[tauri::command]
+pub fn cmd_sync_disable(state: State<AppState>) -> SyncStatusView {
+    *state.sync_service.lock() = None;
+    SyncStatusView {
+        running: false,
+        instance_id: None,
+    }
+}
+
+#[tauri::command]
+pub fn cmd_sync_list_peers(state: State<AppState>) -> Vec<SyncPeerView> {
+    let guard = state.sync_service.lock();
+    match guard.as_ref() {
+        Some(svc) => svc.peers().iter().map(SyncPeerView::from).collect(),
+        None => Vec::new(),
+    }
 }

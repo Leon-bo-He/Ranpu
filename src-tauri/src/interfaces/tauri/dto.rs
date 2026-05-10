@@ -635,3 +635,35 @@ pub struct BootStatusView {
     pub keystore_exists: bool,
     pub db_initialized: bool,
 }
+
+// ---------- LAN Sync (服务发现阶段) ----------
+
+#[derive(Debug, Serialize)]
+pub struct SyncStatusView {
+    /// 服务是否启动. 用户在设置里 toggle 控制.
+    pub running: bool,
+    /// 启动后这台机器在 mDNS 上广播的 instance_id (UUID v4 字符串). 没启动是 None.
+    pub instance_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SyncPeerView {
+    pub instance_id: String,
+    pub hostname: String,
+    pub app_version: String,
+    /// IP 字符串列表 (IPv4 / IPv6 都展开成 string 给前端展示用).
+    pub addresses: Vec<String>,
+    pub port: u16,
+}
+
+impl From<&crate::application::sync::Peer> for SyncPeerView {
+    fn from(p: &crate::application::sync::Peer) -> Self {
+        Self {
+            instance_id: p.instance_id.clone(),
+            hostname: p.hostname.clone(),
+            app_version: p.app_version.clone(),
+            addresses: p.addresses.iter().map(|a| a.to_string()).collect(),
+            port: p.port,
+        }
+    }
+}

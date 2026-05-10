@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
+import { LanSyncCard } from '@/components/LanSyncCard';
 import { StringListEditor } from '@/components/StringListEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -195,6 +196,8 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <LanSyncCard />
 
       <ConfirmDialog
         open={askResetMills}
