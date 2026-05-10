@@ -279,19 +279,19 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
   .grid-page { display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); width: 100%; height: 281mm; page-break-after: always; grid-auto-flow: row dense; }
   .grid-page:last-child { page-break-after: auto; }
-  .cell { border: 1px dashed #999; padding: 7mm 6mm 10mm 6mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 13px; line-height: 1.5; }
+  .cell { border: 1px dashed #999; padding: 9mm 8mm 14mm 8mm; box-sizing: border-box; overflow: hidden; position: relative; font-size: 17px; line-height: 1.6; }
   .cell.wide { grid-row: span 2; }
-  .vat { font-size: 22px; font-weight: bold; line-height: 1.2; margin-bottom: 3px; }
-  .meta-line { font-size: 14px; margin-bottom: 2px; }
-  .divider { border: 0; border-top: 1.5px solid #1f1f1f; margin: 6px 0 7px; }
-  .dye-row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .vat { font-size: 32px; font-weight: bold; line-height: 1.2; margin-bottom: 6px; }
+  .meta-line { font-size: 19px; margin-bottom: 4px; }
+  .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 9px 0 10px; }
+  .dye-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 17px; }
   .dye-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dye-row .grams { font-variant-numeric: tabular-nums; }
-  .yarn-row { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; margin-bottom: 2px; }
+  .yarn-row { display: flex; justify-content: space-between; gap: 10px; font-size: 19px; margin-bottom: 4px; }
   .yarn-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .corner-l { position: absolute; bottom: 3mm; left: 5mm; font-size: 11px; color: #888; }
-  .corner-r { position: absolute; bottom: 3mm; right: 5mm; font-size: 11px; color: #888; }
+  .corner-l { position: absolute; bottom: 4mm; left: 6mm; font-size: 13px; color: #888; }
+  .corner-r { position: absolute; bottom: 4mm; right: 6mm; font-size: 13px; color: #888; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
