@@ -1,7 +1,7 @@
 {
   "name": "ranpu",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "染谱 Ranpu — Windows 离线染纱配色软件",
   "type": "module",
   "scripts": {
