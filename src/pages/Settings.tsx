@@ -150,9 +150,6 @@ export function SettingsPage() {
               />
               <span className="text-sm text-muted-foreground">kg</span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              批次单 prompt 用 总重量 / 单个重量 自动算每条配方的纱支个数。
-            </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Card className="min-w-0 w-full">
@@ -173,9 +170,6 @@ export function SettingsPage() {
                   onChange={setYarnMills}
                   newPlaceholder="新增厂名…"
                 />
-                <p className="text-xs text-muted-foreground">
-                  后续批次单纱支输入会从这里挑候选。
-                </p>
               </CardContent>
             </Card>
             <Card className="min-w-0 w-full">
