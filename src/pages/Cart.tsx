@@ -153,21 +153,31 @@ export function CartPage() {
             entries: [{ yarnMill: '', yarnSpec: '', count: formatCount(totalMax) }],
           };
         }
-        // 已存档的: count 空时用 "剩余" 兜底 (按当前 entries 顺序减已设置).
-        let usedSum = 0;
-        const filled = meta.entries.map((e) => {
-          let count = e.count;
-          if (!count.trim()) {
-            count = formatCount(Math.max(0, totalMax - usedSum));
+        // 每次开 prompt 都按当前 target_kg / 单个重 重算个数 (用户改了数
+        // 量后能直接看到新值). 策略:
+        // - 没存过的: 第一条 entry = totalMax, 其它 = 0.
+        // - 存过的: 把保存的 count 按 totalMax / savedSum 比例缩放, 保留
+        //   用户原本的分配比例 (例: 旧 {5, 3} 共 8, 新总 9.6 → {6, 3.6}).
+        //   旧 sum = 0 (空白) → 走第一条逻辑.
+        const savedSum = meta.entries.reduce((acc, e) => {
+          const n = parseFloat(e.count);
+          return acc + (Number.isFinite(n) && n > 0 ? n : 0);
+        }, 0);
+        const refreshed = meta.entries.map((e, idx) => {
+          if (savedSum > 0) {
+            const n = parseFloat(e.count);
+            const scaled = Number.isFinite(n) ? (n * totalMax) / savedSum : 0;
+            return { ...e, count: formatCount(scaled) };
           }
-          const n = parseFloat(count);
-          if (Number.isFinite(n)) usedSum += n;
-          return { ...e, count };
+          return {
+            ...e,
+            count: idx === 0 ? formatCount(totalMax) : formatCount(0),
+          };
         });
         return {
           vat: meta.vat ?? '',
           batch: meta.batch ?? '',
-          entries: filled.length > 0 ? filled : [emptyEntry()],
+          entries: refreshed.length > 0 ? refreshed : [emptyEntry()],
         };
       }),
     );
