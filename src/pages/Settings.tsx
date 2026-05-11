@@ -80,17 +80,6 @@ export function SettingsPage() {
     }
   };
 
-  // 云端上传 URL. 本地 state 暂存输入中态, 失焦提交.
-  const cloudUploadUrl = useSettingsStore((s) => s.cloudUploadUrl);
-  const setCloudUploadUrl = useSettingsStore((s) => s.setCloudUploadUrl);
-  const [cloudUrlInput, setCloudUrlInput] = useState(cloudUploadUrl);
-  useEffect(() => {
-    setCloudUrlInput(cloudUploadUrl);
-  }, [cloudUploadUrl]);
-  const commitCloudUrl = () => {
-    setCloudUploadUrl(cloudUrlInput);
-  };
-  const [cloudEditOn, setCloudEditOn] = useState(false);
 
   return (
     <div className="space-y-6 p-6">
@@ -279,42 +268,6 @@ export function SettingsPage() {
               <SelectItem value="60">60 分钟</SelectItem>
             </SelectContent>
           </Select>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle>配方互导云端上传地址</CardTitle>
-          <Button
-            variant={cloudEditOn ? 'outline' : 'default'}
-            size="sm"
-            onClick={() => setCloudEditOn((v) => !v)}
-          >
-            {cloudEditOn ? '完成' : '修改'}
-          </Button>
-        </CardHeader>
-        <CardContent className="grid gap-2 max-w-2xl">
-          <Label htmlFor="cloud-upload-url">URL 前缀</Label>
-          <Input
-            id="cloud-upload-url"
-            value={cloudUrlInput}
-            onChange={(e) => setCloudUrlInput(e.target.value)}
-            onBlur={commitCloudUrl}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-            disabled={!cloudEditOn}
-            placeholder="https://upload.example.com/.../files/<token>"
-            className="font-mono text-sm"
-          />
-          <p className="text-xs text-muted-foreground">
-            配方互导导出后点「上传到云端」会把文件 PUT 到
-            <span className="font-mono mx-1">URL/文件名</span>。
-            默认指向团队内部地址，必要时改成你自己的 WebDAV 分享链接。
-          </p>
         </CardContent>
       </Card>
 
