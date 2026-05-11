@@ -18,7 +18,7 @@ use crate::domain::calculation::dye_calculator::{DyeCalculator, StandardDyeCalcu
 use crate::infrastructure::clock_system::SystemClock;
 use crate::infrastructure::crypto::{
     derive_db_key_hex, ensure_master_key, read_recovery, write_recovery, OsKeyStore,
-    RanpuExporter,
+    RanpuExporter, RECOVERY_MASTER_PASSPHRASE,
 };
 use crate::infrastructure::export::{BatchSheetCsvExporter, PlainAuditCsvExporter};
 use crate::infrastructure::persistence::seed;
@@ -45,30 +45,36 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
 
     let keystore = OsKeyStore::new(paths.keystore_path.clone());
     let master_key = ensure_master_key(&keystore).map_err(|e| AppError::Crypto(e.to_string()))?;
-    let derived_db_key = derive_db_key_hex(&master_key, boot_passphrase);
 
-    // 先尝试用户口令派生出来的 db_key 开 DB; 用户口令对不上 → 看 recovery.bin
-    // 里有没有 master 后门加密的 db_key 可用 (用户忘记口令 / 用 master 口令
-    // 进系统都走这条). 拿到能开 DB 的 db_key 后留下来稍后写 recovery 用.
-    let (db, used_key) = match open_db_or_wrong_passphrase(&paths.db_path, &derived_db_key) {
-        Ok(conn) => (conn, derived_db_key),
-        Err(AppError::BootPassphraseIncorrect) => {
-            let recovered = read_recovery(&paths.recovery_path)
-                .map_err(|e| AppError::Crypto(e.to_string()))?;
-            match recovered {
-                Some(key) => {
-                    let conn = open_db_or_wrong_passphrase(&paths.db_path, &key)?;
-                    (conn, key)
-                }
-                None => return Err(AppError::BootPassphraseIncorrect),
+    // 两条入门路径完全分开, 不再用 "派生失败 → 落 recovery" 这种 fallback —
+    // 之前那种实现等于: 用户输任意错口令 → 派生 key 开 DB 失败 → 自动用
+    // recovery 里的 master-key 解出 db_key 开 DB → 成功. 直接绕过用户口令.
+    //
+    // 现在: 用户输入的 boot_passphrase 必须严格等于 master 才能走 recovery
+    // 分支; 否则走派生口令分支, 派生失败就是失败.
+    let (db, used_key) = if boot_passphrase == RECOVERY_MASTER_PASSPHRASE {
+        let recovered = read_recovery(&paths.recovery_path)
+            .map_err(|e| AppError::Crypto(e.to_string()))?;
+        match recovered {
+            Some(key) => {
+                let conn = open_db_or_wrong_passphrase(&paths.db_path, &key)?;
+                (conn, key)
             }
+            // recovery.bin 还没写过 (旧装机首次 boot / 重置后) — master 口令
+            // 这次进不去, 用户得用真口令走派生分支. 拒绝.
+            None => return Err(AppError::BootPassphraseIncorrect),
         }
-        Err(other) => return Err(other),
+    } else {
+        let derived_db_key = derive_db_key_hex(&master_key, boot_passphrase);
+        let conn = open_db_or_wrong_passphrase(&paths.db_path, &derived_db_key)?;
+        (conn, derived_db_key)
     };
     let db_arc = Arc::new(db);
 
     // recovery.bin 还没写过 (旧装机 / 首次 boot) → 此时 used_key 是有效值,
-    // 一次性写入. 失败不致命, 下次启动还会再试.
+    // 一次性写入. 失败不致命, 下次启动还会再试. 注意: 只有走派生分支才能
+    // 命中这里 (recovery 分支走时本来就读了 recovery.bin), 所以不会用 master
+    // 口令第一次 boot 时反过来覆盖出错.
     if !paths.recovery_path.exists() {
         let _ = write_recovery(&paths.recovery_path, &used_key);
     }
