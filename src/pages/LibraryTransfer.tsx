@@ -338,11 +338,6 @@ function ExportSection() {
             <>
               <DialogHeader>
                 <DialogTitle>导出到哪里？</DialogTitle>
-                <DialogDescription>
-                  下载到本地：会让你选保存位置。
-                  <br />
-                  上传到云端：把文件 PUT 到团队的 WebDAV 分享地址（可改 domain）。
-                </DialogDescription>
               </DialogHeader>
               <DialogFooter className="flex-row justify-end gap-2 sm:justify-end">
                 <Button
