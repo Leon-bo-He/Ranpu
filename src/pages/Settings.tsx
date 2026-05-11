@@ -173,6 +173,7 @@ export function SettingsPage() {
             values={dyes}
             onChange={setDyes}
             newPlaceholder="新增染料名…"
+            cols={6}
           />
           <p className="text-xs text-muted-foreground">
             保存配方时若有不在库的染料名，会弹窗询问是否加入复用。
