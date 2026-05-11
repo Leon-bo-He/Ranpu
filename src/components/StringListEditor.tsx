@@ -14,6 +14,9 @@ interface StringListEditorProps {
   itemPlaceholder?: string;
   /// md 屏及以上一排几列, 默认 3. 移动端固定 2 列.
   cols?: number;
+  /// 只读模式: 已有条目 input + 删除 × + 新增 input + 添加按钮全部 disable.
+  /// 设置页用这个让用户先点 "修改" 解锁才能动数据.
+  readOnly?: boolean;
 }
 
 /// 通用字符串列表编辑器: 每条一行 (input + 删除 ×), 末尾一行 input + "添加".
@@ -27,6 +30,7 @@ export function StringListEditor({
   newPlaceholder = '新增…',
   itemPlaceholder,
   cols = 3,
+  readOnly = false,
 }: StringListEditorProps) {
   const [draft, setDraft] = useState('');
   // 待删除的条目 idx; null 时 dialog 不显示.
@@ -84,6 +88,7 @@ export function StringListEditor({
                   (e.target as HTMLInputElement).blur();
                 }
               }}
+              disabled={readOnly}
               className="h-9 min-w-0"
             />
             <Button
@@ -92,6 +97,7 @@ export function StringListEditor({
               size="icon"
               onClick={() => askRemove(i)}
               aria-label="删除"
+              disabled={readOnly}
               className="h-8 w-8 shrink-0"
             >
               <X className="h-4 w-4" />
@@ -99,30 +105,32 @@ export function StringListEditor({
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-2 pt-1">
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              onAdd();
-            }
-          }}
-          placeholder={newPlaceholder}
-          className="h-9 max-w-xs"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onAdd}
-          disabled={!draft.trim()}
-          className="shrink-0"
-        >
-          添加
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex items-center gap-2 pt-1">
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onAdd();
+              }
+            }}
+            placeholder={newPlaceholder}
+            className="h-9 max-w-xs"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onAdd}
+            disabled={!draft.trim()}
+            className="shrink-0"
+          >
+            添加
+          </Button>
+        </div>
+      )}
 
       <ConfirmDialog
         open={pendingDelete !== null}

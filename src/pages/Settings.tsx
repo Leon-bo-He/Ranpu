@@ -26,6 +26,10 @@ export function SettingsPage() {
 
   const [askResetMills, setAskResetMills] = useState(false);
   const [askResetSpecs, setAskResetSpecs] = useState(false);
+  // 纱支 / 染料库的 "修改" 解锁状态; 默认 OFF, 防误改. 局部 state, 切页
+  // 自动归位 — 防止用户离开后这个高权限模式还停在打开.
+  const [yarnEditOn, setYarnEditOn] = useState(false);
+  const [dyeEditOn, setDyeEditOn] = useState(false);
 
   const formulaEdit = useEditModeStore((s) => s.formulaEditEnabled);
   const enableFormula = useEditModeStore((s) => s.enableFormulaEdit);
@@ -81,8 +85,15 @@ export function SettingsPage() {
       <h2 className="font-serif text-xl tracking-[2px]">设置</h2>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>纱支</CardTitle>
+          <Button
+            variant={yarnEditOn ? 'outline' : 'default'}
+            size="sm"
+            onClick={() => setYarnEditOn((v) => !v)}
+          >
+            {yarnEditOn ? '完成' : '修改'}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2 max-w-md">
@@ -104,6 +115,7 @@ export function SettingsPage() {
                     (e.target as HTMLInputElement).blur();
                   }
                 }}
+                disabled={!yarnEditOn}
                 className="w-32"
               />
               <span className="text-sm text-muted-foreground">kg</span>
@@ -117,6 +129,7 @@ export function SettingsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setAskResetMills(true)}
+                  disabled={!yarnEditOn}
                   title="还原默认: 博奥 / 弘曲 / 鸿泰 / 华盛 / 锦华 / 妙虎 / 名仁"
                 >
                   还原默认
@@ -127,6 +140,7 @@ export function SettingsPage() {
                   values={yarnMills}
                   onChange={setYarnMills}
                   newPlaceholder="新增厂名…"
+                  readOnly={!yarnEditOn}
                 />
               </CardContent>
             </Card>
@@ -137,6 +151,7 @@ export function SettingsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setAskResetSpecs(true)}
+                  disabled={!yarnEditOn}
                   title="还原默认: 20/2 至 60/3"
                 >
                   还原默认
@@ -147,6 +162,7 @@ export function SettingsPage() {
                   values={yarnSpecs}
                   onChange={setYarnSpecs}
                   newPlaceholder="新增规格 (例 32/2)…"
+                  readOnly={!yarnEditOn}
                 />
               </CardContent>
             </Card>
@@ -157,14 +173,24 @@ export function SettingsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>染料库</CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setAskResetDyes(true)}
-            title="清空染料库"
-          >
-            清空
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAskResetDyes(true)}
+              disabled={!dyeEditOn}
+              title="清空染料库"
+            >
+              清空
+            </Button>
+            <Button
+              variant={dyeEditOn ? 'outline' : 'default'}
+              size="sm"
+              onClick={() => setDyeEditOn((v) => !v)}
+            >
+              {dyeEditOn ? '完成' : '修改'}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="grid gap-2">
           <StringListEditor
@@ -172,6 +198,7 @@ export function SettingsPage() {
             onChange={setDyes}
             newPlaceholder="新增染料名…"
             cols={6}
+            readOnly={!dyeEditOn}
           />
           <p className="text-xs text-muted-foreground">
             保存配方时若有不在库的染料名，会弹窗询问是否加入复用。
