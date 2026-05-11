@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
 import { PassphrasePromptDialog } from '@/components/PassphrasePromptDialog';
-import { ResetDatabaseDialog } from '@/components/ResetDatabaseDialog';
 import { StringListEditor } from '@/components/StringListEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,7 +46,6 @@ export function SettingsPage() {
   // 弹密码 dialog, 校验通过才真正打开开关.
   const [askLibraryTransferPwd, setAskLibraryTransferPwd] = useState(false);
 
-  const [askResetDb, setAskResetDb] = useState(false);
 
   const yarnMills = useYarnSettingsStore((s) => s.mills);
   const setYarnMills = useYarnSettingsStore((s) => s.setMills);
@@ -245,28 +243,9 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-destructive/40">
-        <CardHeader>
-          <CardTitle className="text-destructive">重置数据库</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs text-muted-foreground">
-              清空整个数据目录（默认配方、工作区、批次清单、审计日志、启动口令），不可恢复。
-              <br />
-              需要启动口令 + 明文确认，完成后软件自动重启回到首次设置界面。
-            </p>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setAskResetDb(true)}
-              className="shrink-0"
-            >
-              重置数据库
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* "重置数据库" 模块按用户要求暂时从设置页隐藏. 后端 cmd_reset_database
+          / ResetDatabaseDialog / adminApi.resetDatabase 都保留, 后续需要时
+          只在这里恢复 Card + Dialog mount 即可. */}
 
       <ConfirmDialog
         open={askResetMills}
@@ -313,10 +292,6 @@ export function SettingsPage() {
           setAskLibraryTransferPwd(false);
           enableLibraryTransfer();
         }}
-      />
-      <ResetDatabaseDialog
-        open={askResetDb}
-        onClose={() => setAskResetDb(false)}
       />
     </div>
   );
