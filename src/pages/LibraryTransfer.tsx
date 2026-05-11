@@ -1,4 +1,5 @@
 import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { join, tempDir } from '@tauri-apps/api/path';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -9,9 +10,11 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { cloudApi } from '@/api/cloud';
 import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import { workspaceApi } from '@/api/workspace';
+import { useSettingsStore } from '@/store/settings';
 import type {
   ExportLibraryArchiveView,
   ImportLibraryArchiveView,
@@ -29,6 +32,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -39,6 +49,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { CLOUD_UPLOAD_PATH } from '@/store/settings';
 export function LibraryTransferPage() {
   return (
     <div className="space-y-6 p-6">
@@ -66,10 +77,23 @@ function ExportSection() {
   const [passphrase2, setPassphrase2] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [done, setDone] = useState<{
-    summary: ExportLibraryArchiveView;
-    path: string;
-  } | null>(null);
+  // 导出结果: kind=local 显示本地路径; kind=cloud 显示最终备份 URL.
+  const [done, setDone] = useState<
+    | { kind: 'local'; summary: ExportLibraryArchiveView; path: string }
+    | { kind: 'cloud'; summary: ExportLibraryArchiveView; url: string }
+    | null
+  >(null);
+
+  // 备份 / 下载选择 dialog. stage='choose' 是两按钮; 'cloud' 是 domain 输入页.
+  const [targetOpen, setTargetOpen] = useState(false);
+  const [targetStage, setTargetStage] = useState<'choose' | 'cloud'>('choose');
+  // domain 可在 dialog 里临时改; 失焦或确认时回写到 store.
+  const cloudUploadDomain = useSettingsStore((s) => s.cloudUploadDomain);
+  const setCloudUploadDomain = useSettingsStore((s) => s.setCloudUploadDomain);
+  const [domainInput, setDomainInput] = useState(cloudUploadDomain);
+  useEffect(() => {
+    setDomainInput(cloudUploadDomain);
+  }, [cloudUploadDomain]);
 
   useEffect(() => {
     workspaceApi
@@ -94,7 +118,9 @@ function ExportSection() {
     else setSelectedWsIds(new Set(workspaces.map((w) => w.id)));
   };
 
-  const onExport = async () => {
+  /// "选路径并导出" 入口: 先做表单校验, OK 再弹两按钮 dialog 让用户挑
+  /// 备份 URL / 下载本地. 校验失败直接给红色提示, 不弹.
+  const onExport = () => {
     setErr(null);
     setDone(null);
     if (!includeDefault && selectedWsIds.size === 0) {
@@ -109,6 +135,13 @@ function ExportSection() {
       setErr('两次输入的口令不一致');
       return;
     }
+    setTargetStage('choose');
+    setTargetOpen(true);
+  };
+
+  /// 下载到本地: 沿用旧流程 — saveDialog 让用户挑路径 → 导出.
+  const doLocalExport = async () => {
+    setTargetOpen(false);
     const out = await saveDialog({
       defaultPath: `配方库-${new Date().toISOString().slice(0, 10)}.ranpu`,
       filters: [{ name: 'Ranpu 加密包', extensions: ['ranpu'] }],
@@ -123,7 +156,41 @@ function ExportSection() {
         passphrase,
         outPath: out,
       });
-      setDone({ summary, path: out });
+      setDone({ kind: 'local', summary, path: out });
+      setPassphrase('');
+      setPassphrase2('');
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /// 备份到 URL: 先存 domain → 临时落盘到 OS tmp → PUT → 不动本地保留.
+  /// 文件名按当天日期生成, URL = https://<domain><固定 path>/<filename>.
+  const doCloudExport = async () => {
+    setCloudUploadDomain(domainInput); // 持久化 domain 改动
+    const domain = domainInput.trim().replace(/^https?:\/\//i, '').split('/')[0]
+      || 'upload.1122888.xyz';
+    setTargetOpen(false);
+
+    const fileName = `配方库-${new Date().toISOString().slice(0, 10)}.ranpu`;
+    setBusy(true);
+    try {
+      const tmpRoot = await tempDir();
+      const tmpPath = await join(
+        tmpRoot,
+        `ranpu-upload-${Date.now()}-${fileName}`,
+      );
+      const summary = await formulaApi.exportLibraryArchive({
+        includeDefault,
+        workspaceIds: [...selectedWsIds],
+        passphrase,
+        outPath: tmpPath,
+      });
+      const url = `https://${domain}${CLOUD_UPLOAD_PATH}/${encodeURIComponent(fileName)}`;
+      await cloudApi.uploadFile(tmpPath, url);
+      setDone({ kind: 'cloud', summary, url });
       setPassphrase('');
       setPassphrase2('');
     } catch (e) {
@@ -224,7 +291,13 @@ function ExportSection() {
         {err && <p className="text-sm text-destructive">{err}</p>}
         {done && (
           <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
-            已导出到 <span className="font-mono">{done.path}</span>。
+            {done.kind === 'local' ? (
+              <>
+                已导出到 <span className="font-mono">{done.path}</span>。
+              </>
+            ) : (
+              <>已备份到 URL。</>
+            )}{' '}
             包含默认配方 <Badge variant="secondary">{done.summary.default_count}</Badge>{' '}
             条，工作区{' '}
             <Badge variant="secondary">{done.summary.workspace_count}</Badge>{' '}
@@ -247,6 +320,60 @@ function ExportSection() {
           </Button>
         </div>
       </CardContent>
+
+      <Dialog
+        open={targetOpen}
+        onOpenChange={(o) => {
+          if (!o) {
+            setTargetOpen(false);
+            setTargetStage('choose');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          {targetStage === 'choose' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>导出到哪里？</DialogTitle>
+              </DialogHeader>
+              <DialogFooter className="flex-row justify-end gap-2 sm:justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setTargetStage('cloud')}
+                >
+                  备份到 URL
+                </Button>
+                <Button onClick={doLocalExport}>下载到本地</Button>
+              </DialogFooter>
+            </>
+          )}
+          {targetStage === 'cloud' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>备份到 URL</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-2">
+                <Input
+                  id="cloud-domain"
+                  value={domainInput}
+                  onChange={(e) => setDomainInput(e.target.value)}
+                  placeholder="upload.1122888.xyz"
+                  className="font-mono text-sm"
+                />
+              </div>
+              <DialogFooter className="flex-row justify-end gap-2 sm:justify-end">
+                <Button
+                  variant="ghost"
+                  onClick={() => setTargetStage('choose')}
+                >
+                  返回
+                </Button>
+                <Button onClick={doCloudExport}>确认备份</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
