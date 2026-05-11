@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { useEditModeStore } from '@/store/editMode';
 import { useSettingsStore, type IdleTimeoutMinutes } from '@/store/settings';
+import { useDyeLibraryStore } from '@/store/dyeLibrary';
 import { useYarnSettingsStore } from '@/store/yarnSettings';
 
 export function SettingsPage() {
@@ -54,6 +55,11 @@ export function SettingsPage() {
   const yarnSpecs = useYarnSettingsStore((s) => s.specs);
   const setYarnSpecs = useYarnSettingsStore((s) => s.setSpecs);
   const resetYarnSpecs = useYarnSettingsStore((s) => s.resetSpecs);
+
+  const dyes = useDyeLibraryStore((s) => s.dyes);
+  const setDyes = useDyeLibraryStore((s) => s.setDyes);
+  const resetDyes = useDyeLibraryStore((s) => s.resetDyes);
+  const [askResetDyes, setAskResetDyes] = useState(false);
 
   // 单个纱支重量 (kg). 用本地 state 暂存输入中态, 失焦再过 store 钳位
   // (拒非正数, 上限 999).
@@ -147,6 +153,30 @@ export function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle>染料库</CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setAskResetDyes(true)}
+            title="清空染料库"
+          >
+            清空
+          </Button>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          <StringListEditor
+            values={dyes}
+            onChange={setDyes}
+            newPlaceholder="新增染料名…"
+          />
+          <p className="text-xs text-muted-foreground">
+            保存配方时若有不在库的染料名，会弹窗询问是否加入复用。
+          </p>
         </CardContent>
       </Card>
 
@@ -259,6 +289,18 @@ export function SettingsPage() {
         onConfirm={() => {
           resetYarnSpecs();
           setAskResetSpecs(false);
+        }}
+      />
+      <ConfirmDialog
+        open={askResetDyes}
+        onClose={() => setAskResetDyes(false)}
+        title="清空染料库？"
+        description="所有手动加进来的染料名都会被清掉。下次保存配方有新名字时会重新弹窗询问。"
+        confirmLabel="清空"
+        destructive
+        onConfirm={() => {
+          resetDyes();
+          setAskResetDyes(false);
         }}
       />
       <PassphrasePromptDialog

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { UpsertFormulaPayload } from '@/api/formula';
 import type { FormulaView, Unit } from '@/api/types';
+import { ComboboxInput } from '@/components/ComboboxInput';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,7 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { UnknownDyesPromptDialog } from '@/components/UnknownDyesPromptDialog';
 import { cn } from '@/lib/utils';
+import { useDyeLibraryStore } from '@/store/dyeLibrary';
 
 /// UI 内部用的 item 形态: amount 保持字符串, 让 "0." / "0.12" 这种
 /// 输入中态能完整保留. 提交时再 parseFloat 转回 number 进 payload.
@@ -61,6 +64,12 @@ export function FormulaEditor({
   const [items, setItems] = useState<ItemForm[]>([blankItem(0)]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 染料库: 用户编辑配方时下拉候选, 保存时不在库的新名字弹 dialog 询问.
+  const dyeLibrary = useDyeLibraryStore((s) => s.dyes);
+  const setDyeLibrary = useDyeLibraryStore((s) => s.setDyes);
+  // 保存时收集到的新染料名 (排重 + 排首尾空白). 非空时弹
+  // UnknownDyesPromptDialog 让用户选要不要加进库.
+  const [unknownDyes, setUnknownDyes] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,7 +95,28 @@ export function FormulaEditor({
     setError(null);
   }, [open, initial]);
 
-  const submit = async () => {
+  /// 点保存的入口: 先扫一遍 items 找不在染料库的新名字. 有 → 弹
+  /// UnknownDyesPromptDialog; 无 → 直接 doSubmit.
+  const submit = () => {
+    const librarySet = new Set(dyeLibrary.map((s) => s.trim().toLowerCase()));
+    const seen = new Set<string>();
+    const unknowns: string[] = [];
+    for (const it of items) {
+      const name = it.dye_name.trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (librarySet.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      unknowns.push(name);
+    }
+    if (unknowns.length > 0) {
+      setUnknownDyes(unknowns);
+      return;
+    }
+    void doSubmit();
+  };
+
+  const doSubmit = async () => {
     setBusy(true);
     setError(null);
     try {
@@ -111,6 +141,20 @@ export function FormulaEditor({
     } finally {
       setBusy(false);
     }
+  };
+
+  /// UnknownDyesPromptDialog 确认: 选中的写入染料库, 然后继续保存. 取消
+  /// 视为返回编辑器 (不保存). 跟 Cart 里的 UnknownYarn 流程语义一致.
+  const onUnknownDyesResolved = (toAdd: string[]) => {
+    if (toAdd.length > 0) {
+      setDyeLibrary([...dyeLibrary, ...toAdd]);
+    }
+    setUnknownDyes([]);
+    void doSubmit();
+  };
+
+  const onUnknownDyesCancel = () => {
+    setUnknownDyes([]);
   };
 
   const addItem = () =>
@@ -164,9 +208,11 @@ export function FormulaEditor({
                 <div key={idx} className="grid grid-cols-12 items-end gap-2">
                   <div className="col-span-4 grid gap-1">
                     <Label className="text-xs">名称</Label>
-                    <Input
+                    <ComboboxInput
                       value={it.dye_name}
-                      onChange={(e) => updateItem(idx, { dye_name: e.target.value })}
+                      onChange={(v) => updateItem(idx, { dye_name: v })}
+                      options={dyeLibrary}
+                      placeholder="挑或输入新染料"
                     />
                   </div>
                   <div className="col-span-2 grid gap-1">
@@ -233,6 +279,13 @@ export function FormulaEditor({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <UnknownDyesPromptDialog
+        open={unknownDyes.length > 0}
+        unknowns={unknownDyes}
+        onConfirm={onUnknownDyesResolved}
+        onCancel={onUnknownDyesCancel}
+      />
     </Dialog>
   );
 }
