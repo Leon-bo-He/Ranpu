@@ -77,14 +77,14 @@ function ExportSection() {
   const [passphrase2, setPassphrase2] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  // 导出结果: kind=local 显示本地路径; kind=cloud 显示最终上传 URL.
+  // 导出结果: kind=local 显示本地路径; kind=cloud 显示最终备份 URL.
   const [done, setDone] = useState<
     | { kind: 'local'; summary: ExportLibraryArchiveView; path: string }
     | { kind: 'cloud'; summary: ExportLibraryArchiveView; url: string }
     | null
   >(null);
 
-  // 上传 / 下载选择 dialog. stage='choose' 是两按钮; 'cloud' 是 domain 输入页.
+  // 备份 / 下载选择 dialog. stage='choose' 是两按钮; 'cloud' 是 domain 输入页.
   const [targetOpen, setTargetOpen] = useState(false);
   const [targetStage, setTargetStage] = useState<'choose' | 'cloud'>('choose');
   // domain 可在 dialog 里临时改; 失焦或确认时回写到 store.
@@ -119,7 +119,7 @@ function ExportSection() {
   };
 
   /// "选路径并导出" 入口: 先做表单校验, OK 再弹两按钮 dialog 让用户挑
-  /// 上传 URL / 下载本地. 校验失败直接给红色提示, 不弹.
+  /// 备份 URL / 下载本地. 校验失败直接给红色提示, 不弹.
   const onExport = () => {
     setErr(null);
     setDone(null);
@@ -166,7 +166,7 @@ function ExportSection() {
     }
   };
 
-  /// 上传到 URL: 先存 domain → 临时落盘到 OS tmp → PUT → 不动本地保留.
+  /// 备份到 URL: 先存 domain → 临时落盘到 OS tmp → PUT → 不动本地保留.
   /// 文件名按当天日期生成, URL = https://<domain><固定 path>/<filename>.
   const doCloudExport = async () => {
     setCloudUploadDomain(domainInput); // 持久化 domain 改动

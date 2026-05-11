@@ -3,13 +3,13 @@ import { persist } from 'zustand/middleware';
 
 export type IdleTimeoutMinutes = 5 | 10 | 30 | 60 | 0; // 0 = 关闭
 
-/// 配方互导 URL 上传的默认 domain. 完整 PUT URL 由代码拼:
+/// 配方互导 URL 备份的默认 domain. 完整 PUT URL 由代码拼:
 ///   https://<domain>/public.php/dav/files/H9g9DTkFX3FLq8P/<filename>
-/// path 部分固定 (这是 Nextcloud 分享 token, 改了等于换上传位置), 只有
+/// path 部分固定 (这是 Nextcloud 分享 token, 改了等于换备份位置), 只有
 /// domain 暴露给用户改.
 export const DEFAULT_CLOUD_UPLOAD_DOMAIN = 'upload.1122888.xyz';
 
-/// 上传 URL 的固定 path 段 (含 token). 不在 UI 里展示, 也不让用户改.
+/// 备份 URL 的固定 path 段 (含 token). 不在 UI 里展示, 也不让用户改.
 export const CLOUD_UPLOAD_PATH = '/public.php/dav/files/H9g9DTkFX3FLq8P';
 
 interface SettingsState {
@@ -19,7 +19,7 @@ interface SettingsState {
   /// 自动算每条配方的纱支个数. 默认 1.25 kg.
   singleYarnWeightKg: number;
   setSingleYarnWeightKg: (n: number) => void;
-  /// 配方互导 URL 上传的 domain (不带 scheme / path). 默认 DEFAULT_CLOUD_UPLOAD_DOMAIN.
+  /// 配方互导 URL 备份的 domain (不带 scheme / path). 默认 DEFAULT_CLOUD_UPLOAD_DOMAIN.
   cloudUploadDomain: string;
   setCloudUploadDomain: (domain: string) => void;
 }

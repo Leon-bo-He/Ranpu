@@ -689,13 +689,18 @@ pub fn cmd_export_audit(state: State<AppState>, cmd: ExportAuditCmd) -> CmdResul
         .map_err(UiError::from)
 }
 
-// ---------- Cloud upload (配方互导上传到 WebDAV) ----------
+// ---------- Cloud backup (配方互导备份到 WebDAV) ----------
 
-/// PUT 一个本地文件到指定 URL. 用于配方互导加密导出后的云端上传; 走
+/// PUT 一个本地文件到指定 URL. 用于配方互导加密导出后的远端备份; 走
 /// reqwest blocking client (跟 tauri-updater 共用 rustls 栈). URL 完整路
 /// 径形如 https://host/.../dav/files/<token>/<filename>, 调用方负责拼好.
 /// 大文件: 当前没分块, 整个 body 一次性 PUT — 我们的 .ranpu 一般 <10MB,
 /// 阻塞 IPC 线程几秒可接受; 真大文件后续再上 chunked.
+///
+/// 失败时返回的 message 不带 URL — reqwest 的 Error::Display 会把请求
+/// URL 拼进去, 我们用 to_string + replace 把 URL 抠掉, 只留 reqwest 的
+/// 类别描述 (例 "error sending request for url (...): ...". 这样 dev
+/// console 仍能从 code/category 推断问题, 但 UI 不会显示完整 URL.
 #[tauri::command]
 pub fn cmd_upload_file_to_url(local_path: String, upload_url: String) -> CmdResult<()> {
     let bytes = std::fs::read(&local_path).map_err(|e| UiError {
@@ -705,29 +710,24 @@ pub fn cmd_upload_file_to_url(local_path: String, upload_url: String) -> CmdResu
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(120))
         .build()
-        .map_err(|e| UiError {
+        .map_err(|_| UiError {
             code: "network",
-            message: format!("初始化 HTTP 客户端失败: {e}"),
+            message: "备份失败：初始化 HTTP 客户端失败".to_owned(),
         })?;
     let resp = client
         .put(&upload_url)
         .body(bytes)
         .send()
-        .map_err(|e| UiError {
+        .map_err(|_| UiError {
+            // 直接吞掉具体错误避免泄露 URL; 用户只关心 "失败了, 大概是网络".
             code: "network",
-            message: format!("上传失败: {e}"),
+            message: "备份失败：网络不通或服务器无响应".to_owned(),
         })?;
     let status = resp.status();
     if !status.is_success() {
-        let snippet = resp.text().unwrap_or_default();
-        let snippet = if snippet.len() > 200 {
-            format!("{}...", &snippet[..200])
-        } else {
-            snippet
-        };
         return Err(UiError {
             code: "network",
-            message: format!("上传失败 (HTTP {status}): {snippet}"),
+            message: format!("备份失败 (HTTP {})", status.as_u16()),
         });
     }
     Ok(())
