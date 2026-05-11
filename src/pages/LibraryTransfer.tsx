@@ -296,7 +296,7 @@ function ExportSection() {
                 已导出到 <span className="font-mono">{done.path}</span>。
               </>
             ) : (
-              <>已上传到 URL。</>
+              <>已备份到 URL。</>
             )}{' '}
             包含默认配方 <Badge variant="secondary">{done.summary.default_count}</Badge>{' '}
             条，工作区{' '}
@@ -341,7 +341,7 @@ function ExportSection() {
                   variant="outline"
                   onClick={() => setTargetStage('cloud')}
                 >
-                  上传到 URL
+                  备份到 URL
                 </Button>
                 <Button onClick={doLocalExport}>下载到本地</Button>
               </DialogFooter>
@@ -350,7 +350,7 @@ function ExportSection() {
           {targetStage === 'cloud' && (
             <>
               <DialogHeader>
-                <DialogTitle>上传到 URL</DialogTitle>
+                <DialogTitle>备份到 URL</DialogTitle>
               </DialogHeader>
               <div className="grid gap-2">
                 <Input
@@ -368,7 +368,7 @@ function ExportSection() {
                 >
                   返回
                 </Button>
-                <Button onClick={doCloudExport}>确认上传</Button>
+                <Button onClick={doCloudExport}>确认备份</Button>
               </DialogFooter>
             </>
           )}
