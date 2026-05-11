@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
 import { PassphrasePromptDialog } from '@/components/PassphrasePromptDialog';
-import { ResetDatabaseDialog } from '@/components/ResetDatabaseDialog';
 import { StringListEditor } from '@/components/StringListEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { useEditModeStore } from '@/store/editMode';
 import { useSettingsStore, type IdleTimeoutMinutes } from '@/store/settings';
+import { useDyeLibraryStore } from '@/store/dyeLibrary';
 import { useYarnSettingsStore } from '@/store/yarnSettings';
 
 export function SettingsPage() {
@@ -26,6 +26,10 @@ export function SettingsPage() {
 
   const [askResetMills, setAskResetMills] = useState(false);
   const [askResetSpecs, setAskResetSpecs] = useState(false);
+  // 纱支 / 染料库的 "修改" 解锁状态; 默认 OFF, 防误改. 局部 state, 切页
+  // 自动归位 — 防止用户离开后这个高权限模式还停在打开.
+  const [yarnEditOn, setYarnEditOn] = useState(false);
+  const [dyeEditOn, setDyeEditOn] = useState(false);
 
   const formulaEdit = useEditModeStore((s) => s.formulaEditEnabled);
   const enableFormula = useEditModeStore((s) => s.enableFormulaEdit);
@@ -46,7 +50,6 @@ export function SettingsPage() {
   // 弹密码 dialog, 校验通过才真正打开开关.
   const [askLibraryTransferPwd, setAskLibraryTransferPwd] = useState(false);
 
-  const [askResetDb, setAskResetDb] = useState(false);
 
   const yarnMills = useYarnSettingsStore((s) => s.mills);
   const setYarnMills = useYarnSettingsStore((s) => s.setMills);
@@ -54,6 +57,11 @@ export function SettingsPage() {
   const yarnSpecs = useYarnSettingsStore((s) => s.specs);
   const setYarnSpecs = useYarnSettingsStore((s) => s.setSpecs);
   const resetYarnSpecs = useYarnSettingsStore((s) => s.resetSpecs);
+
+  const dyes = useDyeLibraryStore((s) => s.dyes);
+  const setDyes = useDyeLibraryStore((s) => s.setDyes);
+  const resetDyes = useDyeLibraryStore((s) => s.resetDyes);
+  const [askResetDyes, setAskResetDyes] = useState(false);
 
   // 单个纱支重量 (kg). 用本地 state 暂存输入中态, 失焦再过 store 钳位
   // (拒非正数, 上限 999).
@@ -77,8 +85,15 @@ export function SettingsPage() {
       <h2 className="font-serif text-xl tracking-[2px]">设置</h2>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>纱支</CardTitle>
+          <Button
+            variant={yarnEditOn ? 'outline' : 'default'}
+            size="sm"
+            onClick={() => setYarnEditOn((v) => !v)}
+          >
+            {yarnEditOn ? '完成' : '修改'}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2 max-w-md">
@@ -100,6 +115,7 @@ export function SettingsPage() {
                     (e.target as HTMLInputElement).blur();
                   }
                 }}
+                disabled={!yarnEditOn}
                 className="w-32"
               />
               <span className="text-sm text-muted-foreground">kg</span>
@@ -113,6 +129,7 @@ export function SettingsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setAskResetMills(true)}
+                  disabled={!yarnEditOn}
                   title="还原默认: 博奥 / 弘曲 / 鸿泰 / 华盛 / 锦华 / 妙虎 / 名仁"
                 >
                   还原默认
@@ -123,6 +140,7 @@ export function SettingsPage() {
                   values={yarnMills}
                   onChange={setYarnMills}
                   newPlaceholder="新增厂名…"
+                  readOnly={!yarnEditOn}
                 />
               </CardContent>
             </Card>
@@ -133,6 +151,7 @@ export function SettingsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setAskResetSpecs(true)}
+                  disabled={!yarnEditOn}
                   title="还原默认: 20/2 至 60/3"
                 >
                   还原默认
@@ -143,10 +162,47 @@ export function SettingsPage() {
                   values={yarnSpecs}
                   onChange={setYarnSpecs}
                   newPlaceholder="新增规格 (例 32/2)…"
+                  readOnly={!yarnEditOn}
                 />
               </CardContent>
             </Card>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle>染料库</CardTitle>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAskResetDyes(true)}
+              disabled={!dyeEditOn}
+              title="清空染料库"
+            >
+              清空
+            </Button>
+            <Button
+              variant={dyeEditOn ? 'outline' : 'default'}
+              size="sm"
+              onClick={() => setDyeEditOn((v) => !v)}
+            >
+              {dyeEditOn ? '完成' : '修改'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          <StringListEditor
+            values={dyes}
+            onChange={setDyes}
+            newPlaceholder="新增染料名…"
+            cols={6}
+            readOnly={!dyeEditOn}
+          />
+          <p className="text-xs text-muted-foreground">
+            保存配方时若有不在库的染料名，会弹窗询问是否加入复用。
+          </p>
         </CardContent>
       </Card>
 
@@ -214,28 +270,9 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-destructive/40">
-        <CardHeader>
-          <CardTitle className="text-destructive">重置数据库</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs text-muted-foreground">
-              清空整个数据目录（默认配方、工作区、批次清单、审计日志、启动口令），不可恢复。
-              <br />
-              需要启动口令 + 明文确认，完成后软件自动重启回到首次设置界面。
-            </p>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setAskResetDb(true)}
-              className="shrink-0"
-            >
-              重置数据库
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* "重置数据库" 模块按用户要求暂时从设置页隐藏. 后端 cmd_reset_database
+          / ResetDatabaseDialog / adminApi.resetDatabase 都保留, 后续需要时
+          只在这里恢复 Card + Dialog mount 即可. */}
 
       <ConfirmDialog
         open={askResetMills}
@@ -261,6 +298,18 @@ export function SettingsPage() {
           setAskResetSpecs(false);
         }}
       />
+      <ConfirmDialog
+        open={askResetDyes}
+        onClose={() => setAskResetDyes(false)}
+        title="清空染料库？"
+        description="所有手动加进来的染料名都会被清掉。下次保存配方有新名字时会重新弹窗询问。"
+        confirmLabel="清空"
+        destructive
+        onConfirm={() => {
+          resetDyes();
+          setAskResetDyes(false);
+        }}
+      />
       <PassphrasePromptDialog
         open={askLibraryTransferPwd}
         onClose={() => setAskLibraryTransferPwd(false)}
@@ -270,10 +319,6 @@ export function SettingsPage() {
           setAskLibraryTransferPwd(false);
           enableLibraryTransfer();
         }}
-      />
-      <ResetDatabaseDialog
-        open={askResetDb}
-        onClose={() => setAskResetDb(false)}
       />
     </div>
   );
