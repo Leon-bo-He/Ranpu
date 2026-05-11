@@ -35,7 +35,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -354,16 +353,8 @@ function ExportSection() {
             <>
               <DialogHeader>
                 <DialogTitle>上传到云端</DialogTitle>
-                <DialogDescription>
-                  文件会 PUT 到
-                  <span className="ml-1 font-mono">
-                    https://{domainInput.trim() || 'upload.1122888.xyz'}
-                    {CLOUD_UPLOAD_PATH}/&lt;文件名&gt;
-                  </span>
-                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-2">
-                <Label htmlFor="cloud-domain">Domain（仅域名，不要带 https:// 或路径）</Label>
                 <Input
                   id="cloud-domain"
                   value={domainInput}
