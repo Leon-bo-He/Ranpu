@@ -688,3 +688,47 @@ pub fn cmd_export_audit(state: State<AppState>, cmd: ExportAuditCmd) -> CmdResul
         })
         .map_err(UiError::from)
 }
+
+// ---------- Cloud upload (配方互导上传到 WebDAV) ----------
+
+/// PUT 一个本地文件到指定 URL. 用于配方互导加密导出后的云端上传; 走
+/// reqwest blocking client (跟 tauri-updater 共用 rustls 栈). URL 完整路
+/// 径形如 https://host/.../dav/files/<token>/<filename>, 调用方负责拼好.
+/// 大文件: 当前没分块, 整个 body 一次性 PUT — 我们的 .ranpu 一般 <10MB,
+/// 阻塞 IPC 线程几秒可接受; 真大文件后续再上 chunked.
+#[tauri::command]
+pub fn cmd_upload_file_to_url(local_path: String, upload_url: String) -> CmdResult<()> {
+    let bytes = std::fs::read(&local_path).map_err(|e| UiError {
+        code: "io",
+        message: format!("读文件失败: {e}"),
+    })?;
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| UiError {
+            code: "network",
+            message: format!("初始化 HTTP 客户端失败: {e}"),
+        })?;
+    let resp = client
+        .put(&upload_url)
+        .body(bytes)
+        .send()
+        .map_err(|e| UiError {
+            code: "network",
+            message: format!("上传失败: {e}"),
+        })?;
+    let status = resp.status();
+    if !status.is_success() {
+        let snippet = resp.text().unwrap_or_default();
+        let snippet = if snippet.len() > 200 {
+            format!("{}...", &snippet[..200])
+        } else {
+            snippet
+        };
+        return Err(UiError {
+            code: "network",
+            message: format!("上传失败 (HTTP {status}): {snippet}"),
+        });
+    }
+    Ok(())
+}

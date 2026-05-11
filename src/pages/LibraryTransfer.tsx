@@ -9,9 +9,11 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { cloudApi } from '@/api/cloud';
 import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import { workspaceApi } from '@/api/workspace';
+import { useSettingsStore } from '@/store/settings';
 import type {
   ExportLibraryArchiveView,
   ImportLibraryArchiveView,
@@ -70,6 +72,19 @@ function ExportSection() {
     summary: ExportLibraryArchiveView;
     path: string;
   } | null>(null);
+  // 上传到云端: success 卡里挂一个按钮调 cmd_upload_file_to_url. 状态机:
+  // idle → uploading → uploaded / 报错. 重新导出 (done 重置) 会归位 idle.
+  const cloudUploadUrl = useSettingsStore((s) => s.cloudUploadUrl);
+  const [cloudState, setCloudState] = useState<
+    'idle' | 'uploading' | 'uploaded'
+  >('idle');
+  const [cloudErr, setCloudErr] = useState<string | null>(null);
+
+  // 用户重导出 (done 切换) 时重置云端上传状态.
+  useEffect(() => {
+    setCloudState('idle');
+    setCloudErr(null);
+  }, [done?.path]);
 
   useEffect(() => {
     workspaceApi
@@ -92,6 +107,24 @@ function ExportSection() {
   const toggleAll = () => {
     if (allSelected) setSelectedWsIds(new Set());
     else setSelectedWsIds(new Set(workspaces.map((w) => w.id)));
+  };
+
+  // 把本地导出的 .ranpu 文件 PUT 到云端. URL = settings 里的 prefix + 文
+  // 件名 (跨平台从 path 末尾抠出来). 后端 cmd_upload_file_to_url 读文件
+  // 流式 PUT.
+  const uploadToCloud = async (localPath: string) => {
+    setCloudErr(null);
+    const fileName =
+      localPath.split(/[\\/]/).pop() || 'export.ranpu';
+    const url = `${cloudUploadUrl.replace(/\/+$/, '')}/${encodeURIComponent(fileName)}`;
+    setCloudState('uploading');
+    try {
+      await cloudApi.uploadFile(localPath, url);
+      setCloudState('uploaded');
+    } catch (e) {
+      setCloudErr(e instanceof ApiError ? e.message : String(e));
+      setCloudState('idle');
+    }
   };
 
   const onExport = async () => {
@@ -223,14 +256,36 @@ function ExportSection() {
 
         {err && <p className="text-sm text-destructive">{err}</p>}
         {done && (
-          <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
-            已导出到 <span className="font-mono">{done.path}</span>。
-            包含默认配方 <Badge variant="secondary">{done.summary.default_count}</Badge>{' '}
-            条，工作区{' '}
-            <Badge variant="secondary">{done.summary.workspace_count}</Badge>{' '}
-            个，工作区配方{' '}
-            <Badge variant="secondary">{done.summary.workspace_formula_count}</Badge>{' '}
-            条。
+          <div className="space-y-3 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <div>
+              已导出到 <span className="font-mono">{done.path}</span>。
+              包含默认配方 <Badge variant="secondary">{done.summary.default_count}</Badge>{' '}
+              条，工作区{' '}
+              <Badge variant="secondary">{done.summary.workspace_count}</Badge>{' '}
+              个，工作区配方{' '}
+              <Badge variant="secondary">{done.summary.workspace_formula_count}</Badge>{' '}
+              条。
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-emerald-900/70">
+                文件已落到本地，可继续上传到云端：
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => uploadToCloud(done.path)}
+                disabled={cloudState === 'uploading' || cloudState === 'uploaded'}
+              >
+                {cloudState === 'uploading' && (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                )}
+                {cloudState === 'uploaded' ? '已上传' : '上传到云端'}
+              </Button>
+              <span className="text-xs text-emerald-900/60 font-mono truncate max-w-xs">
+                目标: {cloudUploadUrl}
+              </span>
+            </div>
+            {cloudErr && <p className="text-xs text-destructive">{cloudErr}</p>}
           </div>
         )}
 

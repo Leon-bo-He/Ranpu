@@ -87,6 +87,7 @@ pub fn run() {
             cmd_import_backup,
             cmd_list_audit,
             cmd_export_audit,
+            cmd_upload_file_to_url,
         ])
         .run(tauri::generate_context!())
         .expect("启动染谱主窗口失败");
