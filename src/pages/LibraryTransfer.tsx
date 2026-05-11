@@ -119,7 +119,7 @@ function ExportSection() {
   };
 
   /// "选路径并导出" 入口: 先做表单校验, OK 再弹两按钮 dialog 让用户挑
-  /// 上传云端 / 下载本地. 校验失败直接给红色提示, 不弹.
+  /// 上传 URL / 下载本地. 校验失败直接给红色提示, 不弹.
   const onExport = () => {
     setErr(null);
     setDone(null);
@@ -166,7 +166,7 @@ function ExportSection() {
     }
   };
 
-  /// 上传到云端: 先存 domain → 临时落盘到 OS tmp → PUT → 不动本地保留.
+  /// 上传到 URL: 先存 domain → 临时落盘到 OS tmp → PUT → 不动本地保留.
   /// 文件名按当天日期生成, URL = https://<domain><固定 path>/<filename>.
   const doCloudExport = async () => {
     setCloudUploadDomain(domainInput); // 持久化 domain 改动
@@ -296,9 +296,7 @@ function ExportSection() {
                 已导出到 <span className="font-mono">{done.path}</span>。
               </>
             ) : (
-              <>
-                已上传到云端 <span className="font-mono break-all">{done.url}</span>。
-              </>
+              <>已上传到 URL。</>
             )}{' '}
             包含默认配方 <Badge variant="secondary">{done.summary.default_count}</Badge>{' '}
             条，工作区{' '}
@@ -343,7 +341,7 @@ function ExportSection() {
                   variant="outline"
                   onClick={() => setTargetStage('cloud')}
                 >
-                  上传到云端
+                  上传到 URL
                 </Button>
                 <Button onClick={doLocalExport}>下载到本地</Button>
               </DialogFooter>
@@ -352,7 +350,7 @@ function ExportSection() {
           {targetStage === 'cloud' && (
             <>
               <DialogHeader>
-                <DialogTitle>上传到云端</DialogTitle>
+                <DialogTitle>上传到 URL</DialogTitle>
               </DialogHeader>
               <div className="grid gap-2">
                 <Input

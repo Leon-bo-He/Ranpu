@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 export type IdleTimeoutMinutes = 5 | 10 | 30 | 60 | 0; // 0 = 关闭
 
-/// 配方互导云端上传的默认 domain. 完整 PUT URL 由代码拼:
+/// 配方互导 URL 上传的默认 domain. 完整 PUT URL 由代码拼:
 ///   https://<domain>/public.php/dav/files/H9g9DTkFX3FLq8P/<filename>
 /// path 部分固定 (这是 Nextcloud 分享 token, 改了等于换上传位置), 只有
 /// domain 暴露给用户改.
@@ -19,7 +19,7 @@ interface SettingsState {
   /// 自动算每条配方的纱支个数. 默认 1.25 kg.
   singleYarnWeightKg: number;
   setSingleYarnWeightKg: (n: number) => void;
-  /// 配方互导云端上传的 domain (不带 scheme / path). 默认 DEFAULT_CLOUD_UPLOAD_DOMAIN.
+  /// 配方互导 URL 上传的 domain (不带 scheme / path). 默认 DEFAULT_CLOUD_UPLOAD_DOMAIN.
   cloudUploadDomain: string;
   setCloudUploadDomain: (domain: string) => void;
 }
