@@ -49,6 +49,8 @@ impl BatchSheetExporter for BatchSheetCsvExporter {
             BatchSheetFormat::Csv => render_csv(results),
             BatchSheetFormat::Html => render_html(results, context),
             BatchSheetFormat::HtmlGrid => render_html_grid(results, context),
+            BatchSheetFormat::HtmlA6Punch => render_html_a6_punch(results, context),
+            BatchSheetFormat::HtmlLabel => render_html_label(results, context),
         })
     }
 }
@@ -420,6 +422,224 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
     }
     if page_open {
         html.push_str("</div>\n");
+    }
+
+    html.push_str("</body>\n</html>\n");
+    html
+}
+
+/// 穿孔纸格式. 一条配方一张, 纸张 120×140mm 纵向, 左右各留 13mm 给孔洞
+/// 区, 上下 8mm 行距 → 内容区 94×124mm. 没有边框 (纸边即是边框), 内容靠
+/// vat 大字 + 分割线区隔. 全部字号加粗 — 染料最多 4 种, 字号 + 行距按 4
+/// 项染料正好填满 124mm 高度调过, 4 条时基本无下方留白.
+fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
+    let now = Local::now();
+    let date_full = now.format("%Y-%m-%d").to_string();
+    let title = match context.workspace_name {
+        Some(name) => format!("{}-批次单-{}", sanitize_for_filename(name), date_full),
+        None => format!("批次单-{date_full}"),
+    };
+    let total = results.len();
+
+    let mut html = String::new();
+    html.push_str("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n");
+    html.push_str("<meta charset=\"UTF-8\">\n");
+    html.push_str(
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:\">\n",
+    );
+    html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
+    html.push_str(
+        r#"<style>
+  @page { size: 120mm 140mm; margin: 8mm 13mm; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
+  /* min-height (而非 height): 短配方仍让 corner 锚到 124mm 底部, 长配方
+     自然撑高溢到下一张物理纸, 比 overflow: hidden 裁掉行更安全. */
+  .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 4mm; line-height: 1.5; }
+  .page:last-child { page-break-after: auto; }
+  .vat { font-size: 42px; font-weight: bold; line-height: 1.1; margin-bottom: 3px; }
+  .meta-line { font-size: 26px; margin-bottom: 2px; }
+  .divider { border: 0; border-top: 2px solid #1f1f1f; margin: 20px 0 20px; }
+  .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 2px 0; font-size: 28px; }
+  .dye-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+  .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: bold; color: #000; text-align: left; }
+  .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 26px; margin-bottom: 2px; }
+  .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
+  .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 12px; color: #888; }
+  .corner-r { position: absolute; bottom: 2mm; right: 0; font-size: 12px; color: #888; }
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+"#,
+    );
+
+    let empty_meta = FormulaMeta::default();
+    for (idx, r) in results.iter().enumerate() {
+        let meta = context.per_formula.get(idx).unwrap_or(&empty_meta);
+        html.push_str("  <div class=\"page\">\n");
+
+        let vat_display = meta.vat_number.unwrap_or("—");
+        html.push_str(&format!(
+            "    <div class=\"vat\">{}</div>\n",
+            html_escape(vat_display),
+        ));
+        let cust = context.workspace_name.unwrap_or("—");
+        html.push_str(&format!(
+            "    <div class=\"meta-line\">{}</div>\n",
+            html_escape(cust),
+        ));
+        let internal = r.internal_color_code.as_str();
+        let third = match meta.color_family {
+            Some(f) => format!("{} · {}", internal, f),
+            None => internal.to_owned(),
+        };
+        html.push_str(&format!(
+            "    <div class=\"meta-line\">{}</div>\n",
+            html_escape(&third),
+        ));
+        if meta.yarns.is_empty() {
+            html.push_str("    <div class=\"meta-line\">—</div>\n");
+        } else {
+            for y in &meta.yarns {
+                let name = format_yarn_name(y.mill, y.spec);
+                let count = y.count.map(|c| format!("{c} 个"));
+                html.push_str(&format!(
+                    "    <div class=\"yarn-row\"><span class=\"name\">{}</span><span class=\"count\">{}</span></div>\n",
+                    html_escape(if name.is_empty() { "—" } else { &name }),
+                    html_escape(count.as_deref().unwrap_or("")),
+                ));
+            }
+        }
+        html.push_str("    <hr class=\"divider\" />\n");
+        for l in &r.lines {
+            let dye_label = match l.dye_code.as_deref() {
+                Some(code) => format!("{} ({})", l.dye_name, code),
+                None => l.dye_name.clone(),
+            };
+            html.push_str(&format!(
+                "    <div class=\"dye-row\"><span class=\"name\">{}</span><span class=\"grams\">{}</span></div>\n",
+                html_escape(&dye_label),
+                format_amount(l.grams.value()),
+            ));
+        }
+        html.push_str(&format!(
+            "    <div class=\"corner-l\">{}</div>\n",
+            html_escape(&date_full),
+        ));
+        let counter_label = match context.workspace_name {
+            Some(c) => format!("{} · {}/{}", c, idx + 1, total),
+            None => format!("{}/{}", idx + 1, total),
+        };
+        html.push_str(&format!(
+            "    <div class=\"corner-r\">{}</div>\n",
+            html_escape(&counter_label),
+        ));
+        html.push_str("  </div>\n");
+    }
+
+    html.push_str("</body>\n</html>\n");
+    html
+}
+
+/// 标签纸格式. 50×80mm 纵向, 一条配方一张. 渲染 vat / 客户·色号·色系 /
+/// 纱支变体三段 + 底部角标 (日期 + N/总数), 不渲染染料明细 (染料配方写在
+/// 穿孔纸上, 标签纸只是给筒纱半成品贴 ID 用).
+fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
+    let date = Local::now().format("%Y-%m-%d").to_string();
+    let title = match context.workspace_name {
+        Some(name) => format!("{}-标签-{}", sanitize_for_filename(name), date),
+        None => format!("标签-{date}"),
+    };
+    let total = results.len();
+
+    let mut html = String::new();
+    html.push_str("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n");
+    html.push_str("<meta charset=\"UTF-8\">\n");
+    html.push_str(
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:\">\n",
+    );
+    html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
+    html.push_str(
+        r#"<style>
+  @page { size: 50mm 80mm; margin: 3mm; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; text-align: center; }
+  /* flex + justify-content: center 把 vat / 客户 / 色号 / 纱支 四排作为
+     一个整体在标签内容区 (减掉底部 8mm 给 corner) 内垂直居中. corner
+     是 absolute, 不参与 flex, 仍贴在底部. */
+  .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-bottom: 8mm; line-height: 1.4; display: flex; flex-direction: column; justify-content: center; }
+  .page:last-child { page-break-after: auto; }
+  .vat { font-size: 30px; font-weight: bold; line-height: 1.1; margin-bottom: 10px; }
+  .meta-line { font-size: 16px; margin-bottom: 6px; word-break: break-all; }
+  /* 纱支行: 名字靠左, 个数虚框靠右, 撑满整行宽度. */
+  .yarn-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 16px; margin-bottom: 6px; }
+  .yarn-row .name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 1px dashed #555; padding: 2px 8px; border-radius: 2px; min-width: 42px; text-align: center; }
+  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 11px; color: #888; text-align: left; }
+  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 11px; color: #888; text-align: right; }
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+"#,
+    );
+
+    let empty_meta = FormulaMeta::default();
+    for (idx, r) in results.iter().enumerate() {
+        let meta = context.per_formula.get(idx).unwrap_or(&empty_meta);
+        html.push_str("  <div class=\"page\">\n");
+
+        let vat_display = meta.vat_number.unwrap_or("—");
+        html.push_str(&format!(
+            "    <div class=\"vat\">{}</div>\n",
+            html_escape(vat_display),
+        ));
+        let cust = context.workspace_name.unwrap_or("—");
+        html.push_str(&format!(
+            "    <div class=\"meta-line\">{}</div>\n",
+            html_escape(cust),
+        ));
+        let internal = r.internal_color_code.as_str();
+        let third = match meta.color_family {
+            Some(f) => format!("{} · {}", internal, f),
+            None => internal.to_owned(),
+        };
+        html.push_str(&format!(
+            "    <div class=\"meta-line\">{}</div>\n",
+            html_escape(&third),
+        ));
+        if meta.yarns.is_empty() {
+            html.push_str("    <div class=\"meta-line\">—</div>\n");
+        } else {
+            for y in &meta.yarns {
+                let name = format_yarn_name(y.mill, y.spec);
+                // 个数虚框永远渲染 — 空的话工人手写填. 有数字则 "N 个", 没数字
+                // 仅显示 "个" 当尾标 (min-width 撑出手写区).
+                let count_text = match y.count {
+                    Some(c) if !c.trim().is_empty() => format!("{} 个", c.trim()),
+                    _ => "个".to_owned(),
+                };
+                html.push_str(&format!(
+                    "    <div class=\"yarn-row\"><span class=\"name\">{}</span><span class=\"count\">{}</span></div>\n",
+                    html_escape(if name.is_empty() { "—" } else { &name }),
+                    html_escape(&count_text),
+                ));
+            }
+        }
+        html.push_str(&format!(
+            "    <div class=\"corner-l\">{}</div>\n",
+            html_escape(&date),
+        ));
+        html.push_str(&format!(
+            "    <div class=\"corner-r\">{}/{}</div>\n",
+            idx + 1,
+            total,
+        ));
+        html.push_str("  </div>\n");
     }
 
     html.push_str("</body>\n</html>\n");

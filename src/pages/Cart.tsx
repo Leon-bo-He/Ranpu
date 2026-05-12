@@ -68,10 +68,11 @@ export function CartPage() {
   const [promptPerFormula, setPromptPerFormula] = useState<PerFormulaMeta[]>([]);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
-  // 预览版本 toggle: grid (A4 四宫格, 默认) 或 standard (每条一段). 用户
-  // 在预览框右上角切换, 切换时重新请求对应 HTML.
+  // 预览版本 toggle: a6punch (穿孔纸 120×140mm, 默认) / grid (A4 四宫格) /
+  // standard (每条一段) / label (50×80mm 标签纸, 只 vat + 客户 + 纱支).
+  // 用户在预览框右上角切换, 切换时重新请求对应 HTML.
   const [previewLayout, setPreviewLayout] =
-    useState<'standard' | 'grid'>('grid');
+    useState<'standard' | 'grid' | 'a6punch' | 'label'>('a6punch');
   // 提交 prompt 时如果发现新词 (不在 yarnMills / yarnSpecs 里), 暂存 +
   // 弹 dialog 让用户决定加不加进库.
   const [unknownYarns, setUnknownYarns] = useState<UnknownYarnEntry[]>([]);
@@ -288,7 +289,7 @@ export function CartPage() {
   };
 
   // 用最新 prompt + 指定 layout 拉一份预览 HTML. 提交 prompt / 切 tab 都走这里.
-  const fetchPreview = async (layout: 'standard' | 'grid') => {
+  const fetchPreview = async (layout: 'standard' | 'grid' | 'a6punch' | 'label') => {
     const customer = promptCustomer.trim();
     setPreviewBusy(true);
     try {
@@ -357,8 +358,8 @@ export function CartPage() {
     persistPromptInfo(promptCustomer, promptPerFormula);
     setPromptOpen(false);
     setPrintCustomer(customer || workspaceName);
-    // 进预览默认 grid (四宫格); 用户可在右上角切到 standard.
-    await fetchPreview('grid');
+    // 进预览默认 a6punch (A6 穿孔纸); 用户可在右上角切到四宫格 / 标准.
+    await fetchPreview('a6punch');
   };
 
   /// UnknownYarnPromptDialog 确认回调: 把选中的新词加进 yarnSettings store,
@@ -690,9 +691,35 @@ export function CartPage() {
               <button
                 type="button"
                 disabled={previewBusy}
-                onClick={() => previewLayout !== 'grid' && fetchPreview('grid')}
+                onClick={() => previewLayout !== 'a6punch' && fetchPreview('a6punch')}
                 className={cn(
                   'rounded-l-md px-5 py-2 text-sm font-medium transition-colors',
+                  previewLayout === 'a6punch'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground hover:bg-accent',
+                )}
+              >
+                穿孔纸
+              </button>
+              <button
+                type="button"
+                disabled={previewBusy}
+                onClick={() => previewLayout !== 'label' && fetchPreview('label')}
+                className={cn(
+                  'border-l px-5 py-2 text-sm font-medium transition-colors',
+                  previewLayout === 'label'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground hover:bg-accent',
+                )}
+              >
+                标签纸
+              </button>
+              <button
+                type="button"
+                disabled={previewBusy}
+                onClick={() => previewLayout !== 'grid' && fetchPreview('grid')}
+                className={cn(
+                  'border-l px-5 py-2 text-sm font-medium transition-colors',
                   previewLayout === 'grid'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-foreground hover:bg-accent',
@@ -715,14 +742,30 @@ export function CartPage() {
               </button>
             </div>
           </DialogHeader>
-          {previewHtml && (
-            <iframe
-              ref={previewIframeRef}
-              srcDoc={previewHtml}
-              title="批次单预览"
-              className="flex-1 border-0 bg-white"
-            />
-          )}
+          {previewHtml &&
+            (previewLayout === 'a6punch' || previewLayout === 'label' ? (
+              // 穿孔纸 / 标签纸都是窄页 (120×140mm / 50×80mm), 直接拉满 iframe
+              // 看着挤. 包一层灰底 + 内距 + 阴影模拟 "桌上一张纸" 的视觉, 标签
+              // 纸更窄, max-w 给小一档.
+              <div className="flex-1 overflow-auto bg-muted/40 px-12 py-10">
+                <iframe
+                  ref={previewIframeRef}
+                  srcDoc={previewHtml}
+                  title="批次单预览"
+                  className={cn(
+                    'mx-auto block h-full w-full border bg-white shadow-md',
+                    previewLayout === 'label' ? 'max-w-md' : 'max-w-2xl',
+                  )}
+                />
+              </div>
+            ) : (
+              <iframe
+                ref={previewIframeRef}
+                srcDoc={previewHtml}
+                title="批次单预览"
+                className="flex-1 border-0 bg-white"
+              />
+            ))}
           <DialogFooter className="shrink-0 gap-2 border-t bg-background px-6 py-3">
             <Button
               variant="ghost"
