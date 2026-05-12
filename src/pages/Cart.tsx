@@ -69,8 +69,8 @@ export function CartPage() {
   const [promptPerFormula, setPromptPerFormula] = useState<PerFormulaMeta[]>([]);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
-  // 预览版本 toggle: a6punch (穿孔纸 120×140mm, 默认) / grid (A4 四宫格) /
-  // standard (每条一段) / label (50×80mm 标签纸, 只 vat + 客户 + 纱支).
+  // 预览版本 toggle: a6punch (配方纸 120×140mm, 默认) / grid (A4 四宫格) /
+  // standard (每条一段) / label (50×80mm 跟踪卡, 只 vat + 客户 + 纱支).
   // 用户在预览框右上角切换, 切换时重新请求对应 HTML.
   const [previewLayout, setPreviewLayout] =
     useState<'standard' | 'grid' | 'a6punch' | 'label'>('a6punch');
@@ -369,7 +369,7 @@ export function CartPage() {
     persistPromptInfo(promptCustomer, promptPerFormula);
     setPromptOpen(false);
     setPrintCustomer(customer || workspaceName);
-    // 进预览默认 a6punch (A6 穿孔纸); 用户可在右上角切到四宫格 / 标准.
+    // 进预览默认 a6punch (配方纸); 用户可在右上角切到四宫格 / 标准.
     await fetchPreview('a6punch');
   };
 
@@ -710,7 +710,7 @@ export function CartPage() {
                     : 'text-foreground hover:bg-accent',
                 )}
               >
-                穿孔纸
+                配方纸
               </button>
               <button
                 type="button"
@@ -723,7 +723,7 @@ export function CartPage() {
                     : 'text-foreground hover:bg-accent',
                 )}
               >
-                标签纸
+                跟踪卡
               </button>
               <button
                 type="button"
@@ -755,7 +755,7 @@ export function CartPage() {
           </DialogHeader>
           {previewHtml &&
             (previewLayout === 'a6punch' || previewLayout === 'label' ? (
-              // 穿孔纸 / 标签纸都是窄页 (120×140mm / 50×80mm), 直接拉满 iframe
+              // 配方纸 / 跟踪卡都是窄页 (120×140mm / 50×80mm), 直接拉满 iframe
               // 看着挤. 包一层灰底 + 内距 + 阴影模拟 "桌上一张纸" 的视觉, 标签
               // 纸更窄, max-w 给小一档.
               <div className="flex-1 overflow-auto bg-muted/40 px-12 py-10">

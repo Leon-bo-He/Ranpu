@@ -436,8 +436,8 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
     let now = Local::now();
     let date_full = now.format("%Y-%m-%d").to_string();
     let title = match context.workspace_name {
-        Some(name) => format!("{}-穿孔纸-{}", sanitize_for_filename(name), date_full),
-        None => format!("穿孔纸-{date_full}"),
+        Some(name) => format!("{}-配方纸-{}", sanitize_for_filename(name), date_full),
+        None => format!("配方纸-{date_full}"),
     };
     let total = results.len();
 
@@ -550,8 +550,8 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
 fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
     let date = Local::now().format("%Y-%m-%d").to_string();
     let title = match context.workspace_name {
-        Some(name) => format!("{}-标签-{}", sanitize_for_filename(name), date),
-        None => format!("标签-{date}"),
+        Some(name) => format!("{}-跟踪卡-{}", sanitize_for_filename(name), date),
+        None => format!("跟踪卡-{date}"),
     };
     let total = results.len();
 
