@@ -7,6 +7,7 @@ import {
 } from 'react';
 
 import { cn } from '@/lib/utils';
+import { useSessionStore } from '@/store/session';
 
 export const Select = SelectPrimitive.Root;
 export const SelectGroup = SelectPrimitive.Group;
@@ -35,7 +36,12 @@ SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 export const SelectContent = forwardRef<
   ElementRef<typeof SelectPrimitive.Content>,
   ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = 'popper', ...props }, ref) => (
+>(({ className, children, position = 'popper', ...props }, ref) => {
+  // 跟 DialogContent 同理: 锁屏时 Select 弹层也整个卸掉, 避免它的
+  // dismissable layer / focus-scope 跟 LockOverlay 抢焦点.
+  const locked = useSessionStore((s) => s.session?.locked ?? false);
+  if (locked) return null;
+  return (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
@@ -60,7 +66,8 @@ export const SelectContent = forwardRef<
       </SelectPrimitive.Viewport>
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
-));
+  );
+});
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
 export const SelectItem = forwardRef<
