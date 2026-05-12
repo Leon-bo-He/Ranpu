@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type IdleTimeoutMinutes = 5 | 10 | 30 | 60 | 0; // 0 = 关闭
+/// 空闲自动锁屏的超时秒数. 10 秒只作测试焦点用 (复现锁屏抢焦点 bug),
+/// 其他都是分钟换算后的秒值. 0 = 关闭自动锁屏.
+export type IdleTimeoutSeconds = 10 | 300 | 600 | 1800 | 3600 | 0;
 
 /// 配方互导 URL 备份的默认 domain. 完整 PUT URL 由代码拼:
 ///   https://<domain>/public.php/dav/files/H9g9DTkFX3FLq8P/<filename>
@@ -13,8 +15,8 @@ export const DEFAULT_CLOUD_UPLOAD_DOMAIN = 'upload.1122888.xyz';
 export const CLOUD_UPLOAD_PATH = '/public.php/dav/files/H9g9DTkFX3FLq8P';
 
 interface SettingsState {
-  idleTimeoutMinutes: IdleTimeoutMinutes;
-  setIdleTimeoutMinutes: (m: IdleTimeoutMinutes) => void;
+  idleTimeoutSeconds: IdleTimeoutSeconds;
+  setIdleTimeoutSeconds: (s: IdleTimeoutSeconds) => void;
   /// 一个纱支包/筒的标准重量 (kg). 批次单 prompt 里用 总重量 / 单个重量
   /// 自动算每条配方的纱支个数. 默认 1.25 kg.
   singleYarnWeightKg: number;
@@ -27,8 +29,8 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      idleTimeoutMinutes: 10,
-      setIdleTimeoutMinutes: (m) => set({ idleTimeoutMinutes: m }),
+      idleTimeoutSeconds: 600,
+      setIdleTimeoutSeconds: (s) => set({ idleTimeoutSeconds: s }),
       singleYarnWeightKg: 1.25,
       setSingleYarnWeightKg: (n) =>
         set({
@@ -54,6 +56,19 @@ export const useSettingsStore = create<SettingsState>()(
         });
       },
     }),
-    { name: 'ranpu-settings' },
+    {
+      name: 'ranpu-settings',
+      // v1 用 idleTimeoutMinutes (5/10/30/60/0); v2 换成 idleTimeoutSeconds
+      // 并加入 10 秒测试档. migrate 把分钟 × 60 当秒.
+      version: 2,
+      migrate: (persistedState, version) => {
+        const s = (persistedState as Record<string, unknown>) ?? {};
+        if (version < 2 && typeof s.idleTimeoutMinutes === 'number') {
+          s.idleTimeoutSeconds = s.idleTimeoutMinutes * 60;
+          delete s.idleTimeoutMinutes;
+        }
+        return s as unknown as SettingsState;
+      },
+    },
   ),
 );

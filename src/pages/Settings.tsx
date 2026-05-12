@@ -16,13 +16,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useEditModeStore } from '@/store/editMode';
-import { useSettingsStore, type IdleTimeoutMinutes } from '@/store/settings';
+import { useSettingsStore, type IdleTimeoutSeconds } from '@/store/settings';
 import { useDyeLibraryStore } from '@/store/dyeLibrary';
 import { useYarnSettingsStore } from '@/store/yarnSettings';
 
 export function SettingsPage() {
-  const idleMinutes = useSettingsStore((s) => s.idleTimeoutMinutes);
-  const setIdleMinutes = useSettingsStore((s) => s.setIdleTimeoutMinutes);
+  const idleSeconds = useSettingsStore((s) => s.idleTimeoutSeconds);
+  const setIdleSeconds = useSettingsStore((s) => s.setIdleTimeoutSeconds);
 
   const [askResetMills, setAskResetMills] = useState(false);
   const [askResetSpecs, setAskResetSpecs] = useState(false);
@@ -254,18 +254,19 @@ export function SettingsPage() {
         <CardContent className="grid gap-2 max-w-md">
           <Label>空闲多久自动锁定</Label>
           <Select
-            value={String(idleMinutes)}
-            onValueChange={(v) => setIdleMinutes(Number(v) as IdleTimeoutMinutes)}
+            value={String(idleSeconds)}
+            onValueChange={(v) => setIdleSeconds(Number(v) as IdleTimeoutSeconds)}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="0">关闭自动锁屏</SelectItem>
-              <SelectItem value="5">5 分钟</SelectItem>
-              <SelectItem value="10">10 分钟</SelectItem>
-              <SelectItem value="30">30 分钟</SelectItem>
-              <SelectItem value="60">60 分钟</SelectItem>
+              <SelectItem value="10">10 秒（测试）</SelectItem>
+              <SelectItem value="300">5 分钟</SelectItem>
+              <SelectItem value="600">10 分钟</SelectItem>
+              <SelectItem value="1800">30 分钟</SelectItem>
+              <SelectItem value="3600">60 分钟</SelectItem>
             </SelectContent>
           </Select>
         </CardContent>
