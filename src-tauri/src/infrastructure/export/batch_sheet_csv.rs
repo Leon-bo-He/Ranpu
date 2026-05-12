@@ -453,7 +453,7 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; font-weight: bold; }
   /* min-height (而非 height): 短配方仍让 corner 锚到 124mm 底部, 长配方
      自然撑高溢到下一张物理纸, 比 overflow: hidden 裁掉行更安全. */
-  .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 4mm; line-height: 1.6; }
+  .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 4mm; line-height: 1.5; }
   .page:last-child { page-break-after: auto; }
   .vat { font-size: 42px; line-height: 1.1; margin-bottom: 3px; }
   .meta-line { font-size: 26px; margin-bottom: 2px; }
