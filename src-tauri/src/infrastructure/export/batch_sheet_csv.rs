@@ -565,16 +565,16 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
     html.push_str(
         r#"<style>
   @page { size: 50mm 80mm; margin: 3mm; }
-  body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
-  .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-bottom: 6mm; line-height: 1.4; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; text-align: center; }
+  .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-top: 6mm; padding-bottom: 6mm; line-height: 1.4; }
   .page:last-child { page-break-after: auto; }
-  .vat { font-size: 24px; font-weight: bold; line-height: 1.1; margin-bottom: 6px; }
-  .meta-line { font-size: 13px; margin-bottom: 3px; word-break: break-all; }
-  .yarn-row { display: flex; gap: 6px; font-size: 13px; margin-bottom: 2px; }
-  .yarn-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 10px; color: #888; }
-  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 10px; color: #888; }
+  .vat { font-size: 24px; font-weight: bold; line-height: 1.1; margin-bottom: 8px; }
+  .meta-line { font-size: 13px; margin-bottom: 4px; word-break: break-all; }
+  .yarn-row { display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px; }
+  .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 1px dashed #555; padding: 1px 6px; border-radius: 2px; }
+  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 10px; color: #888; text-align: left; }
+  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 10px; color: #888; text-align: right; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
@@ -613,11 +613,18 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
         } else {
             for y in &meta.yarns {
                 let name = format_yarn_name(y.mill, y.spec);
-                let count = y.count.map(|c| format!("{c} 个"));
+                // 个数为空就不渲染 .count span — 避免显示空的虚线方框.
+                let count_html = match y.count {
+                    Some(c) if !c.is_empty() => format!(
+                        "<span class=\"count\">{}</span>",
+                        html_escape(&format!("{c} 个")),
+                    ),
+                    _ => String::new(),
+                };
                 html.push_str(&format!(
-                    "    <div class=\"yarn-row\"><span class=\"name\">{}</span><span class=\"count\">{}</span></div>\n",
+                    "    <div class=\"yarn-row\"><span class=\"name\">{}</span>{}</div>\n",
                     html_escape(if name.is_empty() { "—" } else { &name }),
-                    html_escape(count.as_deref().unwrap_or("")),
+                    count_html,
                 ));
             }
         }
