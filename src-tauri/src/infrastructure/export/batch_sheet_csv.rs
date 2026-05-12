@@ -465,8 +465,8 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
   .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 26px; margin-bottom: 2px; }
   .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
-  .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 12px; color: #888; }
-  .corner-r { position: absolute; bottom: 2mm; right: 0; font-size: 12px; color: #888; }
+  .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 16px; color: #555; }
+  .corner-r { position: absolute; bottom: 2mm; right: 0; font-size: 16px; color: #555; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
@@ -577,8 +577,8 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
   .yarn-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 16px; margin-bottom: 6px; }
   .yarn-row .name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 1px dashed #555; padding: 2px 8px; border-radius: 2px; min-width: 42px; text-align: center; }
-  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 11px; color: #888; text-align: left; }
-  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 11px; color: #888; text-align: right; }
+  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 14px; color: #555; text-align: left; }
+  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 14px; color: #555; text-align: right; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
