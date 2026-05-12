@@ -452,14 +452,12 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
   @page { size: 120mm 140mm; margin: 8mm 13mm; }
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; font-weight: bold; }
   /* min-height (而非 height): 短配方仍让 corner 锚到 124mm 底部, 长配方
-     (≥5 染料) 自然撑高溢到下一张物理纸, 比 overflow: hidden 裁掉行更安全.
-     line-height: 1.25 比常规 1.4 紧, 让大字号 + 加粗 + 分割线宽间距能在
-     124mm 内容区内放下 4 染料. */
-  .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 4mm; line-height: 1.25; }
+     自然撑高溢到下一张物理纸, 比 overflow: hidden 裁掉行更安全. */
+  .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 4mm; line-height: 1.6; }
   .page:last-child { page-break-after: auto; }
   .vat { font-size: 42px; line-height: 1.1; margin-bottom: 3px; }
   .meta-line { font-size: 26px; margin-bottom: 2px; }
-  .divider { border: 0; border-top: 2px solid #1f1f1f; margin: 14px 0 14px; }
+  .divider { border: 0; border-top: 2px solid #1f1f1f; margin: 20px 0 20px; }
   .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 2px 0; font-size: 28px; }
   .dye-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   .dye-row .grams { font-variant-numeric: tabular-nums; color: #000; text-align: left; }
