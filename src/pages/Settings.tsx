@@ -272,7 +272,6 @@ export function SettingsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="0">关闭自动锁屏</SelectItem>
-              <SelectItem value="10">10 秒（测试）</SelectItem>
               <SelectItem value="300">5 分钟</SelectItem>
               <SelectItem value="600">10 分钟</SelectItem>
               <SelectItem value="1800">30 分钟</SelectItem>

@@ -1,9 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-/// 空闲自动锁屏的超时秒数. 10 秒只作测试焦点用 (复现锁屏抢焦点 bug),
-/// 其他都是分钟换算后的秒值. 0 = 关闭自动锁屏.
-export type IdleTimeoutSeconds = 10 | 300 | 600 | 1800 | 3600 | 0;
+/// 空闲自动锁屏的超时秒数 (分钟换算后的秒值). 0 = 关闭自动锁屏.
+export type IdleTimeoutSeconds = 300 | 600 | 1800 | 3600 | 0;
 
 /// 配方互导 URL 备份的默认 domain. 完整 PUT URL 由代码拼:
 ///   https://<domain>/public.php/dav/files/H9g9DTkFX3FLq8P/<filename>
