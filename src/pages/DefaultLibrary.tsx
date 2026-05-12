@@ -32,6 +32,7 @@ import {
 import { formatAmount } from '@/lib/format';
 import { useEditModeStore } from '@/store/editMode';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
+import { useResetOnLock } from '@/hooks/useResetOnLock';
 
 export function DefaultLibraryPage() {
   const session = useSessionStore((s) => s.session);
@@ -207,6 +208,17 @@ export function DefaultLibraryPage() {
     setEditorOpen(false);
     load();
   };
+
+  // 锁屏触发时立刻关本页所有 state-driven Dialog (编辑器 / 删除确认 /
+  // 加入批次 / 冲突 / 批量复制总结), 不让 Radix focus-scope 卡住 LockOverlay.
+  useResetOnLock(() => {
+    setEditorOpen(false);
+    setEditing(null);
+    setPendingDelete(null);
+    setCartTarget(null);
+    setConflict(null);
+    setBatchSummary(null);
+  });
 
   const onToggleSelected = (formula: FormulaView, next: boolean) => {
     setSelectedIds((prev) => {

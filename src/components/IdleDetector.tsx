@@ -7,12 +7,12 @@ import { useSettingsStore } from '@/store/settings';
 /**
  * 监听全局鼠标 / 键盘活动；超时未活动 → 触发后端 lock_session + 前端 setLocked.
  *
- * 当 idleTimeoutMinutes 为 0 时关闭自动锁屏（PROMPT 第 83 行设置项）。
+ * 当 idleTimeoutSeconds 为 0 时关闭自动锁屏。
  */
 export function IdleDetector() {
   const session = useSessionStore((s) => s.session);
   const setLocked = useSessionStore((s) => s.setLocked);
-  const idleMinutes = useSettingsStore((s) => s.idleTimeoutMinutes);
+  const idleSeconds = useSettingsStore((s) => s.idleTimeoutSeconds);
   const lastActivity = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -31,9 +31,9 @@ export function IdleDetector() {
   }, []);
 
   useEffect(() => {
-    if (!session || session.locked || idleMinutes === 0) return;
+    if (!session || session.locked || idleSeconds === 0) return;
     const intervalMs = 30 * 1000; // 30 秒检查一次
-    const idleMs = idleMinutes * 60 * 1000;
+    const idleMs = idleSeconds * 1000;
     const timer = window.setInterval(() => {
       if (Date.now() - lastActivity.current >= idleMs) {
         bootApi
@@ -45,7 +45,7 @@ export function IdleDetector() {
       }
     }, intervalMs);
     return () => window.clearInterval(timer);
-  }, [session, idleMinutes, setLocked]);
+  }, [session, idleSeconds, setLocked]);
 
   return null;
 }

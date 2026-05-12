@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/table';
 import { formatAmount, formatGrams, unitLabel } from '@/lib/format';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
+import { useResetOnLock } from '@/hooks/useResetOnLock';
 
 type SearchMode = 'internal' | 'customer';
 
@@ -68,6 +69,13 @@ export function CalculatorPage() {
   // 跨日工作前提醒清空昨天残留的批次清单. dialog 在 JSX 末尾渲染.
   const { guard: cartStaleGuard, dialog: cartStaleDialog } = useCartStaleGuard({
     onError: setError,
+  });
+
+  // 锁屏触发时关 conflict 确认 + 候选客户色号选择 Dialog, 不让 focus-scope
+  // 卡 LockOverlay.
+  useResetOnLock(() => {
+    setConflict(null);
+    setCandidates(null);
   });
 
   if (!hasWs) {

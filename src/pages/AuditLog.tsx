@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/format';
 import { useEditModeStore } from '@/store/editMode';
+import { useResetOnLock } from '@/hooks/useResetOnLock';
 
 export function AuditLogPage() {
   const displayEnabled = useEditModeStore((s) => s.auditDisplayEnabled);
@@ -43,6 +44,9 @@ export function AuditLogPage() {
   const [to, setTo] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 锁屏触发时关导出 Dialog, 不让 focus-scope 卡 LockOverlay.
+  useResetOnLock(() => setExportOpen(false));
 
   const load = () => {
     // 前端只展示最新 50 条 (按 occurred_at DESC). 全量审计仍由 "导出" 走加密包.

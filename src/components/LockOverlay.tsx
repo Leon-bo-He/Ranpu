@@ -38,6 +38,30 @@ export function LockOverlay() {
     let cancelled = false;
     let attempts = 0;
 
+    // 先关掉所有可能开着的 Radix overlay (Dialog / DropdownMenu / Select /
+    // Popover). 不关的话它们内置的 focus-scope 会把焦点 trap 住, LockOverlay
+    // 的密码输入框 / 解锁按钮抢不到焦点, 用户看得见但点不动. Radix 全家桶
+    // 都通过 Dismissable 监听 document keydown 处理 Escape, 一次派发就足
+    // 够让最上层 layer 触发 onOpenChange(false), 应用层 state 更新后下次
+    // render 卸载. 跨 rAF 多派几次兜底嵌套 layer (例如 Dialog 内含 Select).
+    const dispatchEscape = () => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          code: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    };
+    dispatchEscape();
+    requestAnimationFrame(() => {
+      if (!cancelled) dispatchEscape();
+      requestAnimationFrame(() => {
+        if (!cancelled) dispatchEscape();
+      });
+    });
+
     const focusInput = () => {
       if (cancelled) return;
       const input = inputRef.current;

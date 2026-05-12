@@ -259,8 +259,8 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
     let now = Local::now();
     let date_full = now.format("%Y-%m-%d").to_string();
     let title = match context.workspace_name {
-        Some(name) => format!("{}-批次单-{}", sanitize_for_filename(name), date_full),
-        None => format!("批次单-{date_full}"),
+        Some(name) => format!("{}-四宫格-{}", sanitize_for_filename(name), date_full),
+        None => format!("四宫格-{date_full}"),
     };
 
     // 把 results 切分到 page-cells: 每页最多 GRID_CELLS_PER_PAGE 个 slot.
@@ -436,8 +436,8 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
     let now = Local::now();
     let date_full = now.format("%Y-%m-%d").to_string();
     let title = match context.workspace_name {
-        Some(name) => format!("{}-批次单-{}", sanitize_for_filename(name), date_full),
-        None => format!("批次单-{date_full}"),
+        Some(name) => format!("{}-穿孔纸-{}", sanitize_for_filename(name), date_full),
+        None => format!("穿孔纸-{date_full}"),
     };
     let total = results.len();
 
