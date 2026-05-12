@@ -456,17 +456,19 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
      自然撑高溢到下一张物理纸, 比 overflow: hidden 裁掉行更安全. */
   .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 4mm; line-height: 1.5; }
   .page:last-child { page-break-after: auto; }
-  /* 分割线上方 (vat / 客户 / 色号 / 纱支厂名) 整体右移 1 个中文字符宽,
-     避免在配方纸左边沿堆字. 纱支个数所在的右半列不动 — 只给 .yarn-row
-     .name 加 padding-left, count 还在 grid 右列原位置. */
-  .vat { font-size: 42px; font-weight: bold; line-height: 1.1; margin-bottom: 3px; padding-left: 1em; }
-  .meta-line { font-size: 26px; margin-bottom: 2px; padding-left: 1em; }
+  /* 分割线上方 (vat / 客户 / 色号 / 纱支厂名) 整体右移约 1 个中文字符宽
+     (26px, 跟 meta-line 字号同), 避免在配方纸左边沿堆字. 用固定 px 而非
+     1em — em 会随各行 font-size 变, 导致 vat 比 meta 缩进更多看起来错位.
+     纱支个数所在的右半列不动 — 只给 .yarn-row .name 加 padding-left,
+     count 还在 grid 右列原位置. */
+  .vat { font-size: 42px; font-weight: bold; line-height: 1.1; margin-bottom: 3px; padding-left: 26px; }
+  .meta-line { font-size: 26px; margin-bottom: 2px; padding-left: 26px; }
   .divider { border: 0; border-top: 2px solid #1f1f1f; margin: 20px 0 20px; }
   .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 2px 0; font-size: 28px; }
   .dye-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: bold; color: #000; text-align: left; }
   .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 26px; margin-bottom: 2px; }
-  .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 1em; }
+  .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 26px; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
   .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 16px; color: #555; }
   .corner-r { position: absolute; bottom: 2mm; right: 0; font-size: 16px; color: #555; }
