@@ -105,20 +105,6 @@ export function CartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkspaceId]);
 
-  // 自动锁屏触发时把本页所有 Radix Dialog 关掉. 不关的话 Dialog 内置
-  // focus-scope 会一直把焦点 trap 在 dialog content 里, LockOverlay 的
-  // 密码输入框 / 解锁按钮抢不到焦点, 用户看得见但点不动. 锁屏的优先级
-  // 高于任何 prompt / preview, 直接清掉所有本页对话框最干净.
-  const sessionLocked = session?.locked ?? false;
-  useEffect(() => {
-    if (sessionLocked) {
-      setPromptOpen(false);
-      setPreviewHtml(null);
-      setAskClear(false);
-      setUnknownYarns([]);
-    }
-  }, [sessionLocked]);
-
   if (!hasWs) {
     return (
       <p className="p-6 text-sm text-muted-foreground">
