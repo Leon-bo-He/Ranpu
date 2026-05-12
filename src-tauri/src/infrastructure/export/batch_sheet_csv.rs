@@ -566,15 +566,19 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
         r#"<style>
   @page { size: 50mm 80mm; margin: 3mm; }
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; text-align: center; }
-  .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-top: 6mm; padding-bottom: 6mm; line-height: 1.4; }
+  /* flex + justify-content: center 把 vat / 客户 / 色号 / 纱支 四排作为
+     一个整体在标签内容区 (减掉底部 8mm 给 corner) 内垂直居中. corner
+     是 absolute, 不参与 flex, 仍贴在底部. */
+  .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-bottom: 8mm; line-height: 1.4; display: flex; flex-direction: column; justify-content: center; }
   .page:last-child { page-break-after: auto; }
-  .vat { font-size: 24px; font-weight: bold; line-height: 1.1; margin-bottom: 8px; }
-  .meta-line { font-size: 13px; margin-bottom: 4px; word-break: break-all; }
-  .yarn-row { display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px; }
-  .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 1px dashed #555; padding: 1px 6px; border-radius: 2px; }
-  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 10px; color: #888; text-align: left; }
-  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 10px; color: #888; text-align: right; }
+  .vat { font-size: 30px; font-weight: bold; line-height: 1.1; margin-bottom: 10px; }
+  .meta-line { font-size: 16px; margin-bottom: 6px; word-break: break-all; }
+  /* 纱支行: 名字靠左, 个数虚框靠右, 撑满整行宽度. */
+  .yarn-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 16px; margin-bottom: 6px; }
+  .yarn-row .name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 1px dashed #555; padding: 2px 8px; border-radius: 2px; min-width: 42px; text-align: center; }
+  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 11px; color: #888; text-align: left; }
+  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 11px; color: #888; text-align: right; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
@@ -613,18 +617,16 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
         } else {
             for y in &meta.yarns {
                 let name = format_yarn_name(y.mill, y.spec);
-                // 个数为空就不渲染 .count span — 避免显示空的虚线方框.
-                let count_html = match y.count {
-                    Some(c) if !c.is_empty() => format!(
-                        "<span class=\"count\">{}</span>",
-                        html_escape(&format!("{c} 个")),
-                    ),
-                    _ => String::new(),
+                // 个数虚框永远渲染 — 空的话工人手写填. 有数字则 "N 个", 没数字
+                // 仅显示 "个" 当尾标 (min-width 撑出手写区).
+                let count_text = match y.count {
+                    Some(c) if !c.trim().is_empty() => format!("{} 个", c.trim()),
+                    _ => "个".to_owned(),
                 };
                 html.push_str(&format!(
-                    "    <div class=\"yarn-row\"><span class=\"name\">{}</span>{}</div>\n",
+                    "    <div class=\"yarn-row\"><span class=\"name\">{}</span><span class=\"count\">{}</span></div>\n",
                     html_escape(if name.is_empty() { "—" } else { &name }),
-                    count_html,
+                    html_escape(&count_text),
                 ));
             }
         }
