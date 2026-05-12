@@ -436,8 +436,8 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
     let now = Local::now();
     let date_full = now.format("%Y-%m-%d").to_string();
     let title = match context.workspace_name {
-        Some(name) => format!("{}-穿孔纸-{}", sanitize_for_filename(name), date_full),
-        None => format!("穿孔纸-{date_full}"),
+        Some(name) => format!("{}-配方纸-{}", sanitize_for_filename(name), date_full),
+        None => format!("配方纸-{date_full}"),
     };
     let total = results.len();
 
@@ -456,17 +456,22 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
      自然撑高溢到下一张物理纸, 比 overflow: hidden 裁掉行更安全. */
   .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 4mm; line-height: 1.5; }
   .page:last-child { page-break-after: auto; }
-  .vat { font-size: 42px; font-weight: bold; line-height: 1.1; margin-bottom: 3px; }
-  .meta-line { font-size: 26px; margin-bottom: 2px; }
+  /* 分割线上方 (vat / 客户 / 色号 / 纱支厂名) 整体右移约 1 个中文字符宽
+     (26px, 跟 meta-line 字号同), 避免在配方纸左边沿堆字. 用固定 px 而非
+     1em — em 会随各行 font-size 变, 导致 vat 比 meta 缩进更多看起来错位.
+     纱支个数所在的右半列不动 — 只给 .yarn-row .name 加 padding-left,
+     count 还在 grid 右列原位置. */
+  .vat { font-size: 42px; font-weight: bold; line-height: 1.1; margin-bottom: 3px; padding-left: 26px; }
+  .meta-line { font-size: 26px; margin-bottom: 2px; padding-left: 26px; }
   .divider { border: 0; border-top: 2px solid #1f1f1f; margin: 20px 0 20px; }
   .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 2px 0; font-size: 28px; }
   .dye-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: bold; color: #000; text-align: left; }
   .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 26px; margin-bottom: 2px; }
-  .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 26px; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
-  .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 12px; color: #888; }
-  .corner-r { position: absolute; bottom: 2mm; right: 0; font-size: 12px; color: #888; }
+  .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 16px; color: #555; }
+  .corner-r { position: absolute; bottom: 2mm; right: 0; font-size: 16px; color: #555; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
@@ -550,8 +555,8 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
 fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
     let date = Local::now().format("%Y-%m-%d").to_string();
     let title = match context.workspace_name {
-        Some(name) => format!("{}-标签-{}", sanitize_for_filename(name), date),
-        None => format!("标签-{date}"),
+        Some(name) => format!("{}-跟踪卡-{}", sanitize_for_filename(name), date),
+        None => format!("跟踪卡-{date}"),
     };
     let total = results.len();
 
@@ -567,18 +572,23 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
   @page { size: 50mm 80mm; margin: 3mm; }
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; text-align: center; }
   /* flex + justify-content: center 把 vat / 客户 / 色号 / 纱支 四排作为
-     一个整体在标签内容区 (减掉底部 8mm 给 corner) 内垂直居中. corner
-     是 absolute, 不参与 flex, 仍贴在底部. */
-  .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-bottom: 8mm; line-height: 1.4; display: flex; flex-direction: column; justify-content: center; }
+     一个整体在标签内容区 (减掉底部 18mm 留给 checks + corner) 内垂直居中.
+     checks / corner 都是 absolute, 不参与 flex, 仍贴在底部. */
+  .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-bottom: 18mm; line-height: 1.4; display: flex; flex-direction: column; justify-content: center; }
   .page:last-child { page-break-after: auto; }
   .vat { font-size: 30px; font-weight: bold; line-height: 1.1; margin-bottom: 10px; }
   .meta-line { font-size: 16px; margin-bottom: 6px; word-break: break-all; }
-  /* 纱支行: 名字靠左, 个数虚框靠右, 撑满整行宽度. */
+  /* 纱支行: 名字靠左, 个数虚框靠右, 撑满整行宽度. 厂名规格 + 个数都
+     bold + #000 — 针式打印机灰字会被抖动成花的, 加粗加黑保证现场看清. */
   .yarn-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 16px; margin-bottom: 6px; }
-  .yarn-row .name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 1px dashed #555; padding: 2px 8px; border-radius: 2px; min-width: 42px; text-align: center; }
-  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 11px; color: #888; text-align: left; }
-  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 11px; color: #888; text-align: right; }
+  .yarn-row .name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-weight: bold; color: #000; }
+  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 2px dashed #1f1f1f; padding: 2px 8px; border-radius: 2px; min-width: 42px; text-align: center; font-weight: bold; color: #000; }
+  /* 对色 / 烘干 check 框, 给现场打勾用. 在 corner (日期 / 编号) 上面. */
+  .checks { position: absolute; bottom: 10mm; left: 2mm; right: 2mm; display: flex; justify-content: space-between; font-size: 14px; color: #1f1f1f; }
+  .check-item { display: inline-flex; align-items: center; gap: 5px; }
+  .check-box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #1f1f1f; vertical-align: middle; }
+  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 14px; color: #555; text-align: left; }
+  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 14px; color: #555; text-align: right; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
@@ -630,6 +640,12 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
                 ));
             }
         }
+        html.push_str(
+            "    <div class=\"checks\">\
+                <span class=\"check-item\">对色<span class=\"check-box\"></span></span>\
+                <span class=\"check-item\">烘干<span class=\"check-box\"></span></span>\
+            </div>\n",
+        );
         html.push_str(&format!(
             "    <div class=\"corner-l\">{}</div>\n",
             html_escape(&date),
