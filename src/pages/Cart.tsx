@@ -698,7 +698,7 @@ export function CartPage() {
                     : 'text-foreground hover:bg-accent',
                 )}
               >
-                A6 穿孔
+                穿孔纸
               </button>
               <button
                 type="button"
