@@ -595,6 +595,7 @@ pub fn cmd_preview_cart_as_batch_sheet_html(
         Some("standard") => PreviewLayout::Standard,
         Some("grid") => PreviewLayout::Grid,
         Some("a6punch") => PreviewLayout::A6Punch,
+        Some("label") => PreviewLayout::Label,
         // 无 layout 字段或未知值 → 走 PreviewLayout::default() = A6Punch.
         _ => PreviewLayout::default(),
     };

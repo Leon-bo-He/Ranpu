@@ -40,8 +40,9 @@ export const cartApi = {
   /// customer 写到批次单头部 (空则后端 fallback 当前工作区名).
   /// perFormula 跟 list() 返回的购物车顺序对齐. 每条 cart line 一份元信息:
   /// 单个 vat (整组共用) + 多条纱支变体 (厂名 / 规格 / 个数).
-  /// layout: 'standard' 经典段落 | 'grid' A4 四宫格 | 'a6punch' A6 穿孔纸
-  /// (一条配方一张, 默认). 后端 None / 未识别值 也走 a6punch.
+  /// layout: 'standard' 经典段落 | 'grid' A4 四宫格 | 'a6punch' 穿孔纸
+  /// (一条配方一张, 默认) | 'label' 50×80mm 标签纸 (只 vat + 客户 + 纱支).
+  /// 后端 None / 未识别值 也走 a6punch.
   previewHtml: (args: {
     customer?: string | null;
     perFormula?: Array<{
@@ -52,7 +53,7 @@ export const cartApi = {
         count?: string | null;
       }>;
     }>;
-    layout?: 'standard' | 'grid' | 'a6punch';
+    layout?: 'standard' | 'grid' | 'a6punch' | 'label';
   } = {}) =>
     invoke<string>('cmd_preview_cart_as_batch_sheet_html', {
       cmd: {

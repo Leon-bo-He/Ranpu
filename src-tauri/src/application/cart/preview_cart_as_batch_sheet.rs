@@ -23,6 +23,7 @@ pub enum PreviewLayout {
     Grid,
     #[default]
     A6Punch,
+    Label,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -123,6 +124,7 @@ impl CartService {
             PreviewLayout::Standard => BatchSheetFormat::Html,
             PreviewLayout::Grid => BatchSheetFormat::HtmlGrid,
             PreviewLayout::A6Punch => BatchSheetFormat::HtmlA6Punch,
+            PreviewLayout::Label => BatchSheetFormat::HtmlLabel,
         };
         self.batch_sheet_exporter
             .render(&results, context, format)
