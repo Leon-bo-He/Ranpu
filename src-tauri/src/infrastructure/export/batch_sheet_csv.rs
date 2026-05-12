@@ -639,8 +639,8 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
         }
         html.push_str(
             "    <div class=\"checks\">\
-                <span class=\"check-item\"><span class=\"check-box\"></span>对色</span>\
-                <span class=\"check-item\"><span class=\"check-box\"></span>烘干</span>\
+                <span class=\"check-item\">对色<span class=\"check-box\"></span></span>\
+                <span class=\"check-item\">烘干<span class=\"check-box\"></span></span>\
             </div>\n",
         );
         html.push_str(&format!(
