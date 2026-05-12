@@ -572,9 +572,9 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
   @page { size: 50mm 80mm; margin: 3mm; }
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; text-align: center; }
   /* flex + justify-content: center 把 vat / 客户 / 色号 / 纱支 四排作为
-     一个整体在标签内容区 (减掉底部 14mm 留给 checks + corner) 内垂直居中.
+     一个整体在标签内容区 (减掉底部 18mm 留给 checks + corner) 内垂直居中.
      checks / corner 都是 absolute, 不参与 flex, 仍贴在底部. */
-  .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-bottom: 14mm; line-height: 1.4; display: flex; flex-direction: column; justify-content: center; }
+  .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-bottom: 18mm; line-height: 1.4; display: flex; flex-direction: column; justify-content: center; }
   .page:last-child { page-break-after: auto; }
   .vat { font-size: 30px; font-weight: bold; line-height: 1.1; margin-bottom: 10px; }
   .meta-line { font-size: 16px; margin-bottom: 6px; word-break: break-all; }
@@ -583,7 +583,7 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
   .yarn-row .name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 2px dashed #1f1f1f; padding: 2px 8px; border-radius: 2px; min-width: 42px; text-align: center; }
   /* 对色 / 烘干 check 框, 给现场打勾用. 在 corner (日期 / 编号) 上面. */
-  .checks { position: absolute; bottom: 6mm; left: 2mm; right: 2mm; display: flex; justify-content: space-between; font-size: 14px; color: #1f1f1f; }
+  .checks { position: absolute; bottom: 10mm; left: 2mm; right: 2mm; display: flex; justify-content: space-between; font-size: 14px; color: #1f1f1f; }
   .check-item { display: inline-flex; align-items: center; gap: 5px; }
   .check-box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #1f1f1f; vertical-align: middle; }
   .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 14px; color: #555; text-align: left; }
