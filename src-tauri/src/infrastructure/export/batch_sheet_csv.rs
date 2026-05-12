@@ -581,7 +581,7 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
   /* 纱支行: 名字靠左, 个数虚框靠右, 撑满整行宽度. */
   .yarn-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 16px; margin-bottom: 6px; }
   .yarn-row .name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 1px dashed #555; padding: 2px 8px; border-radius: 2px; min-width: 42px; text-align: center; }
+  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 2px dashed #1f1f1f; padding: 2px 8px; border-radius: 2px; min-width: 42px; text-align: center; }
   /* 对色 / 烘干 check 框, 给现场打勾用. 在 corner (日期 / 编号) 上面. */
   .checks { position: absolute; bottom: 6mm; left: 2mm; right: 2mm; display: flex; justify-content: space-between; font-size: 14px; color: #1f1f1f; }
   .check-item { display: inline-flex; align-items: center; gap: 5px; }
