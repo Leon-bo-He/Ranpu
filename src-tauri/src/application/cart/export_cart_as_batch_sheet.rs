@@ -40,6 +40,7 @@ impl CartService {
             BatchSheetFormat::Csv => "csv",
             BatchSheetFormat::Html => "html",
             BatchSheetFormat::HtmlGrid => "html-grid",
+            BatchSheetFormat::HtmlA6Punch => "html-a6punch",
         };
         let event = AuditEvent::new(
             Some(workspace_id),

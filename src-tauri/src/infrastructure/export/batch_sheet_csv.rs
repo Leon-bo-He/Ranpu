@@ -49,6 +49,7 @@ impl BatchSheetExporter for BatchSheetCsvExporter {
             BatchSheetFormat::Csv => render_csv(results),
             BatchSheetFormat::Html => render_html(results, context),
             BatchSheetFormat::HtmlGrid => render_html_grid(results, context),
+            BatchSheetFormat::HtmlA6Punch => render_html_a6_punch(results, context),
         })
     }
 }
@@ -420,6 +421,119 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
     }
     if page_open {
         html.push_str("</div>\n");
+    }
+
+    html.push_str("</body>\n</html>\n");
+    html
+}
+
+/// A6 穿孔纸格式. 一条配方一张 A6 (105×148mm 纵向), 左右各留 13mm 给孔
+/// 洞区, 上下 8mm 行距. 没有边框 (纸边即是边框), 内容靠 vat 大字 + 分割线
+/// 区隔. 字号比四宫格小一档 — A6 内容区 79×132mm, 比 A4 半页窄.
+fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
+    let now = Local::now();
+    let date_full = now.format("%Y-%m-%d").to_string();
+    let title = match context.workspace_name {
+        Some(name) => format!("{}-批次单-{}", sanitize_for_filename(name), date_full),
+        None => format!("批次单-{date_full}"),
+    };
+    let total = results.len();
+
+    let mut html = String::new();
+    html.push_str("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n");
+    html.push_str("<meta charset=\"UTF-8\">\n");
+    html.push_str(
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:\">\n",
+    );
+    html.push_str(&format!("<title>{}</title>\n", html_escape(&title)));
+    html.push_str(
+        r#"<style>
+  @page { size: 105mm 148mm; margin: 8mm 13mm; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
+  .page { page-break-after: always; height: 132mm; box-sizing: border-box; position: relative; padding-bottom: 8mm; overflow: hidden; line-height: 1.45; }
+  .page:last-child { page-break-after: auto; }
+  .vat { font-size: 26px; font-weight: bold; line-height: 1.1; margin-bottom: 4px; }
+  .meta-line { font-size: 14px; margin-bottom: 2px; }
+  .divider { border: 0; border-top: 1.5px solid #1f1f1f; margin: 8px 0 8px; }
+  .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 3px 0; font-size: 18px; }
+  .dye-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+  .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: 700; color: #000; text-align: left; }
+  .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px; margin-bottom: 2px; }
+  .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
+  .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 10px; color: #888; }
+  .corner-r { position: absolute; bottom: 2mm; right: 0; font-size: 10px; color: #888; }
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+"#,
+    );
+
+    let empty_meta = FormulaMeta::default();
+    for (idx, r) in results.iter().enumerate() {
+        let meta = context.per_formula.get(idx).unwrap_or(&empty_meta);
+        html.push_str("  <div class=\"page\">\n");
+
+        let vat_display = meta.vat_number.unwrap_or("—");
+        html.push_str(&format!(
+            "    <div class=\"vat\">{}</div>\n",
+            html_escape(vat_display),
+        ));
+        let cust = context.workspace_name.unwrap_or("—");
+        html.push_str(&format!(
+            "    <div class=\"meta-line\">{}</div>\n",
+            html_escape(cust),
+        ));
+        let internal = r.internal_color_code.as_str();
+        let third = match meta.color_family {
+            Some(f) => format!("{} · {}", internal, f),
+            None => internal.to_owned(),
+        };
+        html.push_str(&format!(
+            "    <div class=\"meta-line\">{}</div>\n",
+            html_escape(&third),
+        ));
+        if meta.yarns.is_empty() {
+            html.push_str("    <div class=\"meta-line\">—</div>\n");
+        } else {
+            for y in &meta.yarns {
+                let name = format_yarn_name(y.mill, y.spec);
+                let count = y.count.map(|c| format!("{c} 个"));
+                html.push_str(&format!(
+                    "    <div class=\"yarn-row\"><span class=\"name\">{}</span><span class=\"count\">{}</span></div>\n",
+                    html_escape(if name.is_empty() { "—" } else { &name }),
+                    html_escape(count.as_deref().unwrap_or("")),
+                ));
+            }
+        }
+        html.push_str("    <hr class=\"divider\" />\n");
+        for l in &r.lines {
+            let dye_label = match l.dye_code.as_deref() {
+                Some(code) => format!("{} ({})", l.dye_name, code),
+                None => l.dye_name.clone(),
+            };
+            html.push_str(&format!(
+                "    <div class=\"dye-row\"><span class=\"name\">{}</span><span class=\"grams\">{}</span></div>\n",
+                html_escape(&dye_label),
+                format_amount(l.grams.value()),
+            ));
+        }
+        html.push_str(&format!(
+            "    <div class=\"corner-l\">{}</div>\n",
+            html_escape(&date_full),
+        ));
+        let counter_label = match context.workspace_name {
+            Some(c) => format!("{} · {}/{}", c, idx + 1, total),
+            None => format!("{}/{}", idx + 1, total),
+        };
+        html.push_str(&format!(
+            "    <div class=\"corner-r\">{}</div>\n",
+            html_escape(&counter_label),
+        ));
+        html.push_str("  </div>\n");
     }
 
     html.push_str("</body>\n</html>\n");

@@ -12,16 +12,17 @@ pub struct PreviewBatchSheetInput {
     /// 每条 cart line 一份元信息: 单个 vat (整组共用) + 多条纱支变体.
     /// 长度可短于 cart, 缺位按空 meta 兜底.
     pub per_formula: Vec<PreviewFormulaMetaInput>,
-    /// 渲染版本: Standard = 经典每条配方一段; Grid = A4 四宫格.
-    /// 默认 Grid (Cart 入口 fetchPreview 也用 grid).
+    /// 渲染版本: Standard = 经典每条配方一段; Grid = A4 四宫格;
+    /// A6Punch = A6 穿孔纸 一条一张. 默认 A6Punch (车间主用).
     pub layout: PreviewLayout,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum PreviewLayout {
     Standard,
-    #[default]
     Grid,
+    #[default]
+    A6Punch,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -121,6 +122,7 @@ impl CartService {
         let format = match input.layout {
             PreviewLayout::Standard => BatchSheetFormat::Html,
             PreviewLayout::Grid => BatchSheetFormat::HtmlGrid,
+            PreviewLayout::A6Punch => BatchSheetFormat::HtmlA6Punch,
         };
         self.batch_sheet_exporter
             .render(&results, context, format)

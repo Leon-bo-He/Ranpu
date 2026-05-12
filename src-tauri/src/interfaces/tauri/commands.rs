@@ -592,8 +592,11 @@ pub fn cmd_preview_cart_as_batch_sheet_html(
         })
         .collect();
     let layout = match c.layout.as_deref() {
+        Some("standard") => PreviewLayout::Standard,
         Some("grid") => PreviewLayout::Grid,
-        _ => PreviewLayout::Standard,
+        Some("a6punch") => PreviewLayout::A6Punch,
+        // 无 layout 字段或未知值 → 走 PreviewLayout::default() = A6Punch.
+        _ => PreviewLayout::default(),
     };
     services_or_err(&state)?
         .cart
