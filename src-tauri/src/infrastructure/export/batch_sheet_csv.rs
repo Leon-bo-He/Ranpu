@@ -429,7 +429,8 @@ fn render_html_grid(results: &[CalculationResult], context: BatchSheetContext<'_
 
 /// 穿孔纸格式. 一条配方一张, 纸张 120×140mm 纵向, 左右各留 13mm 给孔洞
 /// 区, 上下 8mm 行距 → 内容区 94×124mm. 没有边框 (纸边即是边框), 内容靠
-/// vat 大字 + 分割线区隔. 字号比四宫格还要大一点 — 车间现场远距离能看清.
+/// vat 大字 + 分割线区隔. 全部字号加粗 — 染料最多 4 种, 字号 + 行距按 4
+/// 项染料正好填满 124mm 高度调过, 4 条时基本无下方留白.
 fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContext<'_>) -> String {
     let now = Local::now();
     let date_full = now.format("%Y-%m-%d").to_string();
@@ -449,22 +450,22 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
     html.push_str(
         r#"<style>
   @page { size: 120mm 140mm; margin: 8mm 13mm; }
-  body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; font-weight: bold; }
   /* min-height (而非 height): 短配方仍让 corner 锚到 124mm 底部, 长配方
-     (≥6 染料) 自然撑高溢到下一张物理纸, 比 overflow: hidden 裁掉行更安全. */
-  .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 10mm; line-height: 1.4; }
+     (≥5 染料) 自然撑高溢到下一张物理纸, 比 overflow: hidden 裁掉行更安全. */
+  .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 4mm; line-height: 1.4; }
   .page:last-child { page-break-after: auto; }
-  .vat { font-size: 34px; font-weight: bold; line-height: 1.1; margin-bottom: 6px; }
-  .meta-line { font-size: 22px; margin-bottom: 4px; }
-  .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 18px 0 18px; }
-  .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 0; font-size: 24px; }
+  .vat { font-size: 38px; line-height: 1.1; margin-bottom: 3px; }
+  .meta-line { font-size: 24px; margin-bottom: 2px; }
+  .divider { border: 0; border-top: 2px solid #1f1f1f; margin: 8px 0 8px; }
+  .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 3px 0; font-size: 26px; }
   .dye-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
-  .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: 700; color: #000; text-align: left; }
-  .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 22px; margin-bottom: 4px; }
+  .dye-row .grams { font-variant-numeric: tabular-nums; color: #000; text-align: left; }
+  .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 24px; margin-bottom: 2px; }
   .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
-  .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 11px; color: #888; }
-  .corner-r { position: absolute; bottom: 2mm; right: 0; font-size: 11px; color: #888; }
+  .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 12px; color: #888; font-weight: normal; }
+  .corner-r { position: absolute; bottom: 2mm; right: 0; font-size: 12px; color: #888; font-weight: normal; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
