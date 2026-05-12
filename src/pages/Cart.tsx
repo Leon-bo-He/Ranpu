@@ -728,14 +728,26 @@ export function CartPage() {
               </button>
             </div>
           </DialogHeader>
-          {previewHtml && (
-            <iframe
-              ref={previewIframeRef}
-              srcDoc={previewHtml}
-              title="批次单预览"
-              className="flex-1 border-0 bg-white"
-            />
-          )}
+          {previewHtml &&
+            (previewLayout === 'a6punch' ? (
+              // 穿孔纸是窄页 120×140mm, 直接拉满 iframe 看着挤. 包一层灰底 +
+              // 内距 + 阴影模拟 "桌上一张纸" 的视觉, 阅读更舒服.
+              <div className="flex-1 overflow-auto bg-muted/40 px-12 py-10">
+                <iframe
+                  ref={previewIframeRef}
+                  srcDoc={previewHtml}
+                  title="批次单预览"
+                  className="mx-auto block h-full w-full max-w-2xl border bg-white shadow-md"
+                />
+              </div>
+            ) : (
+              <iframe
+                ref={previewIframeRef}
+                srcDoc={previewHtml}
+                title="批次单预览"
+                className="flex-1 border-0 bg-white"
+              />
+            ))}
           <DialogFooter className="shrink-0 gap-2 border-t bg-background px-6 py-3">
             <Button
               variant="ghost"

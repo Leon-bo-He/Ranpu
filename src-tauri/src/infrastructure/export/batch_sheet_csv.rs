@@ -450,15 +450,17 @@ fn render_html_a6_punch(results: &[CalculationResult], context: BatchSheetContex
         r#"<style>
   @page { size: 120mm 140mm; margin: 8mm 13mm; }
   body { font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; color: #1f1f1f; margin: 0; padding: 0; }
-  .page { page-break-after: always; height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 8mm; overflow: hidden; line-height: 1.4; }
+  /* min-height (而非 height): 短配方仍让 corner 锚到 124mm 底部, 长配方
+     (≥6 染料) 自然撑高溢到下一张物理纸, 比 overflow: hidden 裁掉行更安全. */
+  .page { page-break-after: always; min-height: 124mm; box-sizing: border-box; position: relative; padding-bottom: 10mm; line-height: 1.4; }
   .page:last-child { page-break-after: auto; }
   .vat { font-size: 34px; font-weight: bold; line-height: 1.1; margin-bottom: 6px; }
-  .meta-line { font-size: 18px; margin-bottom: 3px; }
-  .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 10px 0 10px; }
+  .meta-line { font-size: 22px; margin-bottom: 4px; }
+  .divider { border: 0; border-top: 1.8px solid #1f1f1f; margin: 18px 0 18px; }
   .dye-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 0; font-size: 24px; }
   .dye-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   .dye-row .grams { font-variant-numeric: tabular-nums; font-weight: 700; color: #000; text-align: left; }
-  .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 18px; margin-bottom: 3px; }
+  .yarn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 22px; margin-bottom: 4px; }
   .yarn-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
   .corner-l { position: absolute; bottom: 2mm; left: 0; font-size: 11px; color: #888; }
