@@ -32,6 +32,7 @@ import {
   UnknownYarnPromptDialog,
   type UnknownYarnEntry,
 } from '@/components/UnknownYarnPromptDialog';
+import { useResetOnLock } from '@/hooks/useResetOnLock';
 import {
   emptyEntry,
   emptyMeta,
@@ -104,6 +105,16 @@ export function CartPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkspaceId]);
+
+  // 锁屏触发时直接清空本页所有 state-driven Dialog. 走 setState 不走
+  // onOpenChange 是有意的: 后者会触发 Cart 预览的级联 (关预览 → 弹 prompt),
+  // 让另一个 Dialog 接力 trap 焦点, LockOverlay 就一直进不来.
+  useResetOnLock(() => {
+    setPromptOpen(false);
+    setPreviewHtml(null);
+    setAskClear(false);
+    setUnknownYarns([]);
+  });
 
   if (!hasWs) {
     return (

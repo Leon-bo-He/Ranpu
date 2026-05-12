@@ -50,6 +50,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { CLOUD_UPLOAD_PATH } from '@/store/settings';
+import { useResetOnLock } from '@/hooks/useResetOnLock';
 export function LibraryTransferPage() {
   return (
     <div className="space-y-6 p-6">
@@ -101,6 +102,12 @@ function ExportSection() {
       .then((all) => setWorkspaces(all.filter((w) => w.kind !== 'system_mirror')))
       .catch((e) => setErr(e instanceof ApiError ? e.message : String(e)));
   }, []);
+
+  // 锁屏触发时关掉本页 dialog (备份目的地选择), 不让它 trap 焦点.
+  useResetOnLock(() => {
+    setTargetOpen(false);
+    setDone(null);
+  });
 
   const toggleWs = (id: number) => {
     setSelectedWsIds((prev) => {

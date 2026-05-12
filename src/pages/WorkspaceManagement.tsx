@@ -28,6 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/lib/format';
 import { useEditModeStore } from '@/store/editMode';
 import { useWorkspacesStore } from '@/store/workspaces';
+import { useResetOnLock } from '@/hooks/useResetOnLock';
 
 export function WorkspaceManagementPage() {
   const list = useWorkspacesStore((s) => s.list);
@@ -41,6 +42,13 @@ export function WorkspaceManagementPage() {
   useEffect(() => {
     refresh().catch((e) => setError(e instanceof ApiError ? e.message : String(e)));
   }, [refresh]);
+
+  // 锁屏触发时关 (新建 / 重命名 / 删除确认) Dialog, 不让 focus-scope 卡
+  // LockOverlay.
+  useResetOnLock(() => {
+    setEditing(null);
+    setPendingDelete(null);
+  });
 
   const askDelete = (w: WorkspaceView) => setPendingDelete(w);
 

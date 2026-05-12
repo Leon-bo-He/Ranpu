@@ -8,6 +8,7 @@ import { RanpuLogo } from '@/components/RanpuLogo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUpdateStore } from '@/store/update';
+import { useResetOnLock } from '@/hooks/useResetOnLock';
 
 export function AboutPage() {
   const [version, setVersion] = useState<string>('—');
@@ -22,6 +23,9 @@ export function AboutPage() {
       .then(setVersion)
       .catch(() => setVersion('—'));
   }, []);
+
+  // 锁屏触发时关 install 确认 Dialog, 不让 focus-scope 卡 LockOverlay.
+  useResetOnLock(() => setInstallOpen(false));
 
   // 启动时若 UpdateNotifier 还没跑完检查, 这里点按钮也会触发 (store 内部
   // 自带 in-flight 守卫, 不会重复打 IPC). 已知有新版本就直接进 install 弹窗.

@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { formatAmount } from '@/lib/format';
 import { useEditModeStore } from '@/store/editMode';
 import { hasActiveWorkspace, useSessionStore } from '@/store/session';
+import { useResetOnLock } from '@/hooks/useResetOnLock';
 
 export function WorkspaceFormulasPage() {
   const session = useSessionStore((s) => s.session);
@@ -107,6 +108,16 @@ export function WorkspaceFormulasPage() {
       .then(setColorFamilies)
       .catch(() => setColorFamilies([]));
   }, [editorOpen, hasWs]);
+
+  // 锁屏触发时立刻关本页所有 state-driven Dialog, 否则 Radix focus-scope
+  // 会卡住 LockOverlay 抢焦点.
+  useResetOnLock(() => {
+    setEditorOpen(false);
+    setEditing(null);
+    setPendingDelete(null);
+    setCartTarget(null);
+    setConflict(null);
+  });
 
   if (!hasWs) {
     return (

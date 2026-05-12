@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { useEditModeStore } from '@/store/editMode';
 import { useSettingsStore, type IdleTimeoutSeconds } from '@/store/settings';
+import { useResetOnLock } from '@/hooks/useResetOnLock';
 import { useDyeLibraryStore } from '@/store/dyeLibrary';
 import { useYarnSettingsStore } from '@/store/yarnSettings';
 
@@ -79,6 +80,15 @@ export function SettingsPage() {
       setSingleYarnInput(String(singleYarnWeight));
     }
   };
+
+  // 锁屏触发时关掉所有还原确认 + 配方互导口令对话框, 不让 focus-scope
+  // 卡 LockOverlay.
+  useResetOnLock(() => {
+    setAskResetMills(false);
+    setAskResetSpecs(false);
+    setAskResetDyes(false);
+    setAskLibraryTransferPwd(false);
+  });
 
 
   return (
