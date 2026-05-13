@@ -63,6 +63,9 @@ export const formulaApi = {
 
   listDefaultColorFamilies: () => invoke<string[]>('cmd_list_default_color_families'),
   listWorkspaceColorFamilies: () => invoke<string[]>('cmd_list_workspace_color_families'),
+  /// 跨默认库 + 所有工作区 distinct, 字典序去重. 用于一次性把历史色系
+  /// 导入到前端色系库 (升级到有色系库的版本后, 首次进 app 自动跑).
+  listAllColorFamilies: () => invoke<string[]>('cmd_list_all_color_families'),
 
   copyDefaultToWorkspace: (defaultFormulaId: number) =>
     invoke<number>('cmd_copy_default_to_active_workspace', { defaultFormulaId }),

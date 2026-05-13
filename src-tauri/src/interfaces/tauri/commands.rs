@@ -383,6 +383,14 @@ pub fn cmd_list_workspace_color_families(state: State<AppState>) -> CmdResult<Ve
 }
 
 #[tauri::command]
+pub fn cmd_list_all_color_families(state: State<AppState>) -> CmdResult<Vec<String>> {
+    services_or_err(&state)?
+        .formula
+        .list_all_color_families()
+        .map_err(UiError::from)
+}
+
+#[tauri::command]
 pub fn cmd_copy_default_to_active_workspace(
     state: State<AppState>,
     default_formula_id: i64,
