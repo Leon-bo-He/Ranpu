@@ -262,6 +262,20 @@ impl WorkspaceFormulaRepository for SqliteWorkspaceFormulaRepository {
         })
     }
 
+    fn list_all_color_families(&self) -> Result<Vec<String>, RepositoryError> {
+        self.db.with(|c| {
+            let mut stmt = c.prepare(
+                "SELECT DISTINCT color_family FROM workspace_formulas
+                 WHERE color_family IS NOT NULL AND TRIM(color_family) != ''
+                 ORDER BY color_family",
+            )?;
+            let collected: rusqlite::Result<Vec<String>> = stmt
+                .query_map([], |r| r.get::<_, String>(0))?
+                .collect();
+            collected
+        })
+    }
+
     fn upsert(&self, formula: &WorkspaceFormula) -> Result<FormulaId, RepositoryError> {
         self.db.with_tx(|tx| {
             let id = match formula.id() {

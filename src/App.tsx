@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
 import { bootApi } from '@/api/boot';
+import { formulaApi } from '@/api/formula';
 import { ApiError } from '@/api/invoke';
 import { CloseConfirmGuard } from '@/components/CloseConfirmGuard';
 import { EditModeAutoOffGuard } from '@/components/EditModeAutoOffGuard';
@@ -22,6 +23,7 @@ import { LibraryTransferPage } from '@/pages/LibraryTransfer';
 import { SettingsPage } from '@/pages/Settings';
 import { WorkspaceFormulasPage } from '@/pages/WorkspaceFormulas';
 import { WorkspaceManagementPage } from '@/pages/WorkspaceManagement';
+import { useColorFamilyLibraryStore } from '@/store/colorFamilyLibrary';
 import { useEditModeStore } from '@/store/editMode';
 import { useSessionStore } from '@/store/session';
 import { useUpdateStore } from '@/store/update';
@@ -46,6 +48,39 @@ function App() {
       runUpdateCheck();
     }
   }, [session, updateChecked, runUpdateCheck]);
+
+  // 色系库一次性导入: 升级到有色系库的版本后, session 建好就把 DB 里
+  // 历史色系全部 merge 进库. flag 持久化 (zustand persist), 跑一次就置真
+  // 不再触发. 失败 (例如 IPC 临时不可用) 不打 flag, 下次进 app 重试.
+  const cfImported = useColorFamilyLibraryStore((s) => s.imported);
+  const cfCurrent = useColorFamilyLibraryStore((s) => s.colorFamilies);
+  const cfSet = useColorFamilyLibraryStore((s) => s.setColorFamilies);
+  const cfMarkImported = useColorFamilyLibraryStore((s) => s.markImported);
+  useEffect(() => {
+    if (!session || cfImported) return;
+    formulaApi
+      .listAllColorFamilies()
+      .then((fromDb) => {
+        // 合并 + 大小写 / 首尾空白去重 (库优先, DB 历史追加).
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const v of [...cfCurrent, ...fromDb]) {
+          const k = v.trim().toLowerCase();
+          if (!k || seen.has(k)) continue;
+          seen.add(k);
+          out.push(v.trim());
+        }
+        cfSet(out);
+        cfMarkImported();
+      })
+      .catch(() => {
+        /* 静默失败, 下次进 app 再试 */
+      });
+    // 故意省 cfCurrent / cfSet / cfMarkImported 依赖: 只在 session / imported
+    // 翻转时跑一次. cfCurrent 跟随 cfSet 变会触发再跑, 但 imported 也同步
+    // 翻成 true, 守卫已经挡住, 多触发一次也无害 — 还是 eslint-disable 比较清楚.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, cfImported]);
 
   useEffect(() => {
     bootApi

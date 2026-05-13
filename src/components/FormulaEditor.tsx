@@ -22,8 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { UnknownColorFamilyPromptDialog } from '@/components/UnknownColorFamilyPromptDialog';
 import { UnknownDyesPromptDialog } from '@/components/UnknownDyesPromptDialog';
 import { cn } from '@/lib/utils';
+import { useColorFamilyLibraryStore } from '@/store/colorFamilyLibrary';
 import { useDyeLibraryStore } from '@/store/dyeLibrary';
 
 /// UI 内部用的 item 形态: amount 保持字符串, 让 "0." / "0.12" 这种
@@ -67,9 +69,30 @@ export function FormulaEditor({
   // 染料库: 用户编辑配方时下拉候选, 保存时不在库的新名字弹 dialog 询问.
   const dyeLibrary = useDyeLibraryStore((s) => s.dyes);
   const setDyeLibrary = useDyeLibraryStore((s) => s.setDyes);
+  // 色系库: 跨工作区共享的色系列表. 下拉选项 = 此库 + 当前工作区 DB 里
+  // 已用过的 distinct 色系 (来自 colorFamilies prop), 去重后排序展示.
+  const colorFamilyLibrary = useColorFamilyLibraryStore((s) => s.colorFamilies);
+  const setColorFamilyLibrary = useColorFamilyLibraryStore((s) => s.setColorFamilies);
+  // 保存时填的新色系 (不在库里). 非空时弹 UnknownColorFamilyPromptDialog
+  // 让用户选要不要加进库.
+  const [unknownColorFamily, setUnknownColorFamily] = useState<string | null>(null);
   // 保存时收集到的新染料名 (排重 + 排首尾空白). 非空时弹
   // UnknownDyesPromptDialog 让用户选要不要加进库.
   const [unknownDyes, setUnknownDyes] = useState<string[]>([]);
+
+  /// 色系下拉候选 = 色系库 ∪ 当前 DB 里已用过的色系 (大小写 + 首尾空白不敏感
+  /// 去重). 库优先排序, 之后追加 DB 里独有的.
+  const colorFamilyOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const v of [...colorFamilyLibrary, ...colorFamilies]) {
+      const k = v.trim().toLowerCase();
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      out.push(v.trim());
+    }
+    return out;
+  }, [colorFamilyLibrary, colorFamilies]);
 
   useEffect(() => {
     if (!open) return;
@@ -95,9 +118,23 @@ export function FormulaEditor({
     setError(null);
   }, [open, initial]);
 
-  /// 点保存的入口: 先扫一遍 items 找不在染料库的新名字. 有 → 弹
-  /// UnknownDyesPromptDialog; 无 → 直接 doSubmit.
+  /// 点保存的入口: 先看色系是否在库, 不在 → 弹 UnknownColorFamilyPromptDialog;
+  /// 再扫 items 看染料名是否在染料库, 不在 → 弹 UnknownDyesPromptDialog;
+  /// 都过了 → doSubmit. 两个 prompt 不会同时弹: 色系 prompt 关掉后才走染料检查.
   const submit = () => {
+    const cf = colorFamily.trim();
+    if (cf) {
+      const cfSet = new Set(colorFamilyLibrary.map((s) => s.trim().toLowerCase()));
+      if (!cfSet.has(cf.toLowerCase())) {
+        setUnknownColorFamily(cf);
+        return;
+      }
+    }
+    checkDyesAndSubmit();
+  };
+
+  /// 色系检查通过 (或确认 + 加入库 / 不加入) 后走的染料库检查.
+  const checkDyesAndSubmit = () => {
     const librarySet = new Set(dyeLibrary.map((s) => s.trim().toLowerCase()));
     const seen = new Set<string>();
     const unknowns: string[] = [];
@@ -141,6 +178,25 @@ export function FormulaEditor({
     } finally {
       setBusy(false);
     }
+  };
+
+  /// UnknownColorFamilyPromptDialog 三个出口:
+  /// - 加入并保存 → 写入色系库, 接着走染料检查
+  /// - 不加入只保存 → 跳过库写入, 接着走染料检查
+  /// - 取消 → 回编辑器不保存
+  const onUnknownColorFamilyAdd = () => {
+    if (unknownColorFamily) {
+      setColorFamilyLibrary([...colorFamilyLibrary, unknownColorFamily]);
+    }
+    setUnknownColorFamily(null);
+    checkDyesAndSubmit();
+  };
+  const onUnknownColorFamilySkip = () => {
+    setUnknownColorFamily(null);
+    checkDyesAndSubmit();
+  };
+  const onUnknownColorFamilyCancel = () => {
+    setUnknownColorFamily(null);
   };
 
   /// UnknownDyesPromptDialog 确认: 选中的写入染料库, 然后继续保存. 取消
@@ -191,7 +247,7 @@ export function FormulaEditor({
               <ColorFamilyCombo
                 value={colorFamily}
                 onChange={setColorFamily}
-                options={colorFamilies}
+                options={colorFamilyOptions}
               />
             </Field>
           </div>
@@ -280,6 +336,13 @@ export function FormulaEditor({
         </DialogFooter>
       </DialogContent>
 
+      <UnknownColorFamilyPromptDialog
+        open={unknownColorFamily !== null}
+        unknown={unknownColorFamily ?? ''}
+        onConfirmAdd={onUnknownColorFamilyAdd}
+        onConfirmSkip={onUnknownColorFamilySkip}
+        onCancel={onUnknownColorFamilyCancel}
+      />
       <UnknownDyesPromptDialog
         open={unknownDyes.length > 0}
         unknowns={unknownDyes}

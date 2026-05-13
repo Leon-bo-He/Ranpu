@@ -17,4 +17,18 @@ impl FormulaService {
         let (_, workspace_id) = ensure_active_workspace(&*self.session_store)?;
         Ok(self.workspace_repo.list_color_families(workspace_id)?)
     }
+
+    /// 跨默认库 + 所有工作区的 distinct 色系, 字典序去重. 前端首次升级到
+    /// 有 "色系库" 的版本时一次性导入历史数据.
+    pub fn list_all_color_families(&self) -> AppResult<Vec<String>> {
+        ensure_active(&*self.session_store)?;
+        let mut seen = std::collections::BTreeSet::new();
+        for c in self.default_repo.list_color_families()? {
+            seen.insert(c);
+        }
+        for c in self.workspace_repo.list_all_color_families()? {
+            seen.insert(c);
+        }
+        Ok(seen.into_iter().collect())
+    }
 }

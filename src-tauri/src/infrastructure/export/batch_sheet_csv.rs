@@ -577,18 +577,18 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
   .page { page-break-after: always; min-height: 74mm; box-sizing: border-box; position: relative; padding-bottom: 18mm; line-height: 1.4; display: flex; flex-direction: column; justify-content: center; }
   .page:last-child { page-break-after: auto; }
   .vat { font-size: 30px; font-weight: bold; line-height: 1.1; margin-bottom: 10px; }
-  .meta-line { font-size: 16px; margin-bottom: 6px; word-break: break-all; }
+  .meta-line { font-size: 16px; margin-bottom: 6px; word-break: break-all; font-weight: bold; color: #000; }
   /* 纱支行: 名字靠左, 个数虚框靠右, 撑满整行宽度. 厂名规格 + 个数都
      bold + #000 — 针式打印机灰字会被抖动成花的, 加粗加黑保证现场看清. */
   .yarn-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 16px; margin-bottom: 6px; }
   .yarn-row .name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-weight: bold; color: #000; }
   .yarn-row .count { font-variant-numeric: tabular-nums; white-space: nowrap; border: 2px dashed #1f1f1f; padding: 2px 8px; border-radius: 2px; min-width: 42px; text-align: center; font-weight: bold; color: #000; }
   /* 对色 / 烘干 check 框, 给现场打勾用. 在 corner (日期 / 编号) 上面. */
-  .checks { position: absolute; bottom: 10mm; left: 2mm; right: 2mm; display: flex; justify-content: space-between; font-size: 14px; color: #1f1f1f; }
+  .checks { position: absolute; bottom: 10mm; left: 2mm; right: 2mm; display: flex; justify-content: space-between; font-size: 14px; color: #000; font-weight: bold; }
   .check-item { display: inline-flex; align-items: center; gap: 5px; }
   .check-box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #1f1f1f; vertical-align: middle; }
-  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 14px; color: #555; text-align: left; }
-  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 14px; color: #555; text-align: right; }
+  .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 14px; color: #555; text-align: left; font-weight: bold; }
+  .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 14px; color: #555; text-align: right; font-weight: bold; }
   @media print {
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }

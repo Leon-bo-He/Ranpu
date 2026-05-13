@@ -42,6 +42,10 @@ pub trait WorkspaceFormulaRepository: Send + Sync {
         workspace_id: WorkspaceId,
     ) -> Result<Vec<String>, RepositoryError>;
 
+    /// 列出所有工作区已用过的色系 (跨 workspace_id distinct, 字典序). 用于
+    /// 一次性把历史色系导入到前端的色系库.
+    fn list_all_color_families(&self) -> Result<Vec<String>, RepositoryError>;
+
     fn upsert(&self, formula: &WorkspaceFormula) -> Result<FormulaId, RepositoryError>;
 
     fn delete(&self, workspace_id: WorkspaceId, id: FormulaId) -> Result<(), RepositoryError>;

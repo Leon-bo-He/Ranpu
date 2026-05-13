@@ -18,6 +18,7 @@ import {
 import { useEditModeStore } from '@/store/editMode';
 import { useSettingsStore, type IdleTimeoutSeconds } from '@/store/settings';
 import { useResetOnLock } from '@/hooks/useResetOnLock';
+import { useColorFamilyLibraryStore } from '@/store/colorFamilyLibrary';
 import { useDyeLibraryStore } from '@/store/dyeLibrary';
 import { useYarnSettingsStore } from '@/store/yarnSettings';
 
@@ -27,10 +28,11 @@ export function SettingsPage() {
 
   const [askResetMills, setAskResetMills] = useState(false);
   const [askResetSpecs, setAskResetSpecs] = useState(false);
-  // 纱支 / 染料库的 "修改" 解锁状态; 默认 OFF, 防误改. 局部 state, 切页
-  // 自动归位 — 防止用户离开后这个高权限模式还停在打开.
+  // 纱支 / 染料库 / 色系库 的 "修改" 解锁状态; 默认 OFF, 防误改. 局部 state,
+  // 切页自动归位 — 防止用户离开后这个高权限模式还停在打开.
   const [yarnEditOn, setYarnEditOn] = useState(false);
   const [dyeEditOn, setDyeEditOn] = useState(false);
+  const [colorFamilyEditOn, setColorFamilyEditOn] = useState(false);
 
   const formulaEdit = useEditModeStore((s) => s.formulaEditEnabled);
   const enableFormula = useEditModeStore((s) => s.enableFormulaEdit);
@@ -64,6 +66,11 @@ export function SettingsPage() {
   const resetDyes = useDyeLibraryStore((s) => s.resetDyes);
   const [askResetDyes, setAskResetDyes] = useState(false);
 
+  const colorFamilies = useColorFamilyLibraryStore((s) => s.colorFamilies);
+  const setColorFamilies = useColorFamilyLibraryStore((s) => s.setColorFamilies);
+  const resetColorFamilies = useColorFamilyLibraryStore((s) => s.resetColorFamilies);
+  const [askResetColorFamilies, setAskResetColorFamilies] = useState(false);
+
   // 单个纱支重量 (kg). 用本地 state 暂存输入中态, 失焦再过 store 钳位
   // (拒非正数, 上限 999).
   const singleYarnWeight = useSettingsStore((s) => s.singleYarnWeightKg);
@@ -87,6 +94,7 @@ export function SettingsPage() {
     setAskResetMills(false);
     setAskResetSpecs(false);
     setAskResetDyes(false);
+    setAskResetColorFamilies(false);
     setAskLibraryTransferPwd(false);
   });
 
@@ -218,6 +226,42 @@ export function SettingsPage() {
       </Card>
 
       <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle>色系库</CardTitle>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAskResetColorFamilies(true)}
+              disabled={!colorFamilyEditOn}
+              title="清空色系库"
+            >
+              清空
+            </Button>
+            <Button
+              variant={colorFamilyEditOn ? 'outline' : 'default'}
+              size="sm"
+              onClick={() => setColorFamilyEditOn((v) => !v)}
+            >
+              {colorFamilyEditOn ? '完成' : '修改'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          <StringListEditor
+            values={colorFamilies}
+            onChange={setColorFamilies}
+            newPlaceholder="新增色系…"
+            cols={6}
+            readOnly={!colorFamilyEditOn}
+          />
+          <p className="text-xs text-muted-foreground">
+            所有工作区共享。保存配方时若有不在库的色系名，会弹窗询问是否加入复用。
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader>
           <CardTitle>管理模式</CardTitle>
         </CardHeader>
@@ -319,6 +363,18 @@ export function SettingsPage() {
         onConfirm={() => {
           resetDyes();
           setAskResetDyes(false);
+        }}
+      />
+      <ConfirmDialog
+        open={askResetColorFamilies}
+        onClose={() => setAskResetColorFamilies(false)}
+        title="清空色系库？"
+        description="所有手动加进来的色系名都会被清掉 (所有工作区共享)。下次保存配方有新名字时会重新弹窗询问。"
+        confirmLabel="清空"
+        destructive
+        onConfirm={() => {
+          resetColorFamilies();
+          setAskResetColorFamilies(false);
         }}
       />
       <PassphrasePromptDialog
