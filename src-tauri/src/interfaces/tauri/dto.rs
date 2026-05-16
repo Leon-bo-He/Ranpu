@@ -548,9 +548,16 @@ pub struct PreviewCartCmd {
     /// 缺位按空 meta 兜底; 长了多余忽略.
     #[serde(default)]
     pub per_formula: Vec<PreviewFormulaMetaCmd>,
-    /// "standard" 或 "grid" — 选择批次单渲染版本. None 时走应用默认.
+    /// "standard" / "grid" / "a6punch" / "label" — 选择批次单渲染版本.
+    /// None 时走应用默认 (a6punch).
     #[serde(default)]
     pub layout: Option<String>,
+    /// 跟踪卡 (label) 上 对色 / 烘干 框是否预先打 ✓. 整组通用. 其他 layout
+    /// 忽略. None 视作 None — render 默认 对色 ✓ 烘干 ☐.
+    #[serde(default)]
+    pub color_check: Option<bool>,
+    #[serde(default)]
+    pub dry_check: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]

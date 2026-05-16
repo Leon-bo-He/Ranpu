@@ -67,6 +67,10 @@ export function CartPage() {
   const [promptOpen, setPromptOpen] = useState(false);
   const [promptCustomer, setPromptCustomer] = useState('');
   const [promptPerFormula, setPromptPerFormula] = useState<PerFormulaMeta[]>([]);
+  // 跟踪卡上 对色 / 烘干 框是否预先打 ✓ — 整组通用 (现场少数情况不一致
+  // 时, 工人可在印出来的纸上手改空框). 默认 对色 ✓ 烘干 ☐.
+  const [promptColorCheck, setPromptColorCheck] = useState(true);
+  const [promptDryCheck, setPromptDryCheck] = useState(false);
   // 当次预览用到的 customer (供打印 PDF 默认文件名用), 拿 prompt 提交时的值.
   const [printCustomer, setPrintCustomer] = useState('');
   // 预览版本 toggle: a6punch (配方纸 120×140mm, 默认) / grid (A4 四宫格) /
@@ -162,6 +166,9 @@ export function CartPage() {
         ? useBatchSheetInfoStore.getState().byWorkspace[activeWorkspaceId]
         : undefined;
     setPromptCustomer(saved?.customer || workspaceName);
+    // 没存过 → 默认 对色 ✓ 烘干 ☐. 存过 → 用 saved.
+    setPromptColorCheck(saved?.colorCheck ?? true);
+    setPromptDryCheck(saved?.dryCheck ?? false);
     setPromptPerFormula(
       lines.map((line) => {
         const meta = saved?.perFormula[lineKey(line.source_kind, line.source_formula_id)];
@@ -271,6 +278,8 @@ export function CartPage() {
   const persistPromptInfo = (
     customer: string,
     perFormula: PerFormulaMeta[],
+    colorCheck: boolean,
+    dryCheck: boolean,
   ) => {
     if (activeWorkspaceId === null) return;
     const map: Record<string, PerFormulaMeta> = {};
@@ -291,11 +300,16 @@ export function CartPage() {
         };
       }
     });
-    setBatchSheetInfo(activeWorkspaceId, { customer, perFormula: map });
+    setBatchSheetInfo(activeWorkspaceId, {
+      customer,
+      perFormula: map,
+      colorCheck,
+      dryCheck,
+    });
   };
 
   const onCancelPrompt = () => {
-    persistPromptInfo(promptCustomer, promptPerFormula);
+    persistPromptInfo(promptCustomer, promptPerFormula, promptColorCheck, promptDryCheck);
     setPromptOpen(false);
   };
 
@@ -317,6 +331,9 @@ export function CartPage() {
             count: e.count.trim() || null,
           })),
         })),
+        // 跟踪卡上的 对色 / 烘干 框是否预先 ✓; 其他 layout 不会用到.
+        colorCheck: promptColorCheck,
+        dryCheck: promptDryCheck,
         layout,
       });
       setPreviewHtml(html);
@@ -366,7 +383,7 @@ export function CartPage() {
   /// 实际跳预览: 把客户名 + 配方信息持久化, 关 prompt, 拉 HTML.
   const doProceedPreview = async () => {
     const customer = promptCustomer.trim();
-    persistPromptInfo(promptCustomer, promptPerFormula);
+    persistPromptInfo(promptCustomer, promptPerFormula, promptColorCheck, promptDryCheck);
     setPromptOpen(false);
     setPrintCustomer(customer || workspaceName);
     // 进预览默认 a6punch (配方纸); 用户可在右上角切到四宫格 / 标准.
@@ -572,6 +589,31 @@ export function CartPage() {
                 placeholder="默认当前工作区名"
                 autoFocus
               />
+            </div>
+
+            {/* 跟踪卡上的预填 ✓ 框. 默认 对色 ✓ 烘干 ☐. 整组通用. */}
+            <div className="flex items-center gap-6">
+              <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={promptColorCheck}
+                  onChange={(e) => setPromptColorCheck(e.target.checked)}
+                  className="h-4 w-4 cursor-pointer"
+                />
+                对色
+              </label>
+              <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={promptDryCheck}
+                  onChange={(e) => setPromptDryCheck(e.target.checked)}
+                  className="h-4 w-4 cursor-pointer"
+                />
+                烘干
+              </label>
+              <span className="text-xs text-muted-foreground">
+                跟踪卡上对应框会预先打 ✓
+              </span>
             </div>
 
             <div className="space-y-2">

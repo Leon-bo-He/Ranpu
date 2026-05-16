@@ -24,6 +24,10 @@ export interface BatchSheetInfo {
   /// key = `${source_kind}:${source_formula_id}`. 用 line 的稳定身份做键,
   /// 批次清单内容增删后旧值仍能按行匹配回填.
   perFormula: Record<string, PerFormulaMeta>;
+  /// 跟踪卡上 "对色" / "烘干" 框是否预先打 ✓ (整组通用; 现场只有少数情况
+  /// 不一致, 用户可手改空框). 老数据默认 对色 ✓ / 烘干 ☐.
+  colorCheck: boolean;
+  dryCheck: boolean;
 }
 
 interface BatchSheetInfoState {
@@ -187,9 +191,26 @@ function migrateToV5(state: PersistedShape | undefined): BatchSheetInfoState['by
     out[Number(wsId)] = {
       customer: info.customer ?? '',
       perFormula: newPerFormula,
+      // v5 没有 colorCheck / dryCheck, 用默认值兜底.
+      colorCheck: true,
+      dryCheck: false,
     };
   }
   return out;
+}
+
+/// v6 加 colorCheck / dryCheck 字段. 老数据用默认 对色 ✓ / 烘干 ☐.
+function migrateToV6(state: BatchSheetInfoState): BatchSheetInfoState {
+  const out: BatchSheetInfoState['byWorkspace'] = {};
+  for (const [wsId, info] of Object.entries(state.byWorkspace ?? {})) {
+    out[Number(wsId)] = {
+      customer: info.customer ?? '',
+      perFormula: info.perFormula ?? {},
+      colorCheck: info.colorCheck ?? true,
+      dryCheck: info.dryCheck ?? false,
+    };
+  }
+  return { ...state, byWorkspace: out };
 }
 
 export const useBatchSheetInfoStore = create<BatchSheetInfoState>()(
@@ -203,14 +224,20 @@ export const useBatchSheetInfoStore = create<BatchSheetInfoState>()(
     }),
     {
       name: 'ranpu-batch-sheet-info',
-      version: 5,
+      version: 6,
       migrate: (persisted, fromVersion) => {
+        let state: BatchSheetInfoState;
         if (fromVersion < 5) {
-          return {
+          state = {
             byWorkspace: migrateToV5(persisted as PersistedShape),
           } as BatchSheetInfoState;
+        } else {
+          state = persisted as BatchSheetInfoState;
         }
-        return persisted as BatchSheetInfoState;
+        if (fromVersion < 6) {
+          state = migrateToV6(state);
+        }
+        return state;
       },
     },
   ),

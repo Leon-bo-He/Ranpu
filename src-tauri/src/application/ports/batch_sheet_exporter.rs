@@ -39,6 +39,10 @@ pub struct BatchSheetContext<'a> {
     /// 每个配方独立的缸号 / 纱支元信息. 与 results 数组顺序对齐, 长度也应一致;
     /// 短了会按 None 兜底, 长了多余会忽略.
     pub per_formula: &'a [FormulaMeta<'a>],
+    /// 跟踪卡 (Label) 上 "对色" / "烘干" 框是否预先 ✓. 整组通用. 其他
+    /// 格式忽略. 默认 对色 ✓ 烘干 ☐.
+    pub color_check: bool,
+    pub dry_check: bool,
 }
 
 /// 单条配方的额外元信息 — 渲染到该配方块的标题下方.

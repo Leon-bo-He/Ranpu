@@ -43,6 +43,8 @@ export const cartApi = {
   /// layout: 'standard' 经典段落 | 'grid' A4 四宫格 | 'a6punch' 穿孔纸
   /// (一条配方一张, 默认) | 'label' 50×80mm 标签纸 (只 vat + 客户 + 纱支).
   /// 后端 None / 未识别值 也走 a6punch.
+  /// colorCheck / dryCheck: 跟踪卡 (label) 上 对色 / 烘干 框是否预先打 ✓.
+  /// 其他 layout 忽略这两个字段.
   previewHtml: (args: {
     customer?: string | null;
     perFormula?: Array<{
@@ -54,6 +56,8 @@ export const cartApi = {
       }>;
     }>;
     layout?: 'standard' | 'grid' | 'a6punch' | 'label';
+    colorCheck?: boolean;
+    dryCheck?: boolean;
   } = {}) =>
     invoke<string>('cmd_preview_cart_as_batch_sheet_html', {
       cmd: {
@@ -67,6 +71,8 @@ export const cartApi = {
           })),
         })),
         layout: args.layout ?? null,
+        color_check: args.colorCheck ?? null,
+        dry_check: args.dryCheck ?? null,
       },
     }),
 };
