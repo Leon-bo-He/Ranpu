@@ -5,7 +5,7 @@ use crate::application::ports::batch_sheet_exporter::{
 };
 use crate::application::session_guard::ensure_active_workspace;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PreviewBatchSheetInput {
     /// 客户名 (打印头). None 则 fallback 到当前工作区名称.
     pub customer: Option<String>,
@@ -15,22 +15,6 @@ pub struct PreviewBatchSheetInput {
     /// 渲染版本: Standard = 经典每条配方一段; Grid = A4 四宫格;
     /// A6Punch = A6 穿孔纸 一条一张. 默认 A6Punch (车间主用).
     pub layout: PreviewLayout,
-    /// 跟踪卡 (Label) 上 "对色" / "烘干" 框是否预先 ✓. 整组通用. 其他
-    /// layout 忽略. 默认 对色 ✓ 烘干 ☐.
-    pub color_check: bool,
-    pub dry_check: bool,
-}
-
-impl Default for PreviewBatchSheetInput {
-    fn default() -> Self {
-        Self {
-            customer: None,
-            per_formula: Vec::new(),
-            layout: PreviewLayout::default(),
-            color_check: true,
-            dry_check: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -46,6 +30,10 @@ pub enum PreviewLayout {
 pub struct PreviewFormulaMetaInput {
     pub vat_number: Option<String>,
     pub yarns: Vec<PreviewYarnEntryInput>,
+    /// 跟踪卡 (Label) 上 对色 / 烘干 框是否预先 ✓. 每条配方独立. 没传时
+    /// 走应用默认: 对色 ✓ / 烘干 ☐.
+    pub color_check: Option<bool>,
+    pub dry_check: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -82,6 +70,8 @@ impl CartService {
             color_family: Option<String>,
             vat: Option<String>,
             yarns: Vec<(Option<String>, Option<String>, Option<String>)>,
+            color_check: bool,
+            dry_check: bool,
         }
         let mut metas_owned: Vec<OwnedMeta> = Vec::new();
         for (idx, line) in lines.into_iter().enumerate() {
@@ -103,6 +93,8 @@ impl CartService {
                 color_family: family,
                 vat: norm(meta_in.vat_number),
                 yarns,
+                color_check: meta_in.color_check.unwrap_or(true),
+                dry_check: meta_in.dry_check.unwrap_or(false),
             });
         }
         let metas: Vec<FormulaMeta<'_>> = metas_owned
@@ -119,6 +111,8 @@ impl CartService {
                         count: count.as_deref(),
                     })
                     .collect(),
+                color_check: m.color_check,
+                dry_check: m.dry_check,
             })
             .collect();
 
@@ -134,8 +128,6 @@ impl CartService {
         let context = BatchSheetContext {
             workspace_name: customer.as_deref(),
             per_formula: &metas,
-            color_check: input.color_check,
-            dry_check: input.dry_check,
         };
 
         let format = match input.layout {

@@ -39,10 +39,6 @@ pub struct BatchSheetContext<'a> {
     /// 每个配方独立的缸号 / 纱支元信息. 与 results 数组顺序对齐, 长度也应一致;
     /// 短了会按 None 兜底, 长了多余会忽略.
     pub per_formula: &'a [FormulaMeta<'a>],
-    /// 跟踪卡 (Label) 上 "对色" / "烘干" 框是否预先 ✓. 整组通用. 其他
-    /// 格式忽略. 默认 对色 ✓ 烘干 ☐.
-    pub color_check: bool,
-    pub dry_check: bool,
 }
 
 /// 单条配方的额外元信息 — 渲染到该配方块的标题下方.
@@ -55,6 +51,11 @@ pub struct FormulaMeta<'a> {
     /// 纱支变体列表. 一个配方可能要在多种纱支上同时染, 每条变体一行
     /// "厂名 规格 个数". 空列表表示没填纱支, 渲染时跳过整段.
     pub yarns: Vec<YarnEntry<'a>>,
+    /// 跟踪卡 (Label) 上 "对色" / "烘干" 框是否预先 ✓. 每条配方独立.
+    /// 其他格式忽略. 默认 对色 ✓ / 烘干 ☐ — 通过 Default 接口拿不到 true,
+    /// 所以构造时显式给.
+    pub color_check: bool,
+    pub dry_check: bool,
 }
 
 /// 单条纱支变体: 厂名 + 规格 + 个数. 各字段独立可空, 渲染时只输出非空段.

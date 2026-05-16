@@ -597,6 +597,8 @@ pub fn cmd_preview_cart_as_batch_sheet_html(
                     count: y.count,
                 })
                 .collect(),
+            color_check: m.color_check,
+            dry_check: m.dry_check,
         })
         .collect();
     let layout = match c.layout.as_deref() {
@@ -613,9 +615,6 @@ pub fn cmd_preview_cart_as_batch_sheet_html(
             customer: c.customer,
             per_formula,
             layout,
-            // 没传 → 走应用默认 (对色 ✓ 烘干 ☐).
-            color_check: c.color_check.unwrap_or(true),
-            dry_check: c.dry_check.unwrap_or(false),
         })
         .map_err(UiError::from)
 }

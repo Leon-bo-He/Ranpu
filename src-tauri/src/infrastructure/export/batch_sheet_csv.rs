@@ -642,8 +642,8 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
                 ));
             }
         }
-        let color_mark = if context.color_check { "✓" } else { "" };
-        let dry_mark = if context.dry_check { "✓" } else { "" };
+        let color_mark = if meta.color_check { "✓" } else { "" };
+        let dry_mark = if meta.dry_check { "✓" } else { "" };
         html.push_str(&format!(
             "    <div class=\"checks\">\
                 <span class=\"check-item\">对色<span class=\"check-box\">{}</span></span>\

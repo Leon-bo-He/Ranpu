@@ -552,12 +552,6 @@ pub struct PreviewCartCmd {
     /// None 时走应用默认 (a6punch).
     #[serde(default)]
     pub layout: Option<String>,
-    /// 跟踪卡 (label) 上 对色 / 烘干 框是否预先打 ✓. 整组通用. 其他 layout
-    /// 忽略. None 视作 None — render 默认 对色 ✓ 烘干 ☐.
-    #[serde(default)]
-    pub color_check: Option<bool>,
-    #[serde(default)]
-    pub dry_check: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -566,6 +560,12 @@ pub struct PreviewFormulaMetaCmd {
     pub vat_number: Option<String>,
     #[serde(default)]
     pub yarns: Vec<PreviewYarnEntryCmd>,
+    /// 跟踪卡 (label) 上 对色 / 烘干 框是否预先打 ✓. 每条配方独立. 其他
+    /// layout 忽略. None 视作默认: 对色 ✓ / 烘干 ☐.
+    #[serde(default)]
+    pub color_check: Option<bool>,
+    #[serde(default)]
+    pub dry_check: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]

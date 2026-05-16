@@ -13,10 +13,14 @@ export interface PerFormulaEntry {
 
 /// 一个配方在批次单 prompt 里的元信息. 缸号 + 缸次 跟着配方走 (一个配方
 /// 一锅染液一对缸号 / 缸次), entries 是这一锅里要发的多份不同纱支.
+/// colorCheck / dryCheck: 该条配方的跟踪卡上 对色 / 烘干 框是否预先 ✓.
+/// 老数据 / 新建配方默认 对色 ✓ / 烘干 ☐.
 export interface PerFormulaMeta {
   vat: string;
   batch: string;
   entries: PerFormulaEntry[];
+  colorCheck: boolean;
+  dryCheck: boolean;
 }
 
 export interface BatchSheetInfo {
@@ -24,10 +28,6 @@ export interface BatchSheetInfo {
   /// key = `${source_kind}:${source_formula_id}`. 用 line 的稳定身份做键,
   /// 批次清单内容增删后旧值仍能按行匹配回填.
   perFormula: Record<string, PerFormulaMeta>;
-  /// 跟踪卡上 "对色" / "烘干" 框是否预先打 ✓ (整组通用; 现场只有少数情况
-  /// 不一致, 用户可手改空框). 老数据默认 对色 ✓ / 烘干 ☐.
-  colorCheck: boolean;
-  dryCheck: boolean;
 }
 
 interface BatchSheetInfoState {
@@ -73,7 +73,13 @@ export function emptyEntry(): PerFormulaEntry {
 }
 
 export function emptyMeta(): PerFormulaMeta {
-  return { vat: '', batch: '', entries: [emptyEntry()] };
+  return {
+    vat: '',
+    batch: '',
+    entries: [emptyEntry()],
+    colorCheck: true,
+    dryCheck: false,
+  };
 }
 
 function fromV1(m: LegacyV1PerFormulaMeta): PerFormulaMeta {
@@ -99,7 +105,13 @@ function fromV1(m: LegacyV1PerFormulaMeta): PerFormulaMeta {
       yarnSpec = m.yarn;
     }
   }
-  return { vat, batch, entries: [{ yarnMill, yarnSpec, count: '' }] };
+  return {
+    vat,
+    batch,
+    entries: [{ yarnMill, yarnSpec, count: '' }],
+    colorCheck: true,
+    dryCheck: false,
+  };
 }
 
 /// 把任何旧版本规格化到 v5: 配方层 vat + batch + entries[厂名/规格/个数].
@@ -130,6 +142,8 @@ function migrateToV5(state: PersistedShape | undefined): BatchSheetInfoState['by
                   count: e.count ?? '',
                 }))
               : [emptyEntry()],
+          colorCheck: true,
+          dryCheck: false,
         };
         continue;
       }
@@ -148,6 +162,8 @@ function migrateToV5(state: PersistedShape | undefined): BatchSheetInfoState['by
             yarnSpec: e.yarnSpec ?? '',
             count: '',
           })),
+          colorCheck: true,
+          dryCheck: false,
         };
         continue;
       }
@@ -166,6 +182,8 @@ function migrateToV5(state: PersistedShape | undefined): BatchSheetInfoState['by
                   count: '',
                 }))
               : [emptyEntry()],
+          colorCheck: true,
+          dryCheck: false,
         };
         continue;
       }
@@ -182,6 +200,8 @@ function migrateToV5(state: PersistedShape | undefined): BatchSheetInfoState['by
               count: '',
             },
           ],
+          colorCheck: true,
+          dryCheck: false,
         };
         continue;
       }
@@ -191,23 +211,30 @@ function migrateToV5(state: PersistedShape | undefined): BatchSheetInfoState['by
     out[Number(wsId)] = {
       customer: info.customer ?? '',
       perFormula: newPerFormula,
-      // v5 没有 colorCheck / dryCheck, 用默认值兜底.
-      colorCheck: true,
-      dryCheck: false,
     };
   }
   return out;
 }
 
-/// v6 加 colorCheck / dryCheck 字段. 老数据用默认 对色 ✓ / 烘干 ☐.
+/// v6: 每条 PerFormulaMeta 增加 colorCheck / dryCheck. v6 早期开发版本曾经
+/// 在 BatchSheetInfo 顶层加过同名字段 (整组通用), 这里把它分发到每条配方
+/// 当作默认值 — 然后顶层字段直接忽略. v5 / 早期 v6 都用此路径补全.
 function migrateToV6(state: BatchSheetInfoState): BatchSheetInfoState {
   const out: BatchSheetInfoState['byWorkspace'] = {};
   for (const [wsId, info] of Object.entries(state.byWorkspace ?? {})) {
+    const globalColor = (info as unknown as { colorCheck?: boolean }).colorCheck;
+    const globalDry = (info as unknown as { dryCheck?: boolean }).dryCheck;
+    const perFormulaOut: Record<string, PerFormulaMeta> = {};
+    for (const [key, m] of Object.entries(info.perFormula ?? {})) {
+      perFormulaOut[key] = {
+        ...m,
+        colorCheck: m.colorCheck ?? globalColor ?? true,
+        dryCheck: m.dryCheck ?? globalDry ?? false,
+      };
+    }
     out[Number(wsId)] = {
       customer: info.customer ?? '',
-      perFormula: info.perFormula ?? {},
-      colorCheck: info.colorCheck ?? true,
-      dryCheck: info.dryCheck ?? false,
+      perFormula: perFormulaOut,
     };
   }
   return { ...state, byWorkspace: out };
