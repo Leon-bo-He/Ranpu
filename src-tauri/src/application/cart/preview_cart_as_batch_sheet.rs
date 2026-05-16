@@ -30,6 +30,10 @@ pub enum PreviewLayout {
 pub struct PreviewFormulaMetaInput {
     pub vat_number: Option<String>,
     pub yarns: Vec<PreviewYarnEntryInput>,
+    /// 跟踪卡 (Label) 上 对色 / 烘干 框是否预先 ✓. 每条配方独立. 没传时
+    /// 走应用默认: 对色 ✓ / 烘干 ☐.
+    pub color_check: Option<bool>,
+    pub dry_check: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -66,6 +70,8 @@ impl CartService {
             color_family: Option<String>,
             vat: Option<String>,
             yarns: Vec<(Option<String>, Option<String>, Option<String>)>,
+            color_check: bool,
+            dry_check: bool,
         }
         let mut metas_owned: Vec<OwnedMeta> = Vec::new();
         for (idx, line) in lines.into_iter().enumerate() {
@@ -87,6 +93,8 @@ impl CartService {
                 color_family: family,
                 vat: norm(meta_in.vat_number),
                 yarns,
+                color_check: meta_in.color_check.unwrap_or(true),
+                dry_check: meta_in.dry_check.unwrap_or(false),
             });
         }
         let metas: Vec<FormulaMeta<'_>> = metas_owned
@@ -103,6 +111,8 @@ impl CartService {
                         count: count.as_deref(),
                     })
                     .collect(),
+                color_check: m.color_check,
+                dry_check: m.dry_check,
             })
             .collect();
 

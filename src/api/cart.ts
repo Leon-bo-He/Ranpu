@@ -43,6 +43,8 @@ export const cartApi = {
   /// layout: 'standard' 经典段落 | 'grid' A4 四宫格 | 'a6punch' 穿孔纸
   /// (一条配方一张, 默认) | 'label' 50×80mm 标签纸 (只 vat + 客户 + 纱支).
   /// 后端 None / 未识别值 也走 a6punch.
+  /// perFormula.colorCheck / dryCheck: 该条配方的跟踪卡 (label) 上 对色 /
+  /// 烘干 框是否预先打 ✓. 其他 layout 忽略.
   previewHtml: (args: {
     customer?: string | null;
     perFormula?: Array<{
@@ -52,6 +54,8 @@ export const cartApi = {
         spec?: string | null;
         count?: string | null;
       }>;
+      colorCheck?: boolean;
+      dryCheck?: boolean;
     }>;
     layout?: 'standard' | 'grid' | 'a6punch' | 'label';
   } = {}) =>
@@ -65,6 +69,8 @@ export const cartApi = {
             spec: y.spec ?? null,
             count: y.count ?? null,
           })),
+          color_check: m.colorCheck ?? null,
+          dry_check: m.dryCheck ?? null,
         })),
         layout: args.layout ?? null,
       },

@@ -167,11 +167,13 @@ export function CartPage() {
         const meta = saved?.perFormula[lineKey(line.source_kind, line.source_formula_id)];
         const totalMax = totalCountFor(line.target_kg, singleYarnWeight);
         if (!meta) {
-          // 全新配方: 第一条 entry 用 总重 / 单个重 兜底, 用户可改.
+          // 全新配方: 第一条 entry 用 总重 / 单个重 兜底; 对色 ✓ 烘干 ☐ 默认.
           return {
             vat: '',
             batch: '',
             entries: [{ yarnMill: '', yarnSpec: '', count: formatCount(totalMax) }],
+            colorCheck: true,
+            dryCheck: false,
           };
         }
         // 每次开 prompt 都按当前 target_kg / 单个重 重算个数 (用户改了数
@@ -199,16 +201,41 @@ export function CartPage() {
           vat: meta.vat ?? '',
           batch: meta.batch ?? '',
           entries: refreshed.length > 0 ? refreshed : [emptyEntry()],
+          colorCheck: meta.colorCheck ?? true,
+          dryCheck: meta.dryCheck ?? false,
         };
       }),
     );
     setPromptOpen(true);
   };
 
-  // 改配方顶层字段 (缸号 / 缸次), 整组纱支共用.
+  /// 主选框状态 (用于 "全选" UI). all = 所有勾上; some = 部分; none = 一个没勾.
+  type CheckGroupState = 'all' | 'some' | 'none';
+  const groupState = (read: (m: PerFormulaMeta) => boolean): CheckGroupState => {
+    if (promptPerFormula.length === 0) return 'none';
+    const checked = promptPerFormula.filter(read).length;
+    if (checked === 0) return 'none';
+    if (checked === promptPerFormula.length) return 'all';
+    return 'some';
+  };
+  const colorGroupState = groupState((m) => m.colorCheck);
+  const dryGroupState = groupState((m) => m.dryCheck);
+  /// 点主选框: 全部勾上, 或全部取消. some / none → 全勾, all → 全清.
+  const toggleAllColor = () =>
+    setPromptPerFormula((prev) => {
+      const next = colorGroupState !== 'all';
+      return prev.map((m) => ({ ...m, colorCheck: next }));
+    });
+  const toggleAllDry = () =>
+    setPromptPerFormula((prev) => {
+      const next = dryGroupState !== 'all';
+      return prev.map((m) => ({ ...m, dryCheck: next }));
+    });
+
+  // 改配方顶层字段 (缸号 / 缸次 / colorCheck / dryCheck), 整组纱支共用.
   const updatePromptMeta = (
     formulaIdx: number,
-    patch: Partial<Pick<PerFormulaMeta, 'vat' | 'batch'>>,
+    patch: Partial<Pick<PerFormulaMeta, 'vat' | 'batch' | 'colorCheck' | 'dryCheck'>>,
   ) =>
     setPromptPerFormula((prev) =>
       prev.map((m, i) => (i === formulaIdx ? { ...m, ...patch } : m)),
@@ -280,7 +307,14 @@ export function CartPage() {
       const nonEmptyEntries = m.entries.filter(
         (e) => e.yarnMill || e.yarnSpec || e.count.trim(),
       );
-      const hasAny = m.vat || m.batch || nonEmptyEntries.length > 0;
+      // colorCheck / dryCheck 算 "有内容" — 工人可能空了缸号 / 纱支但
+      // 显式勾掉了某条配方的 对色, 这种意图也要保住.
+      const hasAny =
+        m.vat ||
+        m.batch ||
+        nonEmptyEntries.length > 0 ||
+        !m.colorCheck ||
+        m.dryCheck;
       if (hasAny) {
         map[lineKey(line.source_kind, line.source_formula_id)] = {
           vat: m.vat,
@@ -288,6 +322,8 @@ export function CartPage() {
           // 至少保留 1 条 entry (即便全空), 重开 prompt 还能渲染那一行
           // 输入框. 全空 entry 在生成预览时会过滤掉.
           entries: nonEmptyEntries.length > 0 ? nonEmptyEntries : [emptyEntry()],
+          colorCheck: m.colorCheck,
+          dryCheck: m.dryCheck,
         };
       }
     });
@@ -316,6 +352,10 @@ export function CartPage() {
             spec: e.yarnSpec || null,
             count: e.count.trim() || null,
           })),
+          // 跟踪卡 (label) 上 对色 / 烘干 框是否预先 ✓; 每条配方独立, 其他
+          // layout 忽略.
+          colorCheck: m.colorCheck,
+          dryCheck: m.dryCheck,
         })),
         layout,
       });
@@ -574,6 +614,39 @@ export function CartPage() {
               />
             </div>
 
+            {/* 主选框: 一键全选 / 全清 全部配方的 对色 / 烘干. some 状态用
+                indeterminate 视觉 — 点击会全勾上. */}
+            <div className="flex items-center gap-6 rounded-md border border-dashed px-3 py-2">
+              <span className="text-xs font-medium text-muted-foreground">全选</span>
+              <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={colorGroupState === 'all'}
+                  ref={(el) => {
+                    if (el) el.indeterminate = colorGroupState === 'some';
+                  }}
+                  onChange={toggleAllColor}
+                  className="h-4 w-4 cursor-pointer"
+                />
+                对色
+              </label>
+              <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={dryGroupState === 'all'}
+                  ref={(el) => {
+                    if (el) el.indeterminate = dryGroupState === 'some';
+                  }}
+                  onChange={toggleAllDry}
+                  className="h-4 w-4 cursor-pointer"
+                />
+                烘干
+              </label>
+              <span className="ml-auto text-xs text-muted-foreground">
+                跟踪卡上每条配方独立预填 ✓
+              </span>
+            </div>
+
             <div className="space-y-2">
               <Label>每条配方的 缸号 · 缸次 + 纱支厂名 · 规格 · 个数（同一配方可加多份不同纱支）</Label>
               <div className="space-y-3">
@@ -614,6 +687,32 @@ export function CartPage() {
                           inputMode="numeric"
                           className="w-24"
                         />
+                      </div>
+                      {/* 本条配方的 对色 / 烘干 预填 ✓. 跟主选框联动 (主选框
+                          反映 all / some / none 三态). */}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <label className="flex cursor-pointer select-none items-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            checked={meta.colorCheck}
+                            onChange={(e) =>
+                              updatePromptMeta(idx, { colorCheck: e.target.checked })
+                            }
+                            className="h-3.5 w-3.5 cursor-pointer"
+                          />
+                          对色
+                        </label>
+                        <label className="flex cursor-pointer select-none items-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            checked={meta.dryCheck}
+                            onChange={(e) =>
+                              updatePromptMeta(idx, { dryCheck: e.target.checked })
+                            }
+                            className="h-3.5 w-3.5 cursor-pointer"
+                          />
+                          烘干
+                        </label>
                       </div>
                       <div className="space-y-2">
                         {entries.map((entry, entryIdx) => (

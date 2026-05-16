@@ -586,7 +586,9 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
   /* 对色 / 烘干 check 框, 给现场打勾用. 在 corner (日期 / 编号) 上面. */
   .checks { position: absolute; bottom: 10mm; left: 2mm; right: 2mm; display: flex; justify-content: space-between; font-size: 14px; color: #000; font-weight: bold; }
   .check-item { display: inline-flex; align-items: center; gap: 5px; }
-  .check-box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #1f1f1f; vertical-align: middle; }
+  /* check-box 用 flex 居中, 让里面写入的 ✓ (字符) 在框内居中. 没字符时
+     就是空框, 现场手写打勾仍可. */
+  .check-box { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1.5px solid #1f1f1f; vertical-align: middle; font-size: 13px; font-weight: bold; line-height: 1; color: #000; }
   .corner-l { position: absolute; bottom: 1mm; left: 0; font-size: 14px; color: #555; text-align: left; font-weight: bold; }
   .corner-r { position: absolute; bottom: 1mm; right: 0; font-size: 14px; color: #555; text-align: right; font-weight: bold; }
   @media print {
@@ -640,12 +642,15 @@ fn render_html_label(results: &[CalculationResult], context: BatchSheetContext<'
                 ));
             }
         }
-        html.push_str(
+        let color_mark = if meta.color_check { "✓" } else { "" };
+        let dry_mark = if meta.dry_check { "✓" } else { "" };
+        html.push_str(&format!(
             "    <div class=\"checks\">\
-                <span class=\"check-item\">对色<span class=\"check-box\"></span></span>\
-                <span class=\"check-item\">烘干<span class=\"check-box\"></span></span>\
+                <span class=\"check-item\">对色<span class=\"check-box\">{}</span></span>\
+                <span class=\"check-item\">烘干<span class=\"check-box\">{}</span></span>\
             </div>\n",
-        );
+            color_mark, dry_mark,
+        ));
         html.push_str(&format!(
             "    <div class=\"corner-l\">{}</div>\n",
             html_escape(&date),
