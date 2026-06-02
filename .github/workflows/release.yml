@@ -113,6 +113,18 @@ jobs:
           SIG: ${{ steps.artifacts.outputs.sig }}
         run: |
           set -euo pipefail
+
+          # 幂等：若此 tag 已有 release（上次失败残留），先删掉再重建
+          EXISTING=$(curl -sS \
+            "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases/tags/${TAG}?access_token=${GITEE_TOKEN}" \
+            || echo "null")
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.id // empty')
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Deleting existing Gitee release $EXISTING_ID for $TAG"
+            curl -fsSL -X DELETE \
+              "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases/${EXISTING_ID}?access_token=${GITEE_TOKEN}"
+          fi
+
           jq -n \
             --arg tok "$GITEE_TOKEN" \
             --arg tag "$TAG" \
