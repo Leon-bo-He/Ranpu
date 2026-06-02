@@ -79,7 +79,7 @@ export function ChangeBootPassphraseDialog({ open, onClose }: Props) {
           <DialogDescription>
           输入当前口令验证身份，再设置新口令。
           <br />
-          <span className="text-destructive">更改需加密运算，约需 10–15 秒，请耐心等待。</span>
+          <span className="text-destructive">更改将重新加密数据，过程稍长，请勿关闭窗口。</span>
         </DialogDescription>
         </DialogHeader>
 
