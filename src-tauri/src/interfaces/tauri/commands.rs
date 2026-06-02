@@ -26,8 +26,10 @@ use crate::application::workspace::{
 };
 use crate::domain::audit::audit_event::Action;
 use crate::domain::session::Session;
-use crate::infrastructure::crypto::RECOVERY_MASTER_PASSPHRASE;
 use crate::domain::shared::id::{FormulaId, WorkspaceId};
+use crate::infrastructure::crypto::{
+    derive_db_key_hex, ensure_master_key, write_recovery, OsKeyStore, RECOVERY_MASTER_PASSPHRASE,
+};
 use crate::interfaces::tauri::boot::{boot, keystore_exists};
 use crate::interfaces::tauri::dto::*;
 use crate::interfaces::tauri::error_mapping::{CmdResult, UiError};
@@ -119,6 +121,49 @@ pub fn cmd_verify_boot_passphrase(
     if cmd.passphrase != expected && cmd.passphrase != RECOVERY_MASTER_PASSPHRASE {
         return Err(UiError::from(AppError::BootPassphraseIncorrect));
     }
+    Ok(())
+}
+
+/// 更改启动口令: 验旧 → 派生新 db_key → PRAGMA rekey → 更新 recovery.bin +
+/// 内存缓存. 接受用户口令或 master 后门口令作为 current_passphrase.
+///
+/// async: PBKDF2 600k 轮 + PRAGMA rekey 均为 CPU/IO 密集操作, 放到 blocking
+/// 线程池执行, 避免卡住 IPC 线程导致前端无响应.
+#[tauri::command]
+pub async fn cmd_change_boot_passphrase(
+    state: State<'_, AppState>,
+    cmd: ChangeBootPassphraseCmd,
+) -> CmdResult<()> {
+    let services = services_or_err(&state)?;
+    // 验证当前口令（同 verify / unlock 策略）——快速，在当前线程做
+    let stored = state.unlock_passphrase.lock().clone();
+    let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
+    if cmd.current_passphrase != expected && cmd.current_passphrase != RECOVERY_MASTER_PASSPHRASE {
+        return Err(UiError::from(AppError::BootPassphraseIncorrect));
+    }
+    if cmd.new_passphrase.is_empty() {
+        return Err(UiError { code: "domain", message: "新启动口令不能为空".into() });
+    }
+    if cmd.new_passphrase == RECOVERY_MASTER_PASSPHRASE {
+        return Err(UiError { code: "domain", message: "不能使用该口令".into() });
+    }
+    let keystore = OsKeyStore::new(state.paths.keystore_path.clone());
+    let master_key = ensure_master_key(&keystore)
+        .map_err(|e| UiError::from(AppError::Crypto(e.to_string())))?;
+    // 把 PBKDF2 推导 + PRAGMA rekey + recovery 写盘全部移到 blocking 线程池
+    let db = services.db.clone();
+    let recovery_path = state.paths.recovery_path.clone();
+    let new_passphrase = cmd.new_passphrase.clone();
+    let new_db_key_hex = tauri::async_runtime::spawn_blocking(move || {
+        let key = derive_db_key_hex(&master_key, &new_passphrase);
+        db.rekey(&key).map_err(AppError::from).map_err(UiError::from)?;
+        let _ = write_recovery(&recovery_path, &key);
+        Ok::<String, UiError>(key)
+    })
+    .await
+    .map_err(|e| UiError { code: "internal", message: e.to_string() })??;
+    *state.unlock_passphrase.lock() = Some(cmd.new_passphrase);
+    let _ = new_db_key_hex; // key 已在 blocking 线程用完，此处仅确认成功
     Ok(())
 }
 
