@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { ChangeBootPassphraseDialog } from '@/components/ChangeBootPassphraseDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EditModeToggle } from '@/components/EditModeToggle';
 import { PassphrasePromptDialog } from '@/components/PassphrasePromptDialog';
@@ -52,6 +53,7 @@ export function SettingsPage() {
   // 配方互导开启需要再次输入启动口令; 这里 toggle 的 onEnable 改成
   // 弹密码 dialog, 校验通过才真正打开开关.
   const [askLibraryTransferPwd, setAskLibraryTransferPwd] = useState(false);
+  const [changePassphraseOpen, setChangePassphraseOpen] = useState(false);
 
 
   const yarnMills = useYarnSettingsStore((s) => s.mills);
@@ -96,6 +98,7 @@ export function SettingsPage() {
     setAskResetDyes(false);
     setAskResetColorFamilies(false);
     setAskLibraryTransferPwd(false);
+    setChangePassphraseOpen(false);
   });
 
 
@@ -325,6 +328,23 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>安全</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm">启动口令</p>
+              <p className="text-xs text-muted-foreground">用于解锁本机数据的口令</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setChangePassphraseOpen(true)}>
+              更改启动口令
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* "重置数据库" 模块按用户要求暂时从设置页隐藏. 后端 cmd_reset_database
           / ResetDatabaseDialog / adminApi.resetDatabase 都保留, 后续需要时
           只在这里恢复 Card + Dialog mount 即可. */}
@@ -376,6 +396,10 @@ export function SettingsPage() {
           resetColorFamilies();
           setAskResetColorFamilies(false);
         }}
+      />
+      <ChangeBootPassphraseDialog
+        open={changePassphraseOpen}
+        onClose={() => setChangePassphraseOpen(false)}
       />
       <PassphrasePromptDialog
         open={askLibraryTransferPwd}

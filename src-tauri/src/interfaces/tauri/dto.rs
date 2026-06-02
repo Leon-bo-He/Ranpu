@@ -31,6 +31,12 @@ pub struct UnlockSessionCmd {
     pub passphrase: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ChangeBootPassphraseCmd {
+    pub current_passphrase: String,
+    pub new_passphrase: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct SessionView {
     pub active_workspace_id: Option<i64>,

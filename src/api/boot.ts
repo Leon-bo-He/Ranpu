@@ -23,4 +23,9 @@ export const bootApi = {
   /// 二次确认. 接受用户口令或内置 master 口令; 不通过抛 ApiError.
   verifyBootPassphrase: (passphrase: string) =>
     invoke<void>('cmd_verify_boot_passphrase', { cmd: { passphrase } }),
+
+  changeBootPassphrase: (currentPassphrase: string, newPassphrase: string) =>
+    invoke<void>('cmd_change_boot_passphrase', {
+      cmd: { current_passphrase: currentPassphrase, new_passphrase: newPassphrase },
+    }),
 };

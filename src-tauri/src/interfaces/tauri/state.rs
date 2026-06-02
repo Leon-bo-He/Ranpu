@@ -10,6 +10,7 @@ use crate::application::cart::CartService;
 use crate::application::formula::FormulaService;
 use crate::application::ports::SessionStore;
 use crate::application::workspace::WorkspaceService;
+use crate::infrastructure::persistence::SqliteConnection;
 
 /// 启动后才装好的所有应用服务（持久化连接已开 / SQLCipher 已 unlock）。
 #[derive(Clone)]
@@ -23,6 +24,8 @@ pub struct Services {
     /// 共享会话存储 — 各服务也持有一份相同的 Arc, commands.rs 走这里直接
     /// 操作 lock / unlock 状态 (没有 IdentityService 包装).
     pub session_store: Arc<dyn SessionStore>,
+    /// 底层 SQLCipher 连接，供 rekey（更改启动口令）使用。
+    pub db: Arc<SqliteConnection>,
 }
 
 /// 启动前的运行时配置。

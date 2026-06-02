@@ -75,6 +75,15 @@ impl SqliteConnection {
     pub fn arc(&self) -> Arc<Mutex<Connection>> {
         self.inner.clone()
     }
+
+    /// SQLCipher PRAGMA rekey：就地把数据库重新加密到新 key。
+    /// 调用方负责在此之前校验旧口令，在此之后更新 recovery.bin 和内存缓存。
+    pub fn rekey(&self, new_key_hex: &str) -> Result<(), RepositoryError> {
+        let guard = self.inner.lock();
+        guard
+            .pragma_update(None, "rekey", format!("x'{new_key_hex}'"))
+            .map_err(map_err)
+    }
 }
 
 /// 增量迁移: 升级老版本 DB 的 schema (CREATE TABLE IF NOT EXISTS 不会动已存在的表).

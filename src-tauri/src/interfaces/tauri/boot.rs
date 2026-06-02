@@ -191,6 +191,7 @@ pub fn boot(paths: &AppPaths, boot_passphrase: &str) -> AppResult<BootResult> {
             backup,
             audit,
             session_store,
+            db: db_arc,
         },
     })
 }

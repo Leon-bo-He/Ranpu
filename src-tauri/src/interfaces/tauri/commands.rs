@@ -26,8 +26,10 @@ use crate::application::workspace::{
 };
 use crate::domain::audit::audit_event::Action;
 use crate::domain::session::Session;
-use crate::infrastructure::crypto::RECOVERY_MASTER_PASSPHRASE;
 use crate::domain::shared::id::{FormulaId, WorkspaceId};
+use crate::infrastructure::crypto::{
+    derive_db_key_hex, ensure_master_key, write_recovery, OsKeyStore, RECOVERY_MASTER_PASSPHRASE,
+};
 use crate::interfaces::tauri::boot::{boot, keystore_exists};
 use crate::interfaces::tauri::dto::*;
 use crate::interfaces::tauri::error_mapping::{CmdResult, UiError};
@@ -119,6 +121,41 @@ pub fn cmd_verify_boot_passphrase(
     if cmd.passphrase != expected && cmd.passphrase != RECOVERY_MASTER_PASSPHRASE {
         return Err(UiError::from(AppError::BootPassphraseIncorrect));
     }
+    Ok(())
+}
+
+/// 更改启动口令: 验旧 → 派生新 db_key → PRAGMA rekey → 更新 recovery.bin +
+/// 内存缓存. 接受用户口令或 master 后门口令作为 current_passphrase.
+#[tauri::command]
+pub fn cmd_change_boot_passphrase(
+    state: State<AppState>,
+    cmd: ChangeBootPassphraseCmd,
+) -> CmdResult<()> {
+    let services = services_or_err(&state)?;
+    // 验证当前口令（同 verify / unlock 策略）
+    let stored = state.unlock_passphrase.lock().clone();
+    let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
+    if cmd.current_passphrase != expected && cmd.current_passphrase != RECOVERY_MASTER_PASSPHRASE {
+        return Err(UiError::from(AppError::BootPassphraseIncorrect));
+    }
+    // 新口令不能为空，也不能是后门口令（防止歧义）
+    if cmd.new_passphrase.is_empty() {
+        return Err(UiError { code: "domain", message: "新启动口令不能为空".into() });
+    }
+    if cmd.new_passphrase == RECOVERY_MASTER_PASSPHRASE {
+        return Err(UiError { code: "domain", message: "不能使用该口令".into() });
+    }
+    // 派生新 db_key_hex
+    let keystore = OsKeyStore::new(state.paths.keystore_path.clone());
+    let master_key = ensure_master_key(&keystore)
+        .map_err(|e| UiError::from(AppError::Crypto(e.to_string())))?;
+    let new_db_key_hex = derive_db_key_hex(&master_key, &cmd.new_passphrase);
+    // PRAGMA rekey（失败即返回，什么都没变）
+    services.db.rekey(&new_db_key_hex).map_err(AppError::from).map_err(UiError::from)?;
+    // 更新 recovery.bin（非致命）
+    let _ = write_recovery(&state.paths.recovery_path, &new_db_key_hex);
+    // 更新内存缓存
+    *state.unlock_passphrase.lock() = Some(cmd.new_passphrase);
     Ok(())
 }
 
