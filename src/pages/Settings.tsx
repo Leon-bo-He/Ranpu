@@ -106,6 +106,49 @@ export function SettingsPage() {
     <div className="space-y-6 p-6">
       <h2 className="font-serif text-xl tracking-[2px]">设置</h2>
 
+      <div className="grid grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>自动锁屏</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <Label>空闲多久自动锁定</Label>
+            <Select
+              value={String(idleSeconds)}
+              onValueChange={(v) => setIdleSeconds(Number(v) as IdleTimeoutSeconds)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">关闭自动锁屏</SelectItem>
+                <SelectItem value="300">5 分钟</SelectItem>
+                <SelectItem value="600">10 分钟</SelectItem>
+                <SelectItem value="1800">30 分钟</SelectItem>
+                <SelectItem value="3600">60 分钟</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>安全</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm">启动口令</p>
+                <p className="text-xs text-muted-foreground">用于解锁本机数据的口令</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setChangePassphraseOpen(true)}>
+                更改启动口令
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>纱支</CardTitle>
@@ -301,47 +344,6 @@ export function SettingsPage() {
             「工作区管理」「审计日志显示」「配方互导」关闭时，对应入口在侧栏隐藏。
             重新开启即可看见。「配方互导」开启需再次输入启动口令。
           </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>自动锁屏</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2 max-w-md">
-          <Label>空闲多久自动锁定</Label>
-          <Select
-            value={String(idleSeconds)}
-            onValueChange={(v) => setIdleSeconds(Number(v) as IdleTimeoutSeconds)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">关闭自动锁屏</SelectItem>
-              <SelectItem value="300">5 分钟</SelectItem>
-              <SelectItem value="600">10 分钟</SelectItem>
-              <SelectItem value="1800">30 分钟</SelectItem>
-              <SelectItem value="3600">60 分钟</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>安全</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm">启动口令</p>
-              <p className="text-xs text-muted-foreground">用于解锁本机数据的口令</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setChangePassphraseOpen(true)}>
-              更改启动口令
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
