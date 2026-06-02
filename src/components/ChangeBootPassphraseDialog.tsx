@@ -76,7 +76,9 @@ export function ChangeBootPassphraseDialog({ open, onClose }: Props) {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>更改启动口令</DialogTitle>
-          <DialogDescription>输入当前口令验证身份，再设置新口令。</DialogDescription>
+          <DialogDescription>
+          输入当前口令验证身份，再设置新口令。更改需加密运算，约需 10–15 秒，请耐心等待。
+        </DialogDescription>
         </DialogHeader>
 
         {succeeded ? (
