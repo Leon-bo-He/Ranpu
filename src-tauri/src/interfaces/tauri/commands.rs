@@ -15,6 +15,7 @@ use crate::application::cart::{
     PreviewLayout, PreviewYarnEntryInput, RemoveFromCartInput, UpdateCartItemKgInput,
 };
 use crate::application::errors::AppError;
+use crate::application::session_guard::ensure_active;
 use crate::application::formula::{
     BatchCopyDefaultInput, ExportArchiveInput, FormulaItemInput, FormulaUpsertInput,
     ImportArchiveInput, ListDefaultFormulasInput, ListWorkspaceFormulasInput,
@@ -135,6 +136,8 @@ pub async fn cmd_change_boot_passphrase(
     cmd: ChangeBootPassphraseCmd,
 ) -> CmdResult<()> {
     let services = services_or_err(&state)?;
+    // 锁屏时拒绝——同其它业务用例的守卫策略
+    ensure_active(services.session_store.as_ref()).map_err(UiError::from)?;
     // 验证当前口令（同 verify / unlock 策略）——快速，在当前线程做
     let stored = state.unlock_passphrase.lock().clone();
     let expected = stored.ok_or_else(|| UiError::from(AppError::NotAuthenticated))?;
