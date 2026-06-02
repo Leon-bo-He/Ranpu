@@ -83,17 +83,22 @@ jobs:
         run: |
           set -euo pipefail
           BUNDLE_DIR=src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
-          EXE=$(ls "$BUNDLE_DIR"/*-setup.exe | head -n 1)
-          SIG="${EXE}.sig"
-          [ -f "$EXE" ] || { echo "missing exe: $EXE"; exit 1; }
-          [ -f "$SIG" ] || { echo "missing sig: $SIG"; exit 1; }
+          EXE_ORIG=$(ls "$BUNDLE_DIR"/*-setup.exe | head -n 1)
+          SIG_ORIG="${EXE_ORIG}.sig"
+          [ -f "$EXE_ORIG" ] || { echo "missing exe: $EXE_ORIG"; exit 1; }
+          [ -f "$SIG_ORIG" ] || { echo "missing sig: $SIG_ORIG"; exit 1; }
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
-          EXE_NAME=$(basename "$EXE")
+          # 复制到 ASCII 文件名，避免 curl 在 Windows Git Bash 下无法处理中文路径
+          SAFE_NAME="Ranpu_${VERSION}_x64-setup.exe"
+          EXE="$BUNDLE_DIR/$SAFE_NAME"
+          SIG="${EXE}.sig"
+          cp "$EXE_ORIG" "$EXE"
+          cp "$SIG_ORIG" "$SIG"
           {
             echo "exe=$EXE"
             echo "sig=$SIG"
-            echo "exe_name=$EXE_NAME"
+            echo "exe_name=$SAFE_NAME"
             echo "version=$VERSION"
           } >> "$GITHUB_OUTPUT"
 
